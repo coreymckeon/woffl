@@ -410,6 +410,118 @@ class BlackOil():
         return uoil
 
 
+class FormWater():
+
+    def __init__(self, wat_sg) -> None:
+        """
+        Name:   Define Water Stream
+        Inputs: wat_sg - water specific gravity
+        Output: None
+        Rev:    09/22/23 - K. Ellis wrote into Python
+        """
+
+        if (0.5 < wat_sg < 1.5) == False:
+            print(f'Water SG {wat_sg} Outside Range')
+
+        self.wat_sg = wat_sg
+
+    def __repr__(self) -> str:
+        return(f'Water {self.wat_sg} Specific Gravity')
+
+    def condition(self, press, temp) -> None:
+        """
+        Name:   Condition
+        Inputs: press - pressure, psig
+                temp - temperature, deg F
+        Self:   pressa - absolute pressure, psia
+                tempr - absolute temperature Rankine
+        Output: None
+        Rev:    09/22/23 - K. Ellis wrote into Python
+        """
+        # define the condition, where are you at?
+        # what is the pressure and what is the temperature?
+        self.press = press
+        self.temp = temp
+
+        # input press in psig
+        # input temp in deg F
+        self._pressa = self.press + 14.7  # convert psig to psia
+        self._tempr = self.temp + 459.67  # convert fahr to rankine
+
+    def density(self):
+        """ Name:   Water Density
+            Inputs: None
+            Output: dwat - density of water (lbm/ft^3)
+            Ref:    None
+            Rev:    09/22/23 - K. Ellis wrote into Python
+        """
+
+        # leave it simple now, asume no compressibility
+        dwat = self.wat_sg*62.4
+        dwat = round(dwat, 3)
+
+        self.dwat = dwat
+        return dwat
+
+    def viscosity(self):
+        """ Name:   Water Viscosity   
+            Inputs: None
+            Output: uwat - Viscosity of water (cP)
+            Ref:    None
+            Rev:    09/22/23 - K. Ellis wrote into Python
+        """
+
+        # come back later and rewrite
+        uwat = 0.75  # leave as 0.75 cP for now
+
+        self.uwat = uwat
+        return uwat
+
+
+class ResMix():
+    # define a second mixture called TubeMix? Includes GasLift or JetPump?
+
+    def __init__(self, BlackOil, FormWater, FormGas, wc, fgor) -> None:
+        """
+        Name:    Define Reservoir Mixture
+        Inputs:  BlackOil - Class with Oil_API, Gas_SG, and Pbubble
+                 FormWater - Class with Water SG
+                 FormGas - Class with Gas SG
+                 wc - Watercut of the Mixture
+                 fgor - Formation GOR of the Mixture
+        Output:  None
+        Rev:     09/22/23 - K. Ellis wrote into Python
+        """
+
+        self.BlackOil = BlackOil
+        self.FormWater = FormWater
+        self.FormGas = FormGas
+
+        self.wc = wc
+        self.fgor = fgor
+
+    def __repr__(self) -> str:
+        return(f'Mixture at {self.wc} watercut and {self.fgor} SCF/STB FGOR')
+
+    def prop_table(self, press_array, temp):
+        """
+        Name:   Property Table
+        Input:  press_array - Numpy Array, Lowest pressure to highest, psig
+                temp - evaluated temperature deg F
+        Output: Property Table
+                Oil, Water, Gas Density
+                Oil, Water, Gas Viscosity
+                3 Phase Mixture Density
+                Oil, Water, Gas Mass Fraction
+                Oil, Water, Gas Volm Fraction
+        Rev:    09/22/23 - K.Ellis wrote into Python
+        """
+
+# inserting these functions since they don't really belong under a class?
+# they can be shared amongst the ResMix and LiftMix Class
+# need to define some kind of artificial lift tubing / mixture
+
+
 res_temp = 80  # reservoir temperature
 res_pres = 5000  # reservoir pressure
 
@@ -420,7 +532,7 @@ press_aray = np.arange(0, res_pres*1.1, 50)
 # define Schrader Bluff Oil
 gas_sg = 0.8
 oil_api = 22
-bub_pnt = 1700  # bubble point pressure
+bub_pnt = 1750  # bubble point pressure
 
 mpu_gas = FormGas(gas_sg)
 mpu_oil = BlackOil(oil_api, bub_pnt, gas_sg)
