@@ -1,3 +1,47 @@
+class ResMix():
+    # define a second mixture called TubeMix? Includes GasLift or JetPump?
+
+    def __init__(self, BlackOil, FormWater, FormGas, wc, fgor) -> None:
+        """
+        Name:    Define Reservoir Mixture
+        Inputs:  BlackOil - Class with Oil_API, Gas_SG, and Pbubble
+                 FormWater - Class with Water SG
+                 FormGas - Class with Gas SG
+                 wc - Watercut of the Mixture
+                 fgor - Formation GOR of the Mixture
+        Output:  None
+        Rev:     09/22/23 - K. Ellis wrote into Python
+        """
+
+        self.BlackOil = BlackOil
+        self.FormWater = FormWater
+        self.FormGas = FormGas
+
+        self.wc = wc
+        self.fgor = fgor
+
+    def __repr__(self) -> str:
+        return(f'Mixture at {self.wc} watercut and {self.fgor} SCF/STB FGOR')
+
+    def prop_table(self, press_array, temp):
+        """
+        Name:   Property Table
+        Input:  press_array - Numpy Array, Lowest pressure to highest, psig
+                temp - evaluated temperature deg F
+        Output: Property Table
+                Oil, Water, Gas Density
+                Oil, Water, Gas Viscosity
+                3 Phase Mixture Density
+                Oil, Water, Gas Mass Fraction
+                Oil, Water, Gas Volm Fraction
+        Rev:    09/22/23 - K.Ellis wrote into Python
+        """
+
+# inserting these functions since they don't really belong under a class?
+# they can be shared amongst the ResMix and LiftMix Class
+# need to define some kind of artificial lift tubing / mixture
+
+
 def mass_fractions(watercut, fgor, rs, poil, pwat, pgas):
     """ Name:   Mass Fractions
         Input:  watercut - watercut at standard conditions
@@ -44,7 +88,8 @@ def mass_fractions(watercut, fgor, rs, poil, pwat, pgas):
 
     # calculate new mass fraction of free gas
     xgas = xgas - xrs
-    xgas = max(xgas, 0)  # make sure mass fraction of gas is always above zero
+    # make sure mass fraction of gas is always zero or above
+    xgas = max(xgas, 0)
 
     xoil = 1 - xwat - xgas
 
