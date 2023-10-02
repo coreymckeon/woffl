@@ -1,6 +1,6 @@
-class FormWater():
+class FormWater:
 
-    def __init__(self, wat_sg) -> None:
+    def __init__(self, wat_sg: float) -> None:
         """
         Name:   Define Water Stream
         Inputs: wat_sg - water specific gravity
@@ -9,14 +9,18 @@ class FormWater():
         """
 
         if (0.5 < wat_sg < 1.5) == False:
-            print(f'Water SG {wat_sg} Outside Range')
+            raise ValueError(f'Water SG {wat_sg} Outside Range')
 
         self.wat_sg = wat_sg
 
     def __repr__(self) -> str:
         return(f'Water {self.wat_sg} Specific Gravity')
 
-    def condition(self, press, temp) -> None:
+    @classmethod
+    def schrader_wat(cls):
+        return cls(wat_sg=1.02)
+
+    def condition(self, press, temp):
         """
         Name:   Condition
         Inputs: press - pressure, psig
@@ -35,7 +39,9 @@ class FormWater():
         # input temp in deg F
         self._pressa = self.press + 14.7  # convert psig to psia
         self._tempr = self.temp + 459.67  # convert fahr to rankine
+        return self
 
+    @property
     def density(self):
         """ Name:   Water Density
             Inputs: None

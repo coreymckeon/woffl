@@ -1,9 +1,9 @@
 import math
 
 
-class BlackOil():
+class BlackOil:
 
-    def __init__(self, oil_api, bubblepoint, gas_sg):
+    def __init__(self, oil_api, bubblepoint, gas_sg) -> None:
         """ Name:   Define Oil Stream         
             Inputs: oilAPI - oil API gravity of the dead oil
                     Pbp - bubble point pressure (psia)
@@ -13,27 +13,24 @@ class BlackOil():
                     09/01/23 - K. Ellis made into OOP"""
 
         if (10 < oil_api < 40) == False:
-            print(f'Oil API {oil_api} Outside Range')  # do I need more here?
+            raise ValueError(f'Oil API {oil_api} Outside Range')
 
         if (1000 < bubblepoint < 3000) == False:
-            # do I need more here?
-            print(f'Bubblepoint {bubblepoint} Outside Range')
+            raise ValueError(f'Bubblepoint {bubblepoint} Outside Range')
 
         if (0.5 < gas_sg < 1.2) == False:
-            print(f'Gas SG {gas_sg} Outside Range')  # do I need more here?
-
-        # pass the defined gas sg into FormGas Method
-        # the BlackOil inherited many of the FormGas Methods?
-        # I kind of liked having to call the other method
-        # since now how to I define between the gas mw and oil mw??
+            raise ValueError(f'Gas SG {gas_sg} Outside Range')
 
         self.oil_api = oil_api
         self.pbp = bubblepoint
         self.gas_sg = gas_sg
 
-    # does something when you print your class
     def __repr__(self):
         return f'Oil: {self.oil_api} API and a {round(self.gas_sg,2)} SG Gas'
+
+    @classmethod
+    def schrader_oil(cls):
+        return cls(oil_api=22, bubblepoint=1750, gas_sg=0.8)
 
     def condition(self, press, temp):
         # define the condition, where are you at?
@@ -45,6 +42,7 @@ class BlackOil():
         # input temp in deg F
         self._pressa = self.press + 14.7  # convert psig to psia
         self._tempr = self.temp + 459.67  # convert fahr to rankine
+        return self
 
     def gas_solubility(self):
         """ Name:   Gas Solubility in Oil (Solution Gas-Oil Ratio)         
@@ -155,6 +153,9 @@ class BlackOil():
         self.bo = bo
         return bo
 
+    # property decorator makes it so you don't need brackets
+    # if you are just calling it with self in the arguement
+    @property
     def density(self):
         """ Name:   Oil Density with Entrained Gas
             Inputs: press - system pressure (psig)

@@ -1,7 +1,7 @@
 import math
 
 
-class FormGas():
+class FormGas:
 
     # physical properties of hydrocarbon and selected compounds, field units (Whitson and Brule 2000)
     # Table B-1 from the text "Applied Multiphase Flow in Pipes and Flow Assurance"
@@ -30,10 +30,11 @@ class FormGas():
     # ideal gas constant
     _R = 10.73  # psia*ft^3/(lbmol*Rankine)
 
-    def __init__(self, gas_sg):
+    def __init__(self, gas_sg) -> None:
 
         if (0.5 < gas_sg < 1.2) == False:
-            print(f'Gas SG {gas_sg} Outside Range')  # do I need more here?
+            # do I need more here?
+            raise ValueError(f'Gas SG {gas_sg} Outside Range')
 
         # define a lot of properties just on the gas' specific gravity
         self.gas_sg = gas_sg
@@ -78,6 +79,7 @@ class FormGas():
         # code can be modified later if this is needed
         self._ppr = self._pressa/self._pcrit  # unitless, pressure pseudo reduced
         self._tpr = self._tempr/self._tcrit  # unitless, temperature pseudo reduced
+        return self
 
     # should I just make something called properties
     # then you pull out what you want?
@@ -116,6 +118,7 @@ class FormGas():
         self._zfactor = zfactor
         return zfactor
 
+    @property
     def density(self):
         """ Name:   Gas Density
             Inputs: press - Pressure (psig)
@@ -160,7 +163,7 @@ class FormGas():
         # viscosity units, cP
         # should I change this for later consistency
 
-        dens = self.density()  # call method if you haven't done it already?
+        dens = self.density  # call method if you haven't done it already?
         mw = self.mw
         tempr = self._tempr
 

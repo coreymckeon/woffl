@@ -1,134 +1,192 @@
-class ResMix():
+from blackoil import BlackOil
+from formgas import FormGas
+from formwat import FormWater
+
+
+class ResMix:
     # define a second mixture called TubeMix? Includes GasLift or JetPump?
 
-    def __init__(self, BlackOil, FormWater, FormGas, wc, fgor) -> None:
+    def __init__(
+            self,
+            wc: float,
+            fgor: int,
+            oil: BlackOil,
+            wat: FormWater,
+            gas: FormGas
+    ) -> None:
         """
         Name:    Define Reservoir Mixture
         Inputs:  BlackOil - Class with Oil_API, Gas_SG, and Pbubble
                  FormWater - Class with Water SG
                  FormGas - Class with Gas SG
-                 wc - Watercut of the Mixture
+                 wc - Watercut of the Mixture, between 0 and 1
                  fgor - Formation GOR of the Mixture
         Output:  None
         Rev:     09/22/23 - K. Ellis wrote into Python
         """
 
-        self.BlackOil = BlackOil
-        self.FormWater = FormWater
-        self.FormGas = FormGas
-
-        self.wc = wc
+        self.wc = wc  # specify a decimal
         self.fgor = fgor
+        self.oil = oil
+        self.wat = wat
+        self.gas = gas
 
     def __repr__(self) -> str:
-        return(f'Mixture at {self.wc} watercut and {self.fgor} SCF/STB FGOR')
 
-    def prop_table(self, press_array, temp):
+        # return(f'Mixture with {self.oil.oil_api} API Oil')
+        return f'Mixture at {100*self.wc}% Watercut and {self.fgor} SCF/STB FGOR'
+
+    def condition(self, press: float, temp: float):
+        # define the condition, where are you at?
+        # what is the pressure and what is the temperature?
+        self.press = press
+        self.temp = temp
+
+        self.oil = self.oil.condition(press, temp)
+        self.wat = self.wat.condition(press, temp)
+        self.gas = self.gas.condition(press, temp)
+
+        # input press in psig
+        # input temp in deg F
+        self._pressa = self.press + 14.7  # convert psig to psia
+        self._tempr = self.temp + 459.67  # convert fahr to rankine
+        return self
+
+    def dens_comp(self):
         """
-        Name:   Property Table
-        Input:  press_array - Numpy Array, Lowest pressure to highest, psig
-                temp - evaluated temperature deg F
-        Output: Property Table
-                Oil, Water, Gas Density
-                Oil, Water, Gas Viscosity
-                3 Phase Mixture Density
-                Oil, Water, Gas Mass Fraction
-                Oil, Water, Gas Volm Fraction
-        Rev:    09/22/23 - K.Ellis wrote into Python
+        Name:   Density Components
+        Input:  Blah
+        Output: poil - density of oil, lbm/ft3
+                pwat - density of water, lbm/ft3
+                pgas - density of gas, lbm/ft3
+        About:  Outputs the 3 individual densities of the stream
         """
+        poil = self.oil.density
+        pwat = self.wat.density
+        pgas = self.gas.density
+        return poil, pwat, pgas
 
-# inserting these functions since they don't really belong under a class?
-# they can be shared amongst the ResMix and LiftMix Class
-# need to define some kind of artificial lift tubing / mixture
+    def visc_comp(self):
+        """
+        Name:   Viscosity Components
+        Input:  Blah
+        Output: uoil - viscosity of oil, cp
+                uwat - viscosity of water, cp
+                ugas - viscosity of gas, cp
+        About:  Outputs the 3 individual viscosities of the stream
+        """
+        uoil = self.oil.viscosity()
+        uwat = self.wat.viscosity()
+        ugas = self.gas.viscosity()
+        return uoil, uwat, ugas
 
-
-def mass_fractions(watercut, fgor, rs, poil, pwat, pgas):
-    """ Name:   Mass Fractions
+    def mass_fract(self):
+        """ 
+        Name:   Mass Fractions
         Input:  watercut - watercut at standard conditions
                 fgor - formation gas oil ratio, scf/stb
                 rs - gas solubility,  scf/stb                
                 pwat - density of water, lbm/ft3 (standard conditions)
                 poil - density of oil, lbm/ft3 (standard conditions)
                 pgas - density of gas, lbm/ft3 (standard conditions)
-
         Output: xoil - mass fraction oil, mass oil / mass total
                 xwat - mass fraction water, mass water / mass total
                 xgas - mass fraction gas, mass gas / mass total
+        About:  Uses standard condition densities and wc / fgor to calculate
+                the mass fractions of the stream
         """
-    # watercut
-    wc = watercut
 
-    # mass based gas solubility
-    mrs = (7.48/42)*rs*pgas/poil
+        # pull out the eval. press and temp first
+        # standard condition will overwrite them otherwise
+        press = self.press
+        temp = self.temp
 
-    # convert from scf/bbl to scf/cf (make sure gas density is at standard conditions)
-    # mass formation gas oil ratio
-    mfgor = (7.48/42)*fgor*pgas/poil
+        pstd = 0  # psig standard pressure
+        tstd = 60  # deg f standard temperature
 
-    # mass watercut
-    mwc = pwat*wc/(pwat*wc+poil*(1-wc))
+        # wc and fgor are evaluated at standard conditions
+        # might be good to rethink the condition stuff?
+        poil, pwat, pgas = self.condition(pstd, tstd).dens_comp()
 
-    # mass formation gas to liquid ratio
-    mfglr = (7.48/42)*fgor*pgas*(1-wc)/(wc*pwat+(1-wc)*poil)
+        # convert back to evaluated conditions
+        self = self.condition(press, temp)
 
-    # mass fraction of gas
-    xgas = mfglr/(1+mfglr)
-    print(xgas)
+        wc = self.wc
+        fgor = self.fgor
+        rs = self.oil.gas_solubility()
 
-    # mass fraction of oil
-    xoil = (1-mwc)/(1+mfgor*(1-mwc))
+        # mass based gas solubility
+        mrs = (7.48/42)*rs*pgas/poil
 
-    # mass fraction of water
-    # won't change even with gas and oil trading some mass back and forth
-    # slight differences in excel spreadsheet and python solution...? py: 0.9595, excel 0.972
-    xwat = 1 - xoil - xgas
+        # convert from scf/bbl to scf/cf (make sure gas density is at standard conditions)
+        # mass formation gas oil ratio
+        mfgor = (7.48/42)*fgor*pgas/poil
 
-    # correct for the gas that is inside the oil
-    xrs = xoil*mrs
+        # mass watercut
+        mwc = pwat*wc/(pwat*wc+poil*(1-wc))
 
-    # calculate new mass fraction of free gas
-    xgas = xgas - xrs
-    # make sure mass fraction of gas is always zero or above
-    xgas = max(xgas, 0)
+        # mass formation gas to liquid ratio
+        mfglr = (7.48/42)*fgor*pgas*(1-wc)/(wc*pwat+(1-wc)*poil)
 
-    xoil = 1 - xwat - xgas
+        # mass fraction of gas
+        xgas = mfglr/(1+mfglr)
 
-    # round the mass fractions
-    deci = 4
-    xgas = round(xgas, deci)
-    xoil = round(xoil, deci)
-    xwat = round(xwat, deci)
+        # mass fraction of oil
+        xoil = (1-mwc)/(1+mfgor*(1-mwc))
 
-    # masss fractions
-    return xoil, xwat, xgas
+        # mass fraction of water
+        # won't change even with gas and oil trading some mass back and forth
+        # slight differences in excel spreadsheet and python solution...? py: 0.9595, excel 0.972
+        xwat = 1 - xoil - xgas
 
-# could always do an array of mass fractions and an array of densities
-# checks out with hysys if I use there calculated densities and mass fractions
+        # correct for the gas that is inside the oil
+        xrs = xoil*mrs
 
+        # calculate new mass fraction of free gas
+        xgas = xgas - xrs
+        # make sure mass fraction of gas is always zero or above
+        xgas = max(xgas, 0)
 
-def pmix(xoil, xwat, xgas, poil, pwat, pgas):
-    """ Name:   Mixture Density
+        xoil = 1 - xwat - xgas
+
+        # round the mass fractions
+        deci = 4
+        xgas = round(xgas, deci)
+        xoil = round(xoil, deci)
+        xwat = round(xwat, deci)
+
+        # mass fractions
+        return xoil, xwat, xgas
+
+    def pmix(self):
+        """ 
+        Name:   Mixture Density
         Input:  xoil - mass fraction oil, mass oil / mass total
                 xwat - mass fraction water, mass water / mass total
                 xgas - mass fraction gas, mass gas / mass total                
                 pwat - density of water, lbm/ft3 (actual cond.)
                 poil - density of oil, lbm/ft3 (actual cond.)
                 pgas - density of gas, lbm/ft3 (actual cond.)
-
         Output: pmix - density of mixture, lbm/ft3 (actual cond.)
         """
 
-    # mixture specific volume
-    vmix = (xwat/pwat) + (xoil/poil) + (xgas/pgas)
+        press = self.press
+        temp = self.temp
 
-    pmix = 1/vmix
-    pmix = round(pmix, 4)
+        xoil, xwat, xgas = self.condition(press, temp).mass_fract()
+        poil, pwat, pgas = self.condition(press, temp).dens_comp()
 
-    return pmix
+        # mixture specific volume
+        vmix = (xoil/poil) + (xwat/pwat) + (xgas/pgas)
 
+        pmix = 1/vmix
+        pmix = round(pmix, 4)
 
-def volm_fractions(xoil, xwat, xgas, poil, pwat, pgas):
-    """ Name:   Volume Fractions
+        return pmix
+
+    def volm_fractions(self):
+        """ 
+        Name:   Volume Fractions
         Input:  xwat - mass fraction water, mass water / mass total
                 xoil - mass fraction oil, mass oil / mass total
                 xgas - mass fraction gas, mass gas / mass total                
@@ -140,22 +198,42 @@ def volm_fractions(xoil, xwat, xgas, poil, pwat, pgas):
                 yoil - volume fraction oil, volume oil / volume total
                 ygas - volume fraction gas, volume gas / volume total
         """
-    # would be nice to have a system of arrays...!
-    # at that point it would just be matrix math
 
-    # mixture specific volume
-    vmix = (xwat/pwat) + (xoil/poil) + (xgas/pgas)
+        press = self.press
+        temp = self.temp
 
-    pmix = 1/vmix
+        # these condition calls are probably redundant
+        xoil, xwat, xgas = self.condition(press, temp).mass_fract()
+        poil, pwat, pgas = self.condition(press, temp).dens_comp()
 
-    ywat = xwat*pmix/pwat
-    yoil = xoil*pmix/poil
-    ygas = xgas*pmix/pgas
+        # mixture specific volume
+        vmix = (xoil/poil) + (xwat/pwat) + (xgas/pgas)
 
-    # round the mass fractions
-    deci = 4
-    ywat = round(ywat, deci)
-    yoil = round(yoil, deci)
-    ygas = round(ygas, deci)
+        pmix = 1/vmix
 
-    return yoil, ywat, ygas
+        yoil = xoil*pmix/poil
+        ywat = xwat*pmix/pwat
+        ygas = xgas*pmix/pgas
+
+        # round the mass fractions
+        deci = 4
+        yoil = round(yoil, deci)
+        ywat = round(ywat, deci)
+        ygas = round(ygas, deci)
+
+        return yoil, ywat, ygas
+
+
+def prop_table(self, press_array, temp):
+    """
+    Name:   Property Table
+    Input:  press_array - Numpy Array, Lowest pressure to highest, psig
+            temp - evaluated temperature deg F
+    Output: Property Table
+            Oil, Water, Gas Density
+            Oil, Water, Gas Viscosity
+            3 Phase Mixture Density
+            Oil, Water, Gas Mass Fraction
+            Oil, Water, Gas Volm Fraction
+    Rev:    09/22/23 - K.Ellis wrote into Python
+    """

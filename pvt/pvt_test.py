@@ -1,21 +1,37 @@
-import blackoil as bo
-import formgas as fg
 import numpy as np
+from blackoil import BlackOil
+from formgas import FormGas
+from formwat import FormWater
+from resmix import ResMix
 
+temp = 80
+press = 700
+
+mpu_oil = BlackOil.schrader_oil()  # class method
+mpu_wat = FormWater.schrader_wat()  # class method
+mpu_gas = FormGas.schrader_gas()  # class method
+
+e42 = ResMix(0.1, 300, mpu_oil, mpu_wat, mpu_gas)
+
+e42.condition(press, temp)
+
+print('Oil, Water, Gas Density lbm/ft3')
+print(e42.dens_comp())
+print('Mixture Density lbm/ft3')
+print(e42.pmix())
+print('Oil, Water, Gas Viscosity cP')
+print(e42.visc_comp())
+print('Oil, Water, Gas Mass Fractions')
+print(e42.mass_fract())
+print('Oil, Water, Gas Volm Fractions')
+print(e42.volm_fractions())
+
+"""
 res_temp = 80  # reservoir temperature
 res_pres = 5000  # reservoir pressure
 
 # make an array of pressures from 0 that goes 10% above the reservoir pressure
 press_aray = np.arange(0, res_pres*1.1, 50)
-
-# define Schrader Bluff Formation Gas
-# define Schrader Bluff Oil
-gas_sg = 0.8
-oil_api = 22
-bub_pnt = 1750  # bubble point pressure
-
-mpu_gas = fg.FormGas.schrader_gas() # use a class method
-mpu_oil = bo.BlackOil(oil_api, bub_pnt, gas_sg)
 
 pvt_vew = {
     "pressure": 0,
@@ -41,3 +57,5 @@ for i, pres in enumerate(press_aray):
     pvt_data[i, pvt_vew['gas_solb']] = mpu_oil.gas_solubility()
 
 print(pvt_data)
+# print(mpu_oil.condition(500, 80))
+"""
