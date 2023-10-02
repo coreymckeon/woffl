@@ -4,7 +4,6 @@ from formwat import FormWater
 
 
 class ResMix:
-    # define a second mixture called TubeMix? Includes GasLift or JetPump?
 
     def __init__(
             self,
@@ -52,7 +51,7 @@ class ResMix:
         self._tempr = self.temp + 459.67  # convert fahr to rankine
         return self
 
-    def dens_comp(self):
+    def dens_comp(self) -> tuple[float, float, float]:
         """
         Name:   Density Components
         Input:  Blah
@@ -66,7 +65,7 @@ class ResMix:
         pgas = self.gas.density
         return poil, pwat, pgas
 
-    def visc_comp(self):
+    def visc_comp(self) -> tuple[float, float, float]:
         """
         Name:   Viscosity Components
         Input:  Blah
@@ -80,7 +79,7 @@ class ResMix:
         ugas = self.gas.viscosity()
         return uoil, uwat, ugas
 
-    def mass_fract(self):
+    def mass_fract(self) -> tuple[float, float, float]:
         """ 
         Name:   Mass Fractions
         Input:  watercut - watercut at standard conditions
@@ -158,7 +157,7 @@ class ResMix:
         # mass fractions
         return xoil, xwat, xgas
 
-    def pmix(self):
+    def pmix(self) -> float:
         """ 
         Name:   Mixture Density
         Input:  xoil - mass fraction oil, mass oil / mass total
@@ -184,7 +183,7 @@ class ResMix:
 
         return pmix
 
-    def volm_fractions(self):
+    def volm_fractions(self) -> tuple[float, float, float]:
         """ 
         Name:   Volume Fractions
         Input:  xwat - mass fraction water, mass water / mass total
