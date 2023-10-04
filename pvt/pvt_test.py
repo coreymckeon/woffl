@@ -4,14 +4,14 @@ from formgas import FormGas
 from formwat import FormWater
 from resmix import ResMix
 
-temp = 80
-press = 700
-
 mpu_oil = BlackOil.schrader_oil()  # class method
 mpu_wat = FormWater.schrader_wat()  # class method
 mpu_gas = FormGas.schrader_gas()  # class method
 
 e42 = ResMix(0.1, 300, mpu_oil, mpu_wat, mpu_gas)
+
+temp = 80
+press = 700
 
 e42.condition(press, temp)
 

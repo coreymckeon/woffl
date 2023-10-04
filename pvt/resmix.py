@@ -13,16 +13,18 @@ class ResMix:
             wat: FormWater,
             gas: FormGas
     ) -> None:
-        """
-        Name:    Define Reservoir Mixture
-        Inputs:  BlackOil - Class with Oil_API, Gas_SG, and Pbubble
-                 FormWater - Class with Water SG
-                 FormGas - Class with Gas SG
-                 wc - Watercut of the Mixture, between 0 and 1
-                 fgor - Formation GOR of the Mixture
-        Output:  None
-        Rev:     09/22/23 - K. Ellis wrote into Python
-        """
+        '''Initialize a Reservoir Mixture
+
+        Args:
+                wc (float): Watercut of the Mixture, 0 to 1
+                fgor (int): Formation GOR of the Mixture
+                oil (BlackOil): Class with Oil_API, Gas_SG, Bubblepoint
+                wat (FormWater): Class with Water SG
+                gas (FormGas): Class with Gas SG
+
+        Returns:
+                Self
+        '''
 
         self.wc = wc  # specify a decimal
         self.fgor = fgor
@@ -36,6 +38,15 @@ class ResMix:
         return f'Mixture at {100*self.wc}% Watercut and {self.fgor} SCF/STB FGOR'
 
     def condition(self, press: float, temp: float):
+        '''Set condition of evaluation
+
+        Args:
+                press (float): Pressure of the mixture, psig
+                temp (float): Temperature of the mixture, deg F
+
+        Returns:
+                Self
+        '''
         # define the condition, where are you at?
         # what is the pressure and what is the temperature?
         self.press = press
@@ -52,27 +63,43 @@ class ResMix:
         return self
 
     def dens_comp(self) -> tuple[float, float, float]:
-        """
-        Name:   Density Components
-        Input:  Blah
-        Output: poil - density of oil, lbm/ft3
-                pwat - density of water, lbm/ft3
-                pgas - density of gas, lbm/ft3
-        About:  Outputs the 3 individual densities of the stream
-        """
+        '''Density Components
+
+        Return the density of the oil, water and gas from the mixture.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+                None
+
+        Returns:
+                poil (float): density of oil, lbm/ft3
+                pwat (float): density of water, lbm/ft3
+                pgas (float): density of gas, lbm/ft3
+        '''
         poil = self.oil.density
         pwat = self.wat.density
         pgas = self.gas.density
         return poil, pwat, pgas
 
     def visc_comp(self) -> tuple[float, float, float]:
-        """
-        Name:   Viscosity Components
-        Input:  Blah
-        Output: uoil - viscosity of oil, cp
-                uwat - viscosity of water, cp
-                ugas - viscosity of gas, cp
-        About:  Outputs the 3 individual viscosities of the stream
+        """Viscosity Components
+
+        Return the viscosity of the oil, water and gas from the mixture.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+                None
+
+        Returns:
+                uoil (float): viscosity of oil, cP
+                uwat (float): viscosity of water, cP
+                ugas (float): viscosity of gas, cP
+
+        References:
+                None
+
+        Revision:
+                10/03/2023: K. Ellis wrote into Python
         """
         uoil = self.oil.viscosity()
         uwat = self.wat.viscosity()
@@ -80,19 +107,25 @@ class ResMix:
         return uoil, uwat, ugas
 
     def mass_fract(self) -> tuple[float, float, float]:
-        """ 
-        Name:   Mass Fractions
-        Input:  watercut - watercut at standard conditions
-                fgor - formation gas oil ratio, scf/stb
-                rs - gas solubility,  scf/stb                
-                pwat - density of water, lbm/ft3 (standard conditions)
-                poil - density of oil, lbm/ft3 (standard conditions)
-                pgas - density of gas, lbm/ft3 (standard conditions)
-        Output: xoil - mass fraction oil, mass oil / mass total
-                xwat - mass fraction water, mass water / mass total
-                xgas - mass fraction gas, mass gas / mass total
-        About:  Uses standard condition densities and wc / fgor to calculate
-                the mass fractions of the stream
+        """Mass Fractions
+
+        Return the mass fractions of the oil, water and gas from the mixture.
+        Requires a pressure and temperature condition to previously be set.
+        Uses algebraic relationships of wc, gor and density to solve for mass fractions.
+
+        Args:
+                None
+
+        Returns:
+                xoil (float): mass fraction of oil in the mixture
+                xwat (float): mass fraction of water in the mixture
+                xgas (float): mass fraction of gas in the mixture
+
+        References:
+                Derivations from Kaelin available on request
+
+        Revision:
+                10/03/2023: K. Ellis wrote into Python
         """
 
         # pull out the eval. press and temp first
@@ -158,17 +191,17 @@ class ResMix:
         return xoil, xwat, xgas
 
     def pmix(self) -> float:
-        """ 
-        Name:   Mixture Density
-        Input:  xoil - mass fraction oil, mass oil / mass total
-                xwat - mass fraction water, mass water / mass total
-                xgas - mass fraction gas, mass gas / mass total                
-                pwat - density of water, lbm/ft3 (actual cond.)
-                poil - density of oil, lbm/ft3 (actual cond.)
-                pgas - density of gas, lbm/ft3 (actual cond.)
-        Output: pmix - density of mixture, lbm/ft3 (actual cond.)
-        """
+        """Mixture Density
 
+        Return the homogenous density of the mixture.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+                None
+
+        Returns:
+                pmix (float): density of mixture, lbm/ft3
+        """
         press = self.press
         temp = self.temp
 
@@ -184,20 +217,19 @@ class ResMix:
         return pmix
 
     def volm_fractions(self) -> tuple[float, float, float]:
-        """ 
-        Name:   Volume Fractions
-        Input:  xwat - mass fraction water, mass water / mass total
-                xoil - mass fraction oil, mass oil / mass total
-                xgas - mass fraction gas, mass gas / mass total                
-                pwat - density of water, lbm/ft3 (actual cond.)
-                poil - density of oil, lbm/ft3 (actual cond.)
-                pgas - density of gas, lbm/ft3 (actual cond.)
+        """Volume Fractions
 
-        Output: ywat - volume fraction water, volume water / volume total
-                yoil - volume fraction oil, volume oil / volume total
-                ygas - volume fraction gas, volume gas / volume total
+        Return the volume fractions of the oil, water and gas from the mixture.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+                None
+
+        Returns:
+                yoil (float): volume fraction of oil in the mixture
+                ywat (float): volume fraction of water in the mixture
+                ygas (float): volume fraction of gas in the mixture
         """
-
         press = self.press
         temp = self.temp
 
