@@ -6,7 +6,7 @@ class FormGas:
     # physical properties of hydrocarbon and selected compounds, field units (Whitson and Brule 2000)
     # Table B-1 from the text "Applied Multiphase Flow in Pipes and Flow Assurance"
 
-    fldpco = {'n2':  [28.02, 0.4700, 29.31,  493.0, 227.3, 1.443, 0.2916, 0.0450,  13.3, 0, 0],
+    fyprop = {'n2':  [28.02, 0.4700, 29.31,  493.0, 227.3, 1.443, 0.2916, 0.0450,  13.3, 0, 0],
               'co2': [44.01, 0.5000, 31.18, 1070.6, 547.6, 1.505, 0.2742, 0.2310, 350.4, 0, 0],
               'h2s': [34.08, 0.5000, 31.18, 1306.0, 672.4, 1.564, 0.2831, 0.1000, 383.1, 0, 672],
               'c1':  [16.04, 0.3300, 20.58,  667.8, 343.0, 1.590, 0.2864, 0.0115, 201.0, 0, 1012],
@@ -31,6 +31,14 @@ class FormGas:
     _R = 10.73  # psia*ft^3/(lbmol*Rankine)
 
     def __init__(self, gas_sg) -> None:
+        '''Initialize a Formation Gas Stream
+
+        Args:
+            gas_sg (float): Free Gas Specific Gravity
+
+        Returns:
+            Self
+        '''
 
         if (0.5 < gas_sg < 1.2) == False:
             # do I need more here?
@@ -55,17 +63,21 @@ class FormGas:
     def __repr__(self):
         return f'Gas: {self.gas_sg} SG and {self.mw} Mol Weight'
 
-    # class method can be used to pre define clases, could be useful later in code
-    # eg making a ivashak_gas, schrader_gas, etc...
-    # especially as various inputs continue to grow
     @classmethod
     def schrader_gas(cls):
         return cls(gas_sg=0.8)
 
     # almost need seperate function to change pressure / temperature
     def condition(self, press, temp):
-        # define the condition, where are you at?
-        # what is the pressure and what is the temperature?
+        '''Set condition of evaluation
+
+        Args:
+            press (float): Pressure of the gas, psig
+            temp (float): Temperature of the gas, deg F
+
+        Returns:
+            Self
+        '''
         self.press = press
         self.temp = temp
 
@@ -81,27 +93,21 @@ class FormGas:
         self._tpr = self._tempr/self._tcrit  # unitless, temperature pseudo reduced
         return self
 
-    # should I just make something called properties
-    # then you pull out what you want?
-    # would be nice to add optional arguements here
-    def zfactor(self):
-        """ Name:   Natural Gas Compressibility Factor (Z-Factor)
-            Inputs: press - Pressure (psig)
-                    temp - Temperature (deg F)
-                    gasSG - Gas Specific Gravity (Float)
-                    molcomp - Molar Fractions of Composition (Dictionary)
-                Note:   Function will accept gasSG OR molcomp, not BOTH
-                        Do not use gasSG method for sour gases with significant H2S or CO2
-            Output: Z-factor - Real to Ideal Compressibility Ratio
-            Ref:    Fundamental Principles of Reservoir Engineering, Brian F. Towler (2002) 15
-                    Applied Multiphase Flow in Pipes and Flow Assurance, Al-Safran and Brill (2017) 300-302
-                    Numerical Methods For Engineers and Scientists, Amos Gilat and Vish (2013) 71-74 
-            Rev:    01/13/19 - K.Ellis wrote into python
-                    02/04/19 - K.Ellis modified to accept gasSG an an input
-                    09/01/23 - K.Ellis wrote into OOP"""
-        # need error handling if a pressure / temperature aren't defined arlready
-        # can I define a pressure / temp here and it will calculate?
-        # but if I already have it, basically making it optional?
+    def zfactor(self) -> float:
+        """ Gas Z-Factor Compressibility
+
+        Return the gas z-factor
+
+        Args:
+            None
+
+        Returns:
+            zfactor(float): gas zfactor, no units
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 16
+            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
+        """
         try:
             # calculate m and n, method given to me in multiphase clase
             # not sure where the equations come from exactly
@@ -119,24 +125,22 @@ class FormGas:
         return zfactor
 
     @property
-    def density(self):
-        """ Name:   Gas Density
-            Inputs: press - Pressure (psig)
-                    temp - Temperature (deg F)
-                    gasSG - Gas Specific Gravity (Float)
-                    molcomp - Molar Fractions of Composition (Dictionary)
-                Note:   Function will accept gasSG OR molcomp, not BOTH
-                        Do not use gasSG method for sour gases with significant H2S or CO2
-            Output: Dgas - Gas Density (lbm/ft^3)
-            Ref:    Fundamental Principles of Reservoir Engineering, Brian F. Towler (2002) 15
-                    Applied Multiphase Flow in Pipes and Flow Assurance, Al-Safran and Brill (2017) 302-303
-            Rev:    01/13/19 - K.Ellis wrote into python
-                    02/04/19 - K.Ellis modified to accept gasSG an an input
-                    09/01/23 - K.Ellis wrote into OOP"""
-        # calculate gas density
-        # should I calculate Bg in RCF/SCF as well???
-        # density units, lbm/ft^3
+    def density(self) -> float:
+        """Gas Density, lbm/ft3
 
+        Return the density of gas.
+        Requires pressure and temperature to previously be set.
+
+        Args:
+            None
+
+        Returns:
+            dgas (float): density of the gas, lbm/ft3
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 16
+            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
+        """
         zval = self.zfactor()  # call method if it hasn't been already?
 
         dgas = self._pressa*self.mw/(zval*FormGas._R*self._tempr)
@@ -144,25 +148,21 @@ class FormGas:
         self.dgas = dgas
         return dgas
 
-    def viscosity(self):
-        """ Name:   Gas Viscosity (Lee et al. 1966) Semi-Empirical
-            Inputs: press - Pressure (psig)
-                    Temp - Temperature (deg F)
-                    gasSG - Gas Specific Gravity (Float)
-                    molcomp - Molar Fractions of Composition (Dictionary)
-                Note:   Function will accept gasSG OR molcomp, not BOTH
-                        Do not use gasSG method for sour gases with significant H2S or CO2
-            Output: Ug - Gas Viscosity (centipoise)
-            Ref:    Fundamental Principles of Reservoir Engineering, Brian F. Towler (2002) 15
-                    Applied Multiphase Flow in Pipes and Flow Assurance, Al-Safran and Brill (2017) 304
-                    Lee et al. (1966)
-            Rev:    01/13/19 - K.Ellis wrote into python
-                    02/04/19 - K.Ellis modified to accept gasSG an an input
-                    09/01/23 - K.Ellis wrote into OOP"""
-        # calculate gas viscosity
-        # viscosity units, cP
-        # should I change this for later consistency
+    def viscosity(self) -> float:
+        """Gas Viscosity, cP
 
+        Return the gas viscosity, cP
+
+        Args:
+            None
+
+        Returns:
+            ugas (float): gas viscosity, cP
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 16
+            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
+        """
         dens = self.density  # call method if you haven't done it already?
         mw = self.mw
         tempr = self._tempr
@@ -172,7 +172,56 @@ class FormGas:
         Y = 2.4-0.2*X
 
         # [eqn B-72] viscosity of the gas
-        visc = (10**-4)*K*math.exp(X*(dens/62.4)**Y)
-        visc = round(visc, 5)
-        self.ugas = visc
-        return visc
+        ugas = (10**-4)*K*math.exp(X*(dens/62.4)**Y)
+        ugas = round(ugas, 5)
+        self.ugas = ugas
+        return ugas
+
+    def compress(self) -> float:
+        """Gas Compressibility Isothermal
+
+        Calculate isothermal gas compressibility.
+        Inverse of the bulk modulus of elasticity.
+        Need to previously define a pressure / temperature
+
+        Args:
+            None
+
+        Returns:
+            cg (float): gas compressibility, psi**-1
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 16
+            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
+        """
+        temp = self.temp
+        p1 = self.press
+        p2 = p1 + 10  # add 100 psi to evaluate a different condition for compressibility
+
+        z1 = self.zfactor()
+        z2 = self.condition(p2, temp).zfactor()
+
+        cg = 1/p1 - (1/z1)*((z2-z1)/(p2-p1))
+        cg = round(cg, 7)
+        return cg
+
+    def hydrate_check(self) -> tuple[bool, float]:
+        """DO NOT USE
+
+        Hydrate Formation Check
+        Checks to see if the specified pressure and temperature is at risk of hydrates.
+        Calculate hydrate formation temperature at specified pressure.
+        Requires a pressure and temperature to be specified.
+
+        Args:
+            None
+
+        Returns:
+            hydrate risk (bool): True or False
+            hydrate temp (float): Return Temperature of hydrate formation at pressure
+
+        References:
+            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 176
+        """
+        # placeholder for future work
+        return True, 55

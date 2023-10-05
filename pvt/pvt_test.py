@@ -15,6 +15,23 @@ press = 700
 
 e42.condition(press, temp)
 
+oil_comp = mpu_oil.condition(700, 80).compress()
+wat_comp = mpu_wat.compress()
+gas_comp = mpu_gas.condition(700, 80).compress()
+
+print('Compressibility')
+print(f'Oil: {oil_comp}, Water: {wat_comp}, Gas: {gas_comp} psi-1')
+
+print('Bulk Modulus')
+print(f'Oil: {1/oil_comp}, Water: {1/wat_comp}, Gas: {1/gas_comp} psi')
+
+print('Speed of Sound in Mixture')
+print(f'cmix: {e42.cmix()} ft/s')
+
+print('Oil, Water, Gas Volm Fractions')
+print(e42.volm_fract())
+"""
+
 print('Oil, Water, Gas Density lbm/ft3')
 print(e42.dens_comp())
 print('Mixture Density lbm/ft3')
@@ -24,9 +41,9 @@ print(e42.visc_comp())
 print('Oil, Water, Gas Mass Fractions')
 print(e42.mass_fract())
 print('Oil, Water, Gas Volm Fractions')
-print(e42.volm_fractions())
+print(e42.volm_fract())
 
-"""
+
 res_temp = 80  # reservoir temperature
 res_pres = 5000  # reservoir pressure
 

@@ -1,3 +1,5 @@
+import math
+
 from blackoil import BlackOil
 from formgas import FormGas
 from formwat import FormWater
@@ -94,17 +96,30 @@ class ResMix:
                 uoil (float): viscosity of oil, cP
                 uwat (float): viscosity of water, cP
                 ugas (float): viscosity of gas, cP
-
-        References:
-                None
-
-        Revision:
-                10/03/2023: K. Ellis wrote into Python
         """
         uoil = self.oil.viscosity()
         uwat = self.wat.viscosity()
         ugas = self.gas.viscosity()
         return uoil, uwat, ugas
+
+    def comp_comp(self) -> tuple[float, float, float]:
+        """Compressibility Components
+
+        Return the compressibility of the oil, water and gas from the mixture.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+                None
+
+        Returns:
+                co (float): compressibility of oil, psi**-1
+                cw (float): compressibility of oil, psi**-1
+                cg (float): compressibility of oil, psi**-1
+        """
+        co = self.oil.compress()
+        cw = self.wat.compress()
+        cg = self.gas.compress()
+        return co, cw, cg
 
     def mass_fract(self) -> tuple[float, float, float]:
         """Mass Fractions
@@ -123,9 +138,6 @@ class ResMix:
 
         References:
                 Derivations from Kaelin available on request
-
-        Revision:
-                10/03/2023: K. Ellis wrote into Python
         """
 
         # pull out the eval. press and temp first
@@ -216,7 +228,7 @@ class ResMix:
 
         return pmix
 
-    def volm_fractions(self) -> tuple[float, float, float]:
+    def volm_fract(self) -> tuple[float, float, float]:
         """Volume Fractions
 
         Return the volume fractions of the oil, water and gas from the mixture.
@@ -253,6 +265,34 @@ class ResMix:
         ygas = round(ygas, deci)
 
         return yoil, ywat, ygas
+
+    def cmix(self) -> float:
+        '''Mixture Speed of Sound
+
+        Return the adiabatic? Speed of Sound in the mixture.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+                None
+
+        Returns:
+                cmix (float): speed of sound in the mixture, ft/s
+
+        References:
+                Sound Speed in the Mixture Water-Air D.Himr (2009)
+        '''
+        # paper calculated 390 ft/s there conditions
+        # we calculated 460 ft/s, with our conditions, seems ballpark
+        co, cw, cg = self.comp_comp()  # isothermal compressibility
+        yoil, ywat, ygas = self.volm_fract()  # volume fractions
+        ps = self.pmix()
+
+        cs = co*yoil + cw*ywat + cg*ygas  # mixture compressibility
+        ks = 1/cs  # mixture bulk modulus of elasticity
+
+        cmix = math.sqrt(32.174*144*ks/ps)  # speed of sound, ft/s
+        cmix = round(cmix, 2)
+        return cmix
 
 
 def prop_table(self, press_array, temp):

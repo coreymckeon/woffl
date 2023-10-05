@@ -3,14 +3,18 @@ import math
 
 class BlackOil:
 
-    def __init__(self, oil_api, bubblepoint, gas_sg) -> None:
-        """ Name:   Define Oil Stream         
-            Inputs: oilAPI - oil API gravity of the dead oil
-                    Pbp - bubble point pressure (psia)
-                    gasSG - gas specific gravity, relative to air
-            Output: None
-            Rev:    01/16/19 - K. Ellis wrote into Python
-                    09/01/23 - K. Ellis made into OOP"""
+    def __init__(
+            self, oil_api: float, bubblepoint: float, gas_sg: float) -> None:
+        '''Initialize a Black Oil Stream
+
+        Args:
+                oil_api (float): Oil API, 10 to 40
+                bubblepoint (float): Bubble Point Pressure, PSIG
+                gas_sg (float): In-Situ Gas Specific Gravity
+
+        Returns:
+                Self
+        '''
 
         if (10 < oil_api < 40) == False:
             raise ValueError(f'Oil API {oil_api} Outside Range')
@@ -32,7 +36,16 @@ class BlackOil:
     def schrader_oil(cls):
         return cls(oil_api=22, bubblepoint=1750, gas_sg=0.8)
 
-    def condition(self, press, temp):
+    def condition(self, press: float, temp: float):
+        '''Set condition of evaluation
+
+        Args:
+                press (float): Pressure of the oil, psig
+                temp (float): Temperature of the oil, deg F
+
+        Returns:
+                Self
+        '''
         # define the condition, where are you at?
         # what is the pressure and what is the temperature?
         self.press = press
@@ -44,18 +57,22 @@ class BlackOil:
         self._tempr = self.temp + 459.67  # convert fahr to rankine
         return self
 
-    def gas_solubility(self):
-        """ Name:   Gas Solubility in Oil (Solution Gas-Oil Ratio)         
-            Inputs: press - system pressure (psig)
-                    temp - system temperature (deg F)
-                    oilAPI - oil API gravity of the dead oil
-                    gasSG - gas specific gravity, relative to air
-                    Pbp - bubble point pressure (psia)
-            Output: Rs - Gas Solubility in Oil (SCF/STB)
-            Ref:    Vasquez and Beggs (1980)
-                    Fundamental Principles of Reservoir Engineering (2002) 20-21
-            Rev:    01/16/19 - K. Ellis wrote into Python
-                    09/01/23 - K. Ellis wrote into OOP"""
+    def gas_solubility(self) -> float:
+        """Gas Solubility in Oil (Solution GOR)
+
+        Return the gas solubility in the oil, scf/stb.
+        Follows the Vasquez and Beggs Methodology
+
+        Args:
+            None
+
+        Returns:
+            gassol (float): gas solubility scf/stb
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 22
+            Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
+        """
 
         if self.oil_api <= 30:
             C1, C2, C3 = [0.0362, 1.0937, 25.7240]
@@ -74,30 +91,37 @@ class BlackOil:
         self.gassol = gassol
         return gassol
 
-    def oil_comp(self):
-        """ Name:   Oil Compressibility
-            Inputs: press - system pressure (psig)
-                    temp - system temperature (deg F)
-                    oilAPI - oil API gravity of the dead oil
-                    gasSG - gas specific gravity, relative to air
-                    Pbp - bubble point pressure (psia)
-            Output: Co - Oil Compressibility (psi**-1)
-            Ref:    McCain et al. (1988)
-                    Vasquez and Beggs (1980)
-                    Fundamental Principles of Reservoir Engineering (2002) 22
-            Rev:    01/27/19 - K. Ellis wrote into Python
-                    09/01/23 - K. Ellis wrote into OOP"""
+    def compress(self) -> float:
+        """Oil Compressibility Isothermal
+
+        Calculate isothermal oil compressibility.
+        Inverse of the bulk modulus of elasticity.
+        Correlations are named in references.
+
+        Args:
+            None
+
+        Returns:
+            co (float): oil compressibility, psi**-1
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 22
+            Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
+            Coefficent of Isothermal Compressibility... McCain et al. (1988)
+        """
 
         pabs = self._pressa  # convert pressure from psig to psia
-        rs = self.gassol  # solubility of gas in the oil
+        rs = self.gas_solubility()  # solubility of gas in the oil
 
         oil_api = self.oil_api
         temp = self.temp  # deg F
-        gas_sg = self.gas_solubility()
+        gas_sg = self.gas_sg
 
+        # vazquez and beggs correlation
         if self._pressa > self.pbp:  # above bubblepoint
             co = (5*rs+17.2*temp-1180*gas_sg+12.61*oil_api-1433)/(pabs*10**5)
 
+        # McCain et al.
         else:  # below the bubblepoint
             co_list = [
                 -7.573,
@@ -114,18 +138,22 @@ class BlackOil:
         self.co = co
         return co
 
-    def oil_fvf(self):
-        """ Name:   Oil FVF Vasquez and Beggs
-            Inputs: press - system pressure (psig)
-                    temp - system temperature (deg F)
-                    oilAPI - oil API gravity of the dead oil
-                    gasSG = gas specific gravity, relative to air
-                    Pbp - pressure bubble point (psia)
-            Output: Bo - Oil Formation Volume Factor (RB/STB)
-            Ref:    Vasquez and Beggs (1980)
-                    Fundamental Principles of Reservoir Engineering (2002) 20-21
-            Rev:    01/27/19 - K. Ellis wrote into Python
-                    09/01/23 - K. Ellis wrote into OOP"""
+    def oil_fvf(self) -> float:
+        """Oil Formation Volume Factor, Bo
+
+        Calculate formation volume factor for the oil phase.
+        Correlations are named in references.
+
+        Args:
+            None
+
+        Returns:
+            bo (float): oil formation volume, rb/stb
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 21
+            Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
+        """
 
         if self.oil_api <= 30:
             C4, C5, C6 = [4.677*10**-4, 1.751*10**-5, -1.811*10**-8]
@@ -146,7 +174,7 @@ class BlackOil:
             pbp = self.pbp
             pabs = self._pressa
             # call function if it hasn't been already
-            co = self.oil_comp()  # isothermal compressibility
+            co = self.compress()  # isothermal compressibility
             bo = bo*math.exp(co*(pbp-pabs))
 
         bo = round(bo, 2)
@@ -156,17 +184,21 @@ class BlackOil:
     # property decorator makes it so you don't need brackets
     # if you are just calling it with self in the arguement
     @property
-    def density(self):
-        """ Name:   Oil Density with Entrained Gas
-            Inputs: press - system pressure (psig)
-                    temp - system temperature (deg F)
-                    oilAPI - oil API gravity of the dead oil
-                    gasSG - gas specific gravity, relative to air
-                    Pbp - pressure bubble point (psia)
-            Output: Doil - density of oil with entrained gas (lbm/ft^3)
-            Ref:    Multiphase Class Excel Spreadsheet
-            Rev:    01/16/19 - K. Ellis wrote into Python
-                    09/01/23 - K. Ellis wrote into OOP"""
+    def density(self) -> float:
+        """Live oil density, lbm/ft3
+
+        Return the density of the oil.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+            None
+
+        Returns:
+            doil (float): density of the oil, lbm/ft3
+
+        References:
+            Multiphase class excel spreadsheet
+        """
 
         oil_api = self.oil_api
         oil_sg = 141.5/(oil_api+131.5)  # oil specific gravity
@@ -180,20 +212,22 @@ class BlackOil:
         self.doil = doil
         return doil
 
-    def viscosity(self):
-        """ Name:   Oil Viscosity with Entrained Gas    
-            Inputs: press - system pressure (psig)
-                    temp - system temperature (deg F)
-                    oilAPI - oil API gravity of the dead oil
-                    gasSG - gas specific gravity, relative to air
-                    Pbp - bubble point pressure (psia)
-            Output: Uo - Viscosity of live oil (cP)
-            Ref:    Vasquez and Beggs (1980)
-                    Beggs and Robinson (1975)
-                    Chew and Connally (1959)
-                    Fundamental Principles of Reservoir Engineering (2002) 23
-            Rev:    01/28/19 - K. Ellis wrote into Python
-                    09/01/23 - K. Ellis wrote into OOP"""
+    def viscosity(self) -> float:
+        """Live oil viscosity, cP
+
+        Return the live oil viscosity, cP.
+        Requires pressure and temperature condition to previously be set.
+
+        Args:
+            None
+
+        Returns:
+            uoil (float): live oil viscosity, cP
+
+        References:
+            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 23
+            Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
+        """
 
         pabs = self._pressa  # absolute pressure
         temp = self.temp  # deg F

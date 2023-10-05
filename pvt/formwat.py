@@ -1,11 +1,13 @@
 class FormWater:
 
     def __init__(self, wat_sg: float) -> None:
-        """
-        Name:   Define Water Stream
-        Inputs: wat_sg - water specific gravity
-        Output: None
-        Rev:    09/22/23 - K. Ellis wrote into Python
+        """Initialize a water stream
+
+        Args:
+            wat_sg (float): Water Specific Gravity, 0.5 to 1.5
+        
+        Returns:
+            self
         """
 
         if (0.5 < wat_sg < 1.5) == False:
@@ -20,15 +22,15 @@ class FormWater:
     def schrader_wat(cls):
         return cls(wat_sg=1.02)
 
-    def condition(self, press, temp):
-        """
-        Name:   Condition
-        Inputs: press - pressure, psig
-                temp - temperature, deg F
-        Self:   pressa - absolute pressure, psia
-                tempr - absolute temperature Rankine
-        Output: None
-        Rev:    09/22/23 - K. Ellis wrote into Python
+    def condition(self, press:float, temp:float):
+        """Set condition of evaluation
+
+        Args:
+            press (float): Pressure of the water, psig
+            temp (float): Temperature of the water, deg F
+
+        Returns:
+            self
         """
         # define the condition, where are you at?
         # what is the pressure and what is the temperature?
@@ -42,12 +44,16 @@ class FormWater:
         return self
 
     @property
-    def density(self):
-        """ Name:   Water Density
-            Inputs: None
-            Output: dwat - density of water (lbm/ft^3)
-            Ref:    None
-            Rev:    09/22/23 - K. Ellis wrote into Python
+    def density(self) -> float:
+        """Water Density
+
+        Calculate water density
+
+        Args:
+            None
+
+        Returns:
+            dwat (float): water density, lbm/ft3
         """
 
         # leave it simple now, asume no compressibility
@@ -57,12 +63,16 @@ class FormWater:
         self.dwat = dwat
         return dwat
 
-    def viscosity(self):
-        """ Name:   Water Viscosity   
-            Inputs: None
-            Output: uwat - Viscosity of water (cP)
-            Ref:    None
-            Rev:    09/22/23 - K. Ellis wrote into Python
+    def viscosity(self) -> float:
+        """Water Viscosity
+
+        Calculate water viscosity
+
+        Args:
+            None
+
+        Returns:
+            uwat (float): water viscosity, cP
         """
 
         # come back later and rewrite
@@ -70,3 +80,23 @@ class FormWater:
 
         self.uwat = uwat
         return uwat
+
+    def compress(self) -> float:
+        """Water Isothermal Compressibility
+
+        Calculate isothermal water compressibility.
+        Inverse of the bulk modulus of elasticity.
+        Used water compressibility at 62.4 lbm/ft3 since we don't change density.
+
+        Args:
+            None
+
+        Returns:
+            wo (float): water compressibility, psi**-1
+
+        References:
+            https://roymech.org/Related/Fluids/Fluids_Water_Props.html
+        """
+        cw = .0004543  # 1/MPa
+        cw = round(cw/145.038, 7)  # 1/psi
+        return cw
