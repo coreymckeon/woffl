@@ -139,7 +139,6 @@ class ResMix:
         References:
                 Derivations from Kaelin available on request
         """
-
         # pull out the eval. press and temp first
         # standard condition will overwrite them otherwise
         press = self.press
@@ -149,7 +148,6 @@ class ResMix:
         tstd = 60  # deg f standard temperature
 
         # wc and fgor are evaluated at standard conditions
-        # might be good to rethink the condition stuff?
         poil, pwat, pgas = self.condition(pstd, tstd).dens_comp()
 
         # convert back to evaluated conditions
@@ -162,7 +160,8 @@ class ResMix:
         # mass based gas solubility
         mrs = (7.48/42)*rs*pgas/poil
 
-        # convert from scf/bbl to scf/cf (make sure gas density is at standard conditions)
+        # convert from scf/bbl to scf/cf
+        # densities are at standard conditions
         # mass formation gas oil ratio
         mfgor = (7.48/42)*fgor*pgas/poil
 
@@ -179,8 +178,6 @@ class ResMix:
         xoil = (1-mwc)/(1+mfgor*(1-mwc))
 
         # mass fraction of water
-        # won't change even with gas and oil trading some mass back and forth
-        # slight differences in excel spreadsheet and python solution...? py: 0.9595, excel 0.972
         xwat = 1 - xoil - xgas
 
         # correct for the gas that is inside the oil
