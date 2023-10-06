@@ -17,8 +17,12 @@ def profileplot(md_array, tvd_array):
 def vertical_angle(x_array, y_array):
     """Calculate vertical angle between hypotenuse and y-axis
 
+    Note: This is not valid for application to a well, since MD is your hypothenuse.
+    MD is not your x dimension, it is the hypotenuse dimension. How can this be
+    shown in the graphs and other stuff?
     Imagine a triangle whose hypotenuse starts at (0, 0) and ends at (x1, y1).
     The angle being calculated is between the hypotenuse and y-axis.
+    Need to write a program to convert the hypotenuse dimension to an x-axis dimension?
 
     Args:
         x_array (numpy array): x values
