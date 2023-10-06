@@ -70,8 +70,8 @@ class BlackOil:
             gassol (float): gas solubility scf/stb
 
         References:
-            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 22
-            Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
+            - Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 22
+            - Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
         """
 
         if self.oil_api <= 30:
@@ -105,9 +105,9 @@ class BlackOil:
             co (float): oil compressibility, psi**-1
 
         References:
-            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 22
-            Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
-            Coefficent of Isothermal Compressibility... McCain et al. (1988)
+            - Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 22
+            - Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
+            - Coefficent of Isothermal Compressibility... McCain et al. (1988)
         """
 
         pabs = self._pressa  # convert pressure from psig to psia
