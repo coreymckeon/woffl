@@ -3,19 +3,34 @@ import numpy as np
 from scipy import optimize
 
 
-def profileplot(hd_array, tvd_array):
+def profileplot(hd_array, tvd_array, md_array):
     '''Create a Well Profile Plot
 
     Args:
         hd_array (numpy array): horizontal distance array
         td_array (numpy array): vertical depth array
+        md_array (numpy arary): measured depth, annotated
     '''
-    plt.scatter(hd_array, tvd_array, '-o')
+    plt.scatter(hd_array, tvd_array)
     plt.gca().invert_yaxis()
-    plt.title(f'Directional Survey')
+    plt.title(f'Dir Survey, Length: {max(md_array)} ft')
     plt.xlabel('Horizontal Distance, Feet')
     plt.ylabel('True Vertical Depth, Feet')
-    # might be neat to annotate every 1000' measured depth
+
+    # find the position in the measured depth array closest to every 1000'
+    md_match = np.arange(1000, max(md_array), 1000)
+    idxs = np.searchsorted(md_array, md_match)
+
+    # find the angle of the line near each point so you can put the text
+    # perpendicular to the line being graphed...do later?
+
+    # annotate approximately every 1000' of measured depth
+    for idx in idxs:
+        plt.annotate(
+            text=f'{round(md_array[idx],0)} ft.',
+            xy=(hd_array[idx]+5, tvd_array[idx]-10),
+            rotation=30
+        )
     plt.show()
 
 
@@ -25,7 +40,7 @@ def hd_array(md_array, tvd_array):
     Calculate a horizontal distance array. Which can be graphed with the
     vertical depth array to give an accurate visualization of the well profile.
     The horizontal distance is how far the well bore has travelled horizontally
-    away from the 
+    away from the wellhead.
 
     Args:
         md_array (numpy array): measured depth array
@@ -93,13 +108,13 @@ class WellProfile():
         Returns:
             Self
         '''
-        if len(md_list) != len(tvd_list) == True:
+        if len(md_list) != len(tvd_list):
             raise ValueError(
-                f'Lists for Measured Depth and Vertical Depth need to be the same length')
+                'Lists for Measured Depth and Vertical Depth need to be the same length')
 
-        if max(md_list) < max(tvd_list) == True:
+        if max(md_list) < max(tvd_list):
             raise ValueError(
-                f'Measured Depth needs to extend farther than Vertical Depth')
+                'Measured Depth needs to extend farther than Vertical Depth')
 
         md_array = np.array(md_list)
         tvd_array = np.array(tvd_list)
@@ -201,7 +216,7 @@ class WellProfile():
             AIC = n * np.log10(err(r.x)) + 4 * count
             BIC = n * np.log10(err(r.x)) + 2 * count * np.log(n)
 
-            if((BIC < BIC_) & (AIC < AIC_)):  # Continue adding complexity.
+            if ((BIC < BIC_) & (AIC < AIC_)):  # Continue adding complexity.
                 r_ = r
                 AIC_ = AIC
                 BIC_ = BIC

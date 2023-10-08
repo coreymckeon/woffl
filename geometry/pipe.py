@@ -28,11 +28,11 @@ class Pipe:
             rough (float): Absolute roughness of the piping, inches
 
         Returns:
-            Self       
+            Self
         '''
 
-        if thick > out_dia == True:
-            raise ValueError(f'Pipe thickness is greater than outer diameter')
+        if thick > out_dia:
+            raise ValueError('Pipe thickness is greater than outer diameter')
 
         self.out_dia = out_dia
         self.thick = thick
@@ -47,13 +47,13 @@ class Pipe:
     def inn_area(self) -> float:
         '''Inner area of piping, ft2
         '''
-        return(area_circle(self.inn_dia)/144)
+        return (area_circle(self.inn_dia)/144)
 
     @property
     def out_area(self) -> float:
         '''Outer area of piping, ft2
         '''
-        return(area_circle(self.out_dia)/144)
+        return (area_circle(self.out_dia)/144)
 
 
 class Annulus:
@@ -61,18 +61,18 @@ class Annulus:
     def __init__(self, inn_pipe: Pipe, out_pipe: Pipe) -> None:
         '''Initialize a pipe annulus
 
-        The annulus doesn't have a length. The object will work with the profile
-        class to create an appropriate length and angle of annulus.
+        The annulus doesn't have a length. The object will work with the
+        profile class to create an appropriate length and angle of annulus.
 
         Args:
             inn_pipe (Pipe): Inside Pipe in an annulus set up
             out_pipe (Pipe): Outside Pipe in an annulus set up
 
         Returns:
-            Self       
+            Self
         '''
-        if inn_pipe.out_dia > out_pipe.inn_dia == True:
-            raise ValueError(f'Inner pipe will not fit into the outer pipe')
+        if inn_pipe.out_dia > out_pipe.inn_dia:
+            raise ValueError('Inner pipe will not fit into the outer pipe')
 
         self.inn_pipe = inn_pipe
         self.out_pipe = out_pipe
@@ -84,13 +84,13 @@ class Annulus:
     def ann_area(self) -> float:
         '''Annulus area of annulus, ft2
         '''
-        return(self.out_pipe.inn_area - self.inn_pipe.out_area)
+        return (self.out_pipe.inn_area - self.inn_pipe.out_area)
 
     @property
     def hyd_dia(self) -> float:
         '''Annulus hydraulic diameter, inches
         '''
-        return(self.out_pipe.inn_dia-self.inn_pipe.out_dia)
+        return (self.out_pipe.inn_dia-self.inn_pipe.out_dia)
 
 
 # wb = Pipe(12, 0.5, .00012)
