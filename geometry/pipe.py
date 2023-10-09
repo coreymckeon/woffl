@@ -1,19 +1,6 @@
 import math
 
 
-def area_circle(diameter):
-    """Area of a Circle
-
-    Args:
-        diameter (float): diameter of a circle
-
-    Returns:
-        area (float): area of a circle
-    """
-    area = math.pi * (diameter**2) / 4
-    return area
-
-
 class Pipe:
     def __init__(self, out_dia: float, thick: float, rough: float) -> None:
         """Initialize a Piece of Piping
@@ -45,12 +32,25 @@ class Pipe:
     @property
     def inn_area(self) -> float:
         """Inner area of piping, ft2"""
-        return area_circle(self.inn_dia) / 144
+        return self.area_circle(self.inn_dia) / 144
 
     @property
     def out_area(self) -> float:
         """Outer area of piping, ft2"""
-        return area_circle(self.out_dia) / 144
+        return self.area_circle(self.out_dia) / 144
+
+    @staticmethod
+    def area_circle(diameter):
+        """Area of a Circle
+
+        Args:
+            diameter (float): diameter of a circle
+
+        Returns:
+            area (float): area of a circle
+        """
+        area = math.pi * (diameter**2) / 4
+        return area
 
 
 class Annulus:

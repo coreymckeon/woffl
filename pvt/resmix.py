@@ -6,16 +6,8 @@ from formwat import FormWater
 
 
 class ResMix:
-
-    def __init__(
-            self,
-            wc: float,
-            fgor: int,
-            oil: BlackOil,
-            wat: FormWater,
-            gas: FormGas
-    ) -> None:
-        '''Initialize a Reservoir Mixture
+    def __init__(self, wc: float, fgor: int, oil: BlackOil, wat: FormWater, gas: FormGas) -> None:
+        """Initialize a Reservoir Mixture
 
         Args:
                 wc (float): Watercut of the Mixture, 0 to 1
@@ -26,7 +18,7 @@ class ResMix:
 
         Returns:
                 Self
-        '''
+        """
 
         self.wc = wc  # specify a decimal
         self.fgor = fgor
@@ -35,12 +27,11 @@ class ResMix:
         self.gas = gas
 
     def __repr__(self) -> str:
-
         # return(f'Mixture with {self.oil.oil_api} API Oil')
-        return f'Mixture at {100*self.wc}% Watercut and {self.fgor} SCF/STB FGOR'
+        return f"Mixture at {100*self.wc}% Watercut and {self.fgor} SCF/STB FGOR"
 
     def condition(self, press: float, temp: float):
-        '''Set condition of evaluation
+        """Set condition of evaluation
 
         Args:
                 press (float): Pressure of the mixture, psig
@@ -48,7 +39,7 @@ class ResMix:
 
         Returns:
                 Self
-        '''
+        """
         # define the condition, where are you at?
         # what is the pressure and what is the temperature?
         self.press = press
@@ -65,7 +56,7 @@ class ResMix:
         return self
 
     def dens_comp(self) -> tuple[float, float, float]:
-        '''Density Components
+        """Density Components
 
         Return the density of the oil, water and gas from the mixture.
         Requires a pressure and temperature condition to previously be set.
@@ -77,7 +68,7 @@ class ResMix:
                 poil (float): density of oil, lbm/ft3
                 pwat (float): density of water, lbm/ft3
                 pgas (float): density of gas, lbm/ft3
-        '''
+        """
         poil = self.oil.density
         pwat = self.wat.density
         pgas = self.gas.density
@@ -158,30 +149,30 @@ class ResMix:
         rs = self.oil.gas_solubility()
 
         # mass based gas solubility
-        mrs = (7.48/42)*rs*pgas/poil
+        mrs = (7.48 / 42) * rs * pgas / poil
 
         # convert from scf/bbl to scf/cf
         # densities are at standard conditions
         # mass formation gas oil ratio
-        mfgor = (7.48/42)*fgor*pgas/poil
+        mfgor = (7.48 / 42) * fgor * pgas / poil
 
         # mass watercut
-        mwc = pwat*wc/(pwat*wc+poil*(1-wc))
+        mwc = pwat * wc / (pwat * wc + poil * (1 - wc))
 
         # mass formation gas to liquid ratio
-        mfglr = (7.48/42)*fgor*pgas*(1-wc)/(wc*pwat+(1-wc)*poil)
+        mfglr = (7.48 / 42) * fgor * pgas * (1 - wc) / (wc * pwat + (1 - wc) * poil)
 
         # mass fraction of gas
-        xgas = mfglr/(1+mfglr)
+        xgas = mfglr / (1 + mfglr)
 
         # mass fraction of oil
-        xoil = (1-mwc)/(1+mfgor*(1-mwc))
+        xoil = (1 - mwc) / (1 + mfgor * (1 - mwc))
 
         # mass fraction of water
         xwat = 1 - xoil - xgas
 
         # correct for the gas that is inside the oil
-        xrs = xoil*mrs
+        xrs = xoil * mrs
 
         # calculate new mass fraction of free gas
         xgas = xgas - xrs
@@ -218,9 +209,9 @@ class ResMix:
         poil, pwat, pgas = self.condition(press, temp).dens_comp()
 
         # mixture specific volume
-        vmix = (xoil/poil) + (xwat/pwat) + (xgas/pgas)
+        vmix = (xoil / poil) + (xwat / pwat) + (xgas / pgas)
 
-        pmix = 1/vmix
+        pmix = 1 / vmix
         pmix = round(pmix, 4)
 
         return pmix
@@ -247,13 +238,13 @@ class ResMix:
         poil, pwat, pgas = self.condition(press, temp).dens_comp()
 
         # mixture specific volume
-        vmix = (xoil/poil) + (xwat/pwat) + (xgas/pgas)
+        vmix = (xoil / poil) + (xwat / pwat) + (xgas / pgas)
 
-        pmix = 1/vmix
+        pmix = 1 / vmix
 
-        yoil = xoil*pmix/poil
-        ywat = xwat*pmix/pwat
-        ygas = xgas*pmix/pgas
+        yoil = xoil * pmix / poil
+        ywat = xwat * pmix / pwat
+        ygas = xgas * pmix / pgas
 
         # round the mass fractions
         deci = 4
@@ -264,7 +255,7 @@ class ResMix:
         return yoil, ywat, ygas
 
     def cmix(self) -> float:
-        '''Mixture Speed of Sound
+        """Mixture Speed of Sound
 
         Return the adiabatic? Speed of Sound in the mixture.
         Requires a pressure and temperature condition to previously be set.
@@ -277,17 +268,17 @@ class ResMix:
 
         References:
                 Sound Speed in the Mixture Water-Air D.Himr (2009)
-        '''
+        """
         # paper calculated 390 ft/s there conditions
         # we calculated 460 ft/s, with our conditions, seems ballpark
         co, cw, cg = self.comp_comp()  # isothermal compressibility
         yoil, ywat, ygas = self.volm_fract()  # volume fractions
         ps = self.pmix()
 
-        cs = co*yoil + cw*ywat + cg*ygas  # mixture compressibility
-        ks = 1/cs  # mixture bulk modulus of elasticity
+        cs = co * yoil + cw * ywat + cg * ygas  # mixture compressibility
+        ks = 1 / cs  # mixture bulk modulus of elasticity
 
-        cmix = math.sqrt(32.174*144*ks/ps)  # speed of sound, ft/s
+        cmix = math.sqrt(32.174 * 144 * ks / ps)  # speed of sound, ft/s
         cmix = round(cmix, 2)
         return cmix
 

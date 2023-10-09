@@ -1,28 +1,27 @@
 class FormWater:
-
     def __init__(self, wat_sg: float) -> None:
         """Initialize a water stream
 
         Args:
             wat_sg (float): Water Specific Gravity, 0.5 to 1.5
-        
+
         Returns:
             self
         """
 
-        if (0.5 < wat_sg < 1.5) == False:
-            raise ValueError(f'Water SG {wat_sg} Outside Range')
+        if (0.5 < wat_sg < 1.5) is False:
+            raise ValueError(f"Water SG {wat_sg} Outside Range")
 
         self.wat_sg = wat_sg
 
     def __repr__(self) -> str:
-        return(f'Water {self.wat_sg} Specific Gravity')
+        return f"Water {self.wat_sg} Specific Gravity"
 
     @classmethod
     def schrader_wat(cls):
         return cls(wat_sg=1.02)
 
-    def condition(self, press:float, temp:float):
+    def condition(self, press: float, temp: float):
         """Set condition of evaluation
 
         Args:
@@ -57,7 +56,7 @@ class FormWater:
         """
 
         # leave it simple now, asume no compressibility
-        dwat = self.wat_sg*62.4
+        dwat = self.wat_sg * 62.4
         dwat = round(dwat, 3)
 
         self.dwat = dwat
@@ -97,6 +96,6 @@ class FormWater:
         References:
             https://roymech.org/Related/Fluids/Fluids_Water_Props.html
         """
-        cw = .0004543  # 1/MPa
-        cw = round(cw/145.038, 7)  # 1/psi
+        cw = 0.0004543  # 1/MPa
+        cw = round(cw / 145.038, 7)  # 1/psi
         return cw
