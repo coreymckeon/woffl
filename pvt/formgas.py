@@ -2,10 +2,11 @@ import math
 
 
 class FormGas:
-
     # physical properties of hydrocarbon and selected compounds, field units (Whitson and Brule 2000)
     # Table B-1 from the text "Applied Multiphase Flow in Pipes and Flow Assurance"
 
+    # turns the black formatting on or off
+    # fmt: off
     fyprop = {'n2':  [28.02, 0.4700, 29.31,  493.0, 227.3, 1.443, 0.2916, 0.0450,  13.3, 0, 0],
               'co2': [44.01, 0.5000, 31.18, 1070.6, 547.6, 1.505, 0.2742, 0.2310, 350.4, 0, 0],
               'h2s': [34.08, 0.5000, 31.18, 1306.0, 672.4, 1.564, 0.2831, 0.1000, 383.1, 0, 672],
@@ -24,6 +25,7 @@ class FormGas:
               'air': [28.97, 0.4700, 29.31,  547.0, 239.0, 1.364, 0.2910, 0.0400, 141.9, 0, 0],
               'h2o': [18.02, 1.0000, 62.37, 3206.0, 1165.0, 0.916, 0.2350, 0.3440, 671.6, 0, 0],
               'o2': [32.00, 0.5000, 31.18,  732.0, 278.0, 1.174, 0.2880, 0.0250, 182.2, 0, 0]}
+    # fmt: on
 
     # will leave the dictionary lookups alone for now, come back later for molecular composition
 
@@ -31,37 +33,37 @@ class FormGas:
     _R = 10.73  # psia*ft^3/(lbmol*Rankine)
 
     def __init__(self, gas_sg) -> None:
-        '''Initialize a Formation Gas Stream
+        """Initialize a Formation Gas Stream
 
         Args:
             gas_sg (float): Free Gas Specific Gravity
 
         Returns:
             Self
-        '''
+        """
 
-        if (0.5 < gas_sg < 1.2) == False:
+        if (0.5 < gas_sg < 1.2) is False:
             # do I need more here?
-            raise ValueError(f'Gas SG {gas_sg} Outside Range')
+            raise ValueError(f"Gas SG {gas_sg} Outside Range")
 
         # define a lot of properties just on the gas' specific gravity
         self.gas_sg = gas_sg
 
         # the following is the code for Pseudo Critical Pressure from correlations
         # can be adjusted later for H2S or CO2 if necessary
-        self._pcrit = 756.8 - 131.07*self.gas_sg - 3.6*self.gas_sg**2  # psia
+        self._pcrit = 756.8 - 131.07 * self.gas_sg - 3.6 * self.gas_sg**2  # psia
 
         # the following is the code for Pseudo Critical Temp from correlations
         # can be adjusted later for H2S or CO2 if necessary
-        self._tcrit = 169.2 + 349.5*self.gas_sg - 74.0*self.gas_sg**2  # rankine
+        self._tcrit = 169.2 + 349.5 * self.gas_sg - 74.0 * self.gas_sg**2  # rankine
 
         # calculate molecular weight
         # reservoir engineer book, red
-        self.mw = round(28.96443*self.gas_sg, 4)
+        self.mw = round(28.96443 * self.gas_sg, 4)
 
     # does something when you print your class
     def __repr__(self):
-        return f'Gas: {self.gas_sg} SG and {self.mw} Mol Weight'
+        return f"Gas: {self.gas_sg} SG and {self.mw} Mol Weight"
 
     @classmethod
     def schrader_gas(cls):
@@ -69,7 +71,7 @@ class FormGas:
 
     # almost need seperate function to change pressure / temperature
     def condition(self, press, temp):
-        '''Set condition of evaluation
+        """Set condition of evaluation
 
         Args:
             press (float): Pressure of the gas, psig
@@ -77,7 +79,7 @@ class FormGas:
 
         Returns:
             Self
-        '''
+        """
         self.press = press
         self.temp = temp
 
@@ -89,12 +91,12 @@ class FormGas:
         # calculate pseudo reduced temperature and pressure
         # the following have not been adjusted for non-hydrocarbon gas such as H2S or CO2
         # code can be modified later if this is needed
-        self._ppr = self._pressa/self._pcrit  # unitless, pressure pseudo reduced
-        self._tpr = self._tempr/self._tcrit  # unitless, temperature pseudo reduced
+        self._ppr = self._pressa / self._pcrit  # unitless, pressure pseudo reduced
+        self._tpr = self._tempr / self._tcrit  # unitless, temperature pseudo reduced
         return self
 
     def zfactor(self) -> float:
-        """ Gas Z-Factor Compressibility
+        """Gas Z-Factor Compressibility
 
         Return the gas z-factor
 
@@ -111,15 +113,15 @@ class FormGas:
         try:
             # calculate m and n, method given to me in multiphase clase
             # not sure where the equations come from exactly
-            self._m = 0.51*(self._tpr)**(-4.133)
-            self._n = 0.038 - 0.026*(self._tpr)**(1/2)
+            self._m = 0.51 * (self._tpr) ** (-4.133)
+            self._n = 0.038 - 0.026 * (self._tpr) ** (1 / 2)
 
         except AttributeError:
-            print('Need to define Pressure and Temperature')
+            print("Need to define Pressure and Temperature")
 
         # calculate z-factor
         # does everything have to use self?
-        zfactor = 1 - self._m*self._ppr + self._n*self._ppr**2 + 0.0003*self._ppr**3
+        zfactor = 1 - self._m * self._ppr + self._n * self._ppr**2 + 0.0003 * self._ppr**3
         zfactor = round(zfactor, 4)
         self._zfactor = zfactor
         return zfactor
@@ -143,7 +145,7 @@ class FormGas:
         """
         zval = self.zfactor()  # call method if it hasn't been already?
 
-        dgas = self._pressa*self.mw/(zval*FormGas._R*self._tempr)
+        dgas = self._pressa * self.mw / (zval * FormGas._R * self._tempr)
         dgas = round(dgas, 4)
         self.dgas = dgas
         return dgas
@@ -167,12 +169,12 @@ class FormGas:
         mw = self.mw
         tempr = self._tempr
 
-        K = ((9.4+0.02*mw)*tempr**1.5)/(209+19*mw+tempr)
-        X = 3.5+(986/tempr)+0.01*mw
-        Y = 2.4-0.2*X
+        K = ((9.4 + 0.02 * mw) * tempr**1.5) / (209 + 19 * mw + tempr)
+        X = 3.5 + (986 / tempr) + 0.01 * mw
+        Y = 2.4 - 0.2 * X
 
         # [eqn B-72] viscosity of the gas
-        ugas = (10**-4)*K*math.exp(X*(dens/62.4)**Y)
+        ugas = (10**-4) * K * math.exp(X * (dens / 62.4) ** Y)
         ugas = round(ugas, 5)
         self.ugas = ugas
         return ugas
@@ -201,7 +203,7 @@ class FormGas:
         z1 = self.zfactor()
         z2 = self.condition(p2, temp).zfactor()
 
-        cg = 1/p1 - (1/z1)*((z2-z1)/(p2-p1))
+        cg = 1 / p1 - (1 / z1) * ((z2 - z1) / (p2 - p1))
         cg = round(cg, 7)
         return cg
 
