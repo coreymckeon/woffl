@@ -1,11 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from wellprofile import WellProfile, hd_array, profileplot, vertical_angle
+from wellprofile import WellProfile, hd_array, profileplot, segments_fit, vertical_angle
 
-# values from e42 for testing
-# turns the black formatting on or off
-
-
+# imported values from e42
 md_list = [
     0.0,
     100.0,
@@ -392,14 +389,20 @@ tvd_list = [
 
 md_arr = np.array(md_list)
 tvd_arr = np.array(tvd_list)
+hd_arr = hd_array(md_arr, tvd_arr)
 
 e42_profile = WellProfile(md_list, tvd_list)
 
 md_fit, tvd_fit = e42_profile.filter()
 
 # e42_profile.plot_raw()
-print(vertical_angle(md_arr, tvd_arr))
-print(vertical_angle(md_fit, tvd_fit))
+# print(vertical_angle(md_arr, tvd_arr))
+# print(vertical_angle(md_fit, tvd_fit))
 
-hd_fit = hd_array(md_fit, tvd_fit)
-profileplot(hd_fit, tvd_fit, md_fit)
+# hd_fit = hd_array(md_fit, tvd_fit)
+# profileplot(hd_fit, tvd_fit, md_fit)
+# profileplot(hd_arr, tvd_arr, md_arr)
+
+print(segments_fit(hd_arr, tvd_arr))
+
+print(segments_fit(md_arr, tvd_arr))

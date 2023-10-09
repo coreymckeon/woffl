@@ -94,6 +94,69 @@ def vertical_angle(md_array, tvd_array):
     return theta
 
 
+def segments_fit(X, Y, maxcount=18):
+    """Segments Fit DankOC
+
+    Feed the method the raw data. Function will assess the raw data.
+    Then return the smallest smallest number of data points to fit.
+
+    Args:
+        X (numpy array): Raw X Data to be fit
+        Y (numpy array): Raw Y Data to be fit
+        maxcount (int): Max number of points to represent the profile by
+
+    Returns:
+        X_fit (np.array): Filtered X Data
+        Y_fit (np.array): Filtered Y Data
+
+    References:
+        - https://gist.github.com/ruoyu0088/70effade57483355bbd18b31dc370f2a
+        - https://discovery.ucl.ac.uk/id/eprint/10070516/1/AIC_BIC_Paper.pdf
+        - Comment from user: dankoc
+    """
+    xmin = X.min()
+    xmax = X.max()
+
+    n = len(X)
+
+    AIC_ = float("inf")
+    BIC_ = float("inf")
+    r_ = None
+
+    for count in range(1, maxcount + 1):
+        seg = np.full(count - 1, (xmax - xmin) / count)
+
+        px_init = np.r_[np.r_[xmin, seg].cumsum(), xmax]
+        py_init = np.array([Y[np.abs(X - x) < (xmax - xmin) * 0.1].mean() for x in px_init])
+
+        def func(p):
+            seg = p[: count - 1]
+            py = p[count - 1 :]  # noqa E203
+            px = np.r_[np.r_[xmin, seg].cumsum(), xmax]
+            return px, py
+
+        def err(p):  # This is RSS / n
+            px, py = func(p)
+            Y2 = np.interp(X, px, py)
+            return np.mean((Y - Y2) ** 2)
+
+        r = optimize.minimize(err, x0=np.r_[seg, py_init], method="Nelder-Mead")
+
+        # Compute AIC/ BIC.
+        AIC = n * np.log10(err(r.x)) + 4 * count
+        BIC = n * np.log10(err(r.x)) + 2 * count * np.log(n)
+
+        if (BIC < BIC_) & (AIC < AIC_):  # Continue adding complexity.
+            r_ = r
+            AIC_ = AIC
+            BIC_ = BIC
+        else:  # Stop.
+            count = count - 1
+            break
+
+    return func(r_.x)  # type: ignore [return the last (n-1)]
+
+
 class WellProfile:
     def __init__(self, md_list: list, tvd_list: list) -> None:
         """Initialize a Well Profile
@@ -153,70 +216,37 @@ class WellProfile:
         md_dpth = np.interp(tvd_dpth, self.tvd_array, self.md_array)
         return round(md_dpth, 1)
 
-    def filter(self, maxcount=18):
+    def filter(self):
         """Filter WellProfile to the Minimal Data Points
 
         Feed the method the raw measured depth and raw true vertical depth data.
         Method will assess the raw data and represent it in the smallest number of data points.
+        Method uses the segments fit function from above.
 
         Args:
-            maxcount (int): Max number of points to represent the profile by.
 
         Returns:
             md_fit (np.array): Measured Depth Filtered Data
             tvd_fit (np.array): Vertical Depth Filter Data
 
-        References:
-            - https://gist.github.com/ruoyu0088/70effade57483355bbd18b31dc370f2a
-            - https://discovery.ucl.ac.uk/id/eprint/10070516/1/AIC_BIC_Paper.pdf
-            - Comment from user: dankoc
         """
+        md_arr = self.md_array
+        tvd_arr = self.tvd_array
 
-        X = self.md_array
-        Y = self.tvd_array
+        hd_arr = hd_array(md_arr, tvd_arr)
 
-        xmin = X.min()
-        xmax = X.max()
+        hd_fit, tvd_fit = segments_fit(hd_arr, tvd_arr)
 
-        n = len(X)
+        # find the indicies that the returned data fit on the old array
+        # use tvd while the well is vertical
+        # use hd while the well is horizontal
+        # could use the angle to make this judgement on
+        # this judgement as well for picking what to interp on...
+        idx1 = np.searchsorted(tvd_arr, tvd_fit[:2])  # first two values should be sorted on tvd
+        idx2 = np.searchsorted(hd_arr, hd_fit[2:])  # once well is no longer vertical, use hd
+        idxs = np.append(idx1, idx2)
+        md_fit = md_arr[idxs]
 
-        AIC_ = float("inf")
-        BIC_ = float("inf")
-        r_ = None
-
-        for count in range(1, maxcount + 1):
-            seg = np.full(count - 1, (xmax - xmin) / count)
-
-            px_init = np.r_[np.r_[xmin, seg].cumsum(), xmax]
-            py_init = np.array([Y[np.abs(X - x) < (xmax - xmin) * 0.1].mean() for x in px_init])
-
-            def func(p):
-                seg = p[: count - 1]
-                py = p[count - 1 :]  # noqa: E203
-                px = np.r_[np.r_[xmin, seg].cumsum(), xmax]
-                return px, py
-
-            def err(p):  # This is RSS / n
-                px, py = func(p)
-                Y2 = np.interp(X, px, py)
-                return np.mean((Y - Y2) ** 2)
-
-            r = optimize.minimize(err, x0=np.r_[seg, py_init], method="Nelder-Mead")
-
-            # Compute AIC/ BIC.
-            # read paper to verify if it should be natural log or not?
-            AIC = n * np.log10(err(r.x)) + 4 * count
-            BIC = n * np.log10(err(r.x)) + 2 * count * np.log(n)
-
-            if (BIC < BIC_) & (AIC < AIC_):  # Continue adding complexity.
-                r_ = r
-                AIC_ = AIC
-                BIC_ = BIC
-            else:  # Stop.
-                count = count - 1
-                break
-
-        md_fit, tvd_fit = func(r_.x)  # type: ignore
         self.md_fit = md_fit
         self.tvd_fit = tvd_fit
 
