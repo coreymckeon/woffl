@@ -157,6 +157,7 @@ def segments_fit(X, Y, maxcount=18):
     return func(r_.x)  # type: ignore [return the last (n-1)]
 
 
+# need to include the jetpump measured depth in the WellProfile
 class WellProfile:
     def __init__(self, md_list: list, tvd_list: list) -> None:
         """Initialize a Well Profile
