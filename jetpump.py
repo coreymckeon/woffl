@@ -107,8 +107,10 @@ class JetPump:
 
         # define friction factors
         # these values won't be changed in functional calls
-        self.knoz = 0.1  # nozzle friction factor
-        self.kthr = 0.3  # throat / diffuser friction factor
+        self.kn = 0.05  # nozzle friction factor
+        self.ken = 0.01  # throat enterance friction factor
+        self.kth = 0.1  # throat friction factor
+        self.kdi = 0.1  # diffuser friction factor
 
         # lookup the nozzle diameter
         # do error handling if the nozzle is not in the dictionary

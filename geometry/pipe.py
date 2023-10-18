@@ -2,7 +2,7 @@ import math
 
 
 class Pipe:
-    def __init__(self, out_dia: float, thick: float, rough: float) -> None:
+    def __init__(self, out_dia: float, thick: float, rough: float = 0.004) -> None:
         """Initialize a Piece of Piping
 
         The pipe doesn't have a length. The object will work with the profile
@@ -11,7 +11,7 @@ class Pipe:
         Args:
             out_dia (float): Outside diameter of the pipe, inches
             thick (float): Thickness of the piping, inches
-            rough (float): Absolute roughness of the piping, inches
+            rough (float): Abs Roughness, inches, Default: 0.004 inches
 
         Returns:
             Self

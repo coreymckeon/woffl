@@ -19,16 +19,16 @@ oil_comp = mpu_oil.condition(700, 80).compress()
 wat_comp = mpu_wat.compress()
 gas_comp = mpu_gas.condition(700, 80).compress()
 
-print('Compressibility')
-print(f'Oil: {oil_comp}, Water: {wat_comp}, Gas: {gas_comp} psi-1')
+print("Compressibility")
+print(f"Oil: {oil_comp}, Water: {wat_comp}, Gas: {gas_comp} psi-1")
 
-print('Bulk Modulus')
-print(f'Oil: {1/oil_comp}, Water: {1/wat_comp}, Gas: {1/gas_comp} psi')
+print("Bulk Modulus")
+print(f"Oil: {1/oil_comp}, Water: {1/wat_comp}, Gas: {1/gas_comp} psi")
 
-print('Speed of Sound in Mixture')
-print(f'cmix: {e42.cmix()} ft/s')
+print("Speed of Sound in Mixture")
+print(f"cmix: {e42.cmix()} ft/s")
 
-print('Oil, Water, Gas Volm Fractions')
+print("Oil, Water, Gas Volm Fractions")
 print(e42.volm_fract())
 """
 
