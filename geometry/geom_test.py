@@ -401,8 +401,8 @@ md_fit, tvd_fit = e42_profile.filter()
 
 # hd_fit = hd_array(md_fit, tvd_fit)
 # profileplot(hd_fit, tvd_fit, md_fit)
-# profileplot(hd_arr, tvd_arr, md_arr)
+profileplot(hd_arr, tvd_arr, md_arr)
 
-print(segments_fit(hd_arr, tvd_arr))
+# print(segments_fit(hd_arr, tvd_arr))
 
-print(segments_fit(md_arr, tvd_arr))
+# print(segments_fit(md_arr, tvd_arr))
