@@ -202,13 +202,6 @@ def throat_entry_graphs(pte_ray, rho_ray, vel_ray, snd_ray):
     return None
 
 
-area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
-psuc = 900
-
-qsu_std, press, dens, velo, sound = throat_entry_arrays(psuc, 80, area_te, ipr, e42)
-throat_entry_graphs(press, dens, velo, sound)
-
-
 def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
     """Power Fluid Pressure at Depth
 
@@ -284,3 +277,11 @@ def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vt
     ptm = pte - dp
 
     return ptm
+
+
+area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
+psuc = 900
+qsu_std, press, dens, velo, sound = throat_entry_arrays(psuc, 80, area_te, ipr, e42)
+# note, suction oil flow rate is pulled out and can be used later
+# if wanted for the visualization
+throat_entry_graphs(press, dens, velo, sound)
