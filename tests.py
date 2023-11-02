@@ -54,10 +54,11 @@ def actual_flow(
 
     Args:
         oil_rate (float): Oil Rate, BOPD
-        poil_std (float): Density of Oil at Std Cond, lbm/ft3
-        yoil (float): Volm Fraction of oil, ft3/ft3
-        ywat (float): Volm Fraction of water, ft3/ft3
-        ygas (float): Volm Fraction of gas, ft3/ft3
+        poil_std (float): Density Oil at Std Cond, lbm/ft3
+        poil (float): Density Oil Act. Cond, lbm/ft3
+        yoil (float): Volm Fraction Oil Act. Cond, ft3/ft3
+        ywat (float): Volm Fraction Water Act. Cond, ft3/ft3
+        ygas (float): Volm Fraction Gas Act. Cond, ft3/ft3
 
     Returns:
         qoil (float): Oil rate, actual ft3/s
