@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 
 import numpy as np
 from flow.inflow import InFlow
@@ -203,6 +204,106 @@ def throat_entry_graphs(pte_ray, rho_ray, vel_ray, snd_ray):
     return None
 
 
+@dataclass
+class throat_entry_result:
+    """Class for storing throat entry equation results, to be graphed later.
+
+    Args:
+        psu (float): Suction Pressure, psig
+        qsu (float): Suction Oil Flow, bopd
+        mach1_pte (float): Mach One Pressure, psig
+        pte_ray (np.ndarray): Throat Entry Array, psig
+        tee_ray (np.ndarray): Throat Entry Eqn Array, ft2/s2
+    """
+
+    psu: float
+    qsu: float
+    mach1_pte: float
+    pte_ray: np.ndarray
+    tee_ray: np.ndarray
+
+
+def multi_throat_entry_arrays(psu_min: float, psu_max: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
+    """Multiple Throat Entry Arrays
+
+    Calculate throat entry arrays at different suction pressures. Used to
+    graph later. Similiar to Figure 5 from Robert Merrill Paper.
+
+    Args:
+        psu_min (float): Suction Pressure Min, psig
+        psu_max (float): Suction Pressure Max, psig, less than reservoir pressure
+        tsu (float): Suction Temp, deg F
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        This will return either a list of dictionaries or dataclasses
+        Not sure what I want to call it and which direction to head...?
+    """
+    if psu_max >= ipr_su.pres:
+        raise ValueError("Max suction pressure must be less than reservoir pressure")
+    # 200 is arbitary and has been hard coded into the throat entry array calcs
+    if psu_min <= 200:
+        raise ValueError("Min suction pressure must be greater than 200 psig")
+
+    ray_len = 5  # number of elements in the array
+
+    # create empty list to fill up with results
+    res_lis = list()
+
+    psu_ray = np.linspace(psu_min, psu_max, ray_len)
+
+    for psu in psu_ray:
+        qoil_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu, tsu, ate, ipr_su, prop_su)
+        mach_ray = vel_ray / snd_ray
+        crit_prs = np.interp(1, mach_ray, pte_ray)
+        kse_ray, ese_ray = energy_arrays(0.01, pte_ray, rho_ray, vel_ray)
+        tee_ray = kse_ray + ese_ray
+
+        # story the results as a class
+        res_lis.append(
+            throat_entry_result(
+                psu=psu,
+                qsu=qoil_std,
+                mach1_pte=crit_prs,
+                pte_ray=pte_ray[1:],  # drop suction pressure
+                tee_ray=tee_ray,
+            )
+        )
+    return res_lis
+
+
+def multi_suction_graphs(res_lis: list):
+    """Throat Entry Graphs for Multiple Suction Pressures
+
+    Create a graph that shows throat entry equation solutions for multiple suction pressures
+
+    Args:
+        res_lis (list): Results from multi throat entry arrays
+
+    Returns:
+        Graphs
+    """
+    ax = plt.gca()
+    for res in res_lis:
+        mach1_tee = np.interp(res.mach1_pte, np.flip(res.pte_ray), np.flip(res.tee_ray))
+        color = next(ax._get_lines.prop_cycler)["color"]
+        # only graph values where the mach number is under one
+        pte_ray = res.pte_ray[res.pte_ray > res.mach1_pte]
+        tee_ray = res.tee_ray[res.pte_ray > res.mach1_pte]
+        plt.scatter(pte_ray, tee_ray, color=color, label=f"{int(res.qsu)} bopd, {int(res.psu)} psi")
+        plt.scatter(res.mach1_pte, mach1_tee, marker="v", color=color)  # mach equals one
+
+    plt.xlabel("Throat Entry Pressure, psig")
+    plt.ylabel("Throat Entry Equation, ft2/s2")
+    plt.axhline(y=0, color="black", linestyle="--", linewidth=1)
+    plt.title("Figure 5 of SPE-202928-MS, Mach 1 at \u25BC")
+    plt.legend()
+    plt.show()
+    return None
+
+
 def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
     """Power Fluid Pressure at Depth
 
@@ -281,8 +382,12 @@ def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vt
 
 
 area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
-psuc = 900
-qsu_std, press, dens, velo, sound = throat_entry_arrays(psuc, 80, area_te, ipr, e42)
+psuc = 1000
+
+res_lis = multi_throat_entry_arrays(psu_min=870, psu_max=950, tsu=82, ate=area_te, ipr_su=ipr, prop_su=e42)
+multi_suction_graphs(res_lis)
+
+"""qsu_std, press, dens, velo, sound = throat_entry_arrays(psuc, 80, area_te, ipr, e42)
 # note, suction oil flow rate is pulled out and can be used later
 # if wanted for the visualization
-throat_entry_graphs(press, dens, velo, sound)
+throat_entry_graphs(press, dens, velo, sound)"""
