@@ -10,7 +10,7 @@ from pvt.blackoil import BlackOil
 from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 from pvt.resmix import ResMix
-from scipy.integrate import cumtrapz, trapz
+from scipy.integrate import cumtrapz, simps, trapz
 
 """This file is nothing more than a collection of Kaelin trying to make
 some jet pump theory work in a practical method. At this point I don't
@@ -78,12 +78,35 @@ def actual_flow(
     return qoil, qwat, qgas
 
 
+def throat_entry_mach_one(pte_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray) -> float:
+    """Throat Entry Mach One
+
+    Calculates the pressure where the throat entry flow hits sonic velocity, mach = 1
+
+    Args:
+        pte_ray (np array): Press Throat Entry Array, psig
+        vel_ray (np array): Velocity Throat Entry Array, ft/s
+        snd_ray (np array): Speed of Sound Array, ft/s
+
+    Returns:
+        pmo (float): Pressure Mach One, psig
+    """
+    mach_ray = vel_ray / snd_ray
+    # check that the mach array has values that span one for proper interpolation
+    if np.max(mach_ray) <= 1:
+        raise ValueError("Max value in Mach array is less than one, increase pte")
+    if np.min(mach_ray) >= 1:
+        raise ValueError("Min value in Mach array is greater than one, decrease pte")
+    pmo = np.interp(1, mach_ray, pte_ray)
+    return pmo
+
+
 def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
-    """Throat Entry Arrays
+    """Throat Entry Raw Arrays
 
     Create a series of throat entry arrays. The arrays can be graphed to visualize.
-    What is occuring inside the throat entry while pressure is dropped. Doesn't
-    actually find the solutions, just for visualization.
+    What is occuring inside the throat entry while pressure is dropped. Keeps all the
+    values, even where pte velocity is greater than mach 1.
 
     Args:
         psu (float): Suction Pressure, psig
@@ -103,7 +126,7 @@ def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop
     rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
 
-    ray_len = 20  # number of elements in the array
+    ray_len = 30  # number of elements in the array
 
     # create empty arrays to fill later
     vel_ray = np.empty(ray_len)
@@ -132,8 +155,7 @@ def energy_arrays(ken, pte_ray, rho_ray, vel_ray):
     """Specific Energy Arrays for Throat Entry
 
     Calculate the reservoir fluid kinetic energy and expansion energy. Return
-    arrays that can be graphed for visualization. Returned energy arrays will
-    be one shorter than the provided pressure, density and velocity arrays.
+    arrays that can be graphed for visualization.
 
     Args:
         ken (float): Nozzle Enterance Friction Loss, unitless
@@ -148,15 +170,12 @@ def energy_arrays(ken, pte_ray, rho_ray, vel_ray):
 
     # convert from psi to lbm/(ft*s2)
     plbm = pte_ray * 144 * 32.174
-    ee_ray = cumtrapz(1 / rho_ray, plbm)  # ft2/s2 expansion energy
+    ee_ray = cumtrapz(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
     ke_ray = (1 + ken) * (vel_ray**2) / 2  # ft2/s2 kinetic energy
-    # integration starts at psu, remove that value as it has little meaning
-    ke_ray = ke_ray[1:]  # chop off kinetic energy at psu
-
     return ke_ray, ee_ray
 
 
-def throat_entry_graphs(pte_ray, rho_ray, vel_ray, snd_ray):
+def throat_entry_graphs(pte_ray, rho_ray, vel_ray, snd_ray) -> None:
     """Throat Entry Graphs
 
     Create a graph to visualize what is occuring inside the throat entry section
@@ -168,17 +187,17 @@ def throat_entry_graphs(pte_ray, rho_ray, vel_ray, snd_ray):
         snd_ray (np array): Speed of Sound Array, ft/s
 
     Returns:
-        Graphs
+        Graphs of Specific Volume, Velocity, Specific Energy, and TEE
     """
     mach_ray = vel_ray / snd_ray
-    crit_prs = np.interp(1, mach_ray, pte_ray)  # interpolate for pressure at mach 1
+    pmo = np.interp(1, mach_ray, pte_ray)  # interpolate for pressure at mach 1, pmo
     # fix this later for entrance friction loss
     kse_ray, ese_ray = energy_arrays(0.01, pte_ray, rho_ray, vel_ray)
     tee_ray = kse_ray + ese_ray
     psuc = pte_ray[0]
 
     fig, axs = plt.subplots(4, sharex=True)
-    fig.suptitle(f"Suction at {psuc} psi, Mach 1 at {round(crit_prs,0)} psi")
+    fig.suptitle(f"Suction at {psuc} psi, Mach 1 at {round(pmo,0)} psi")
 
     axs[0].scatter(pte_ray, 1 / rho_ray)
     axs[0].set_ylabel("Specific Volume, ft3/lbm")
@@ -188,16 +207,17 @@ def throat_entry_graphs(pte_ray, rho_ray, vel_ray, snd_ray):
     axs[1].set_ylabel("Velocity, ft/s")
     axs[1].legend()
 
-    axs[2].scatter(pte_ray[1:], ese_ray, label="Expansion")
-    axs[2].scatter(pte_ray[1:], kse_ray, label="Kinetic")
+    axs[2].scatter(pte_ray, ese_ray, label="Expansion")
+    axs[2].scatter(pte_ray, kse_ray, label="Kinetic")
+    axs[2].axhline(y=0, color="black", linestyle="--", linewidth=1)
     axs[2].set_ylabel("Specific Energy, ft2/s2")
     axs[2].legend()
 
-    ycoord = max(tee_ray) * 0.25
-    axs[3].scatter(pte_ray[1:], tee_ray)
-    axs[3].hlines(y=0, xmin=min(pte_ray[1:]), xmax=max(pte_ray[1:]), colors="red", linestyles="dashed")
-    axs[3].axvline(x=crit_prs, ymin=0, ymax=1, color="red", linestyle="dashed")
-    axs[3].annotate(text="Mach 1", xy=(crit_prs, ycoord), rotation=90)
+    ycoord = (max(tee_ray) + min(tee_ray)) / 2
+    axs[3].scatter(pte_ray, tee_ray)
+    axs[3].axhline(y=0, color="black", linestyle="--", linewidth=1)
+    axs[3].axvline(x=pmo, color="black", linestyle="--", linewidth=1)
+    axs[3].annotate(text="Mach 1", xy=(pmo, ycoord), rotation=90)
     axs[3].set_ylabel("TEE, ft2/s2")
     axs[3].set_xlabel("Throat Entry Pressure, psig")
     plt.show()
@@ -211,19 +231,21 @@ class throat_entry_result:
     Args:
         psu (float): Suction Pressure, psig
         qsu (float): Suction Oil Flow, bopd
-        mach1_pte (float): Mach One Pressure, psig
+        pmo (float): Mach One Pressure, psig
         pte_ray (np.ndarray): Throat Entry Array, psig
         tee_ray (np.ndarray): Throat Entry Eqn Array, ft2/s2
     """
 
     psu: float
     qsu: float
-    mach1_pte: float
+    pmo: float
     pte_ray: np.ndarray
     tee_ray: np.ndarray
 
 
-def multi_throat_entry_arrays(psu_min: float, psu_max: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
+def multi_throat_entry_arrays(
+    psu_min: float, psu_max: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+) -> list:
     """Multiple Throat Entry Arrays
 
     Calculate throat entry arrays at different suction pressures. Used to
@@ -238,8 +260,7 @@ def multi_throat_entry_arrays(psu_min: float, psu_max: float, tsu: float, ate: f
         prop_su (ResMix): Properties of Suction Fluid
 
     Returns:
-        This will return either a list of dictionaries or dataclasses
-        Not sure what I want to call it and which direction to head...?
+        res_list (list): List of throat_entry_result class at various suction pressures
     """
     if psu_max >= ipr_su.pres:
         raise ValueError("Max suction pressure must be less than reservoir pressure")
@@ -256,8 +277,7 @@ def multi_throat_entry_arrays(psu_min: float, psu_max: float, tsu: float, ate: f
 
     for psu in psu_ray:
         qoil_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu, tsu, ate, ipr_su, prop_su)
-        mach_ray = vel_ray / snd_ray
-        crit_prs = np.interp(1, mach_ray, pte_ray)
+        pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
         kse_ray, ese_ray = energy_arrays(0.01, pte_ray, rho_ray, vel_ray)
         tee_ray = kse_ray + ese_ray
 
@@ -266,34 +286,34 @@ def multi_throat_entry_arrays(psu_min: float, psu_max: float, tsu: float, ate: f
             throat_entry_result(
                 psu=psu,
                 qsu=qoil_std,
-                mach1_pte=crit_prs,
-                pte_ray=pte_ray[1:],  # drop suction pressure
+                pmo=pmo,
+                pte_ray=pte_ray,  # drop suction pressure
                 tee_ray=tee_ray,
             )
         )
     return res_lis
 
 
-def multi_suction_graphs(res_lis: list):
+def multi_suction_graphs(res_lis: list) -> None:
     """Throat Entry Graphs for Multiple Suction Pressures
 
     Create a graph that shows throat entry equation solutions for multiple suction pressures
 
     Args:
-        res_lis (list): Results from multi throat entry arrays
+        res_lis (list): List of throat_entry_result class at various suction pressures
 
     Returns:
         Graphs
     """
     ax = plt.gca()
     for res in res_lis:
-        mach1_tee = np.interp(res.mach1_pte, np.flip(res.pte_ray), np.flip(res.tee_ray))
+        tee_pmo = np.interp(res.pmo, np.flip(res.pte_ray), np.flip(res.tee_ray))
         color = next(ax._get_lines.prop_cycler)["color"]
         # only graph values where the mach number is under one
-        pte_ray = res.pte_ray[res.pte_ray > res.mach1_pte]
-        tee_ray = res.tee_ray[res.pte_ray > res.mach1_pte]
+        pte_ray = res.pte_ray[res.pte_ray >= res.pmo]
+        tee_ray = res.tee_ray[res.pte_ray >= res.pmo]
         plt.scatter(pte_ray, tee_ray, color=color, label=f"{int(res.qsu)} bopd, {int(res.psu)} psi")
-        plt.scatter(res.mach1_pte, mach1_tee, marker="v", color=color)  # mach equals one
+        plt.scatter(res.pmo, tee_pmo, marker="v", color=color)  # mach equals one
 
     plt.xlabel("Throat Entry Pressure, psig")
     plt.ylabel("Throat Entry Equation, ft2/s2")
@@ -302,6 +322,72 @@ def multi_suction_graphs(res_lis: list):
     plt.legend()
     plt.show()
     return None
+
+
+def tee_near_pmo(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+    """Throat Entry Equation near pmo, mach 1 pressure
+
+    Find the value of the throat entry equation near the mach 1 pressure. The following
+    function will be iterated across to minimize the throat entry equation.
+
+    Args:
+        psu (float): Suction Press, psig
+        tsu (float): Suction Temp, deg F
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        tee_pmo (float): Throat Entry Value near pmo, psig"""
+
+    qoil_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu, tsu, ate, ipr_su, prop_su)
+    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
+    mask = pte_ray >= pmo  # only use values where pte_ray is greater than pmo, haven't hit mach 1
+    # note: do we even have to calc  and filter pmo? TEE vs pte is a parabola which anyway...?
+    # discontinuities with mask function might screw all this up...
+    kse_ray, ese_ray = energy_arrays(0.01, pte_ray[mask], rho_ray[mask], vel_ray[mask])
+    tee_ray = kse_ray + ese_ray
+    tee_pmo = min(tee_ray)  # find the smallest value of tee where mach <=1
+    return tee_pmo
+
+
+def minimize_tee(tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+    """Minimize Throat Entry Equation at pmo
+
+    Find that psu that minimizes the throat entry equation for where Mach = 1 (pmo).
+    Secant method for iteration, starting point is Res Pres minus 200 and 300 psig.
+    Boundary equation is the starting point that Bob Merrill uses in his paper.
+
+    Args:
+        tsu (float): Suction Temp, deg F
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        psu (float): Suction Pressure, psig"""
+    # how can we guarentee mach values are reached???
+    psu_list = [ipr_su.pres - 300, ipr_su.pres - 400]
+    # store values of tee near mach=1 pressure
+    tee_list = [
+        tee_near_pmo(psu_list[0], tsu, ate, ipr_su, prop_su),
+        tee_near_pmo(psu_list[1], tsu, ate, ipr_su, prop_su),
+    ]
+    # criteria for when you've converged to an answer
+    psu_diff = 5
+    n = 0  # loop counter
+    while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
+        # use secant method to calculate next guess value for psu to use
+        psu_nxt = psu_list[-1] - tee_list[-1] * (psu_list[-2] - psu_list[-1]) / (tee_list[-2] - tee_list[-1])
+        print(psu_nxt)
+        tee_nxt = tee_near_pmo(psu_nxt, tsu, ate, ipr_su, prop_su)
+        psu_list.append(psu_nxt)
+        tee_list.append(tee_nxt)
+        n = n + 1
+        if n == 10:
+            print("TEE Minimization did not converge")
+            break
+    return psu_list[-1]
 
 
 def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
@@ -382,12 +468,35 @@ def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vt
 
 
 area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
-psuc = 1000
+psuc = 880
 
-res_lis = multi_throat_entry_arrays(psu_min=870, psu_max=950, tsu=82, ate=area_te, ipr_su=ipr, prop_su=e42)
-multi_suction_graphs(res_lis)
+# res_lis = multi_throat_entry_arrays(psu_min=876, psu_max=1100, tsu=82, ate=area_te, ipr_su=ipr, prop_su=e42)
+# multi_suction_graphs(res_lis)
 
-"""qsu_std, press, dens, velo, sound = throat_entry_arrays(psuc, 80, area_te, ipr, e42)
+mini_tee = minimize_tee(80, area_te, ipr, e42)
+
+qsu_std, press, dens, velo, sound = throat_entry_arrays(mini_tee, 80, area_te, ipr, e42)
 # note, suction oil flow rate is pulled out and can be used later
 # if wanted for the visualization
-throat_entry_graphs(press, dens, velo, sound)"""
+throat_entry_graphs(press, dens, velo, sound)
+
+
+"""
+# find where mach = 1 (pmo), insert pmo into pte, calculate rho, vel and snd at arrays
+    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
+    # flip array for ascedning order instead of descending
+    pmo_idx = np.searchsorted(np.flip(pte_ray), pmo) - pte_ray.size  # find position of pmo
+
+    # repeat finding properties where Mach Number equals one
+    prop_su = prop_su.condition(pmo, tsu)
+    rho_oil = prop_su.oil.density  # oil density
+    yoil, ywat, ygas = prop_su.volm_fract()
+    qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
+    qtot = qoil + qwat + qgas
+
+    # insert values where Mach Number equals one
+    pte_ray = np.insert(arr=pte_ray, obj=pmo_idx, values=pmo)
+    vel_ray = np.insert(arr=vel_ray, obj=pmo_idx, values=qtot / ate)
+    rho_ray = np.insert(arr=rho_ray, obj=pmo_idx, values=prop_su.pmix())
+    snd_ray = np.insert(arr=snd_ray, obj=pmo_idx, values=prop_su.cmix())
+    """
