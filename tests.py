@@ -2,15 +2,16 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
+from matplotlib import pyplot as plt
+from scipy.integrate import cumtrapz, simps, trapz
+
 from flow.inflow import InFlow
 from geometry.pipe import Annulus, Pipe
 from jetpump import JetPump
-from matplotlib import pyplot as plt
 from pvt.blackoil import BlackOil
 from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 from pvt.resmix import ResMix
-from scipy.integrate import cumtrapz, simps, trapz
 
 """This file is nothing more than a collection of Kaelin trying to make
 some jet pump theory work in a practical method. At this point I don't
@@ -197,7 +198,7 @@ def throat_entry_graphs(pte_ray, rho_ray, vel_ray, snd_ray) -> None:
     psuc = pte_ray[0]
 
     fig, axs = plt.subplots(4, sharex=True)
-    fig.suptitle(f"Suction at {psuc} psi, Mach 1 at {round(pmo,0)} psi")
+    fig.suptitle(f"Suction at {round(psuc,0)} psi, Mach 1 at {round(pmo,0)} psi")
 
     axs[0].scatter(pte_ray, 1 / rho_ray)
     axs[0].set_ylabel("Specific Volume, ft3/lbm")
@@ -379,7 +380,6 @@ def minimize_tee(tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> flo
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
         # use secant method to calculate next guess value for psu to use
         psu_nxt = psu_list[-1] - tee_list[-1] * (psu_list[-2] - psu_list[-1]) / (tee_list[-2] - tee_list[-1])
-        print(psu_nxt)
         tee_nxt = tee_near_pmo(psu_nxt, tsu, ate, ipr_su, prop_su)
         psu_list.append(psu_nxt)
         tee_list.append(tee_nxt)
@@ -387,7 +387,32 @@ def minimize_tee(tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> flo
         if n == 10:
             print("TEE Minimization did not converge")
             break
+    # print(psu_list)
+    # print(tee_list)
     return psu_list[-1]
+
+
+def pte_zero_tee(pte_ray, rho_ray, vel_ray, snd_ray) -> float:
+    """Throat Entry Pressure with a zero TEE
+
+    Calculate the throat entry pressure that the TEE crosses zero. Valid
+    for one suction pressure in the reservoir.
+
+    Args:
+        pte_ray (np array): Press Throat Entry Array, psig
+        rho_ray (np array): Density Throat Entry Array, lbm/ft3
+        vel_ray (np array): Velocity Throat Entry Array, ft/s
+        snd_ray (np array): Speed of Sound Array, ft/s
+
+    Return:
+        pte (float): Throat Entry Pressure, psig
+    """
+    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
+    mask = pte_ray >= pmo  # only use values where pte_ray is greater than pmo, haven't hit mach 1
+    kse_ray, ese_ray = energy_arrays(0.01, pte_ray[mask], rho_ray[mask], vel_ray[mask])
+    tee_ray = kse_ray + ese_ray
+    pte = np.interp(0, np.flip(tee_ray), np.flip(pte_ray[mask]))
+    return pte
 
 
 def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
@@ -423,6 +448,24 @@ def nozzle_velocity(pni: float, pte: float, knz: float, rho_nz: float) -> float:
     """
     vnz = math.sqrt(2 * 32.2 * 144 * (pni - pte) / (rho_nz * (1 + knz)))
     return vnz
+
+
+def nozzle_rate(vnz: float, anz: float) -> tuple[float, float]:
+    """Nozzle Flow Rate
+
+    Find Nozzle / Power Fluid Flowrate in ft3/s and BPD
+
+    Args:
+        vnz (float): Nozzle Velocity, ft/s
+        anz (float): Area of Nozzle, ft2
+
+    Returns:
+        qnz_ft3s (float): Nozzle Flowrate ft3/s
+        qnz_bpd (float): Nozzle Flowrate bpd
+    """
+    qnz_ft3s = anz * vnz
+    qnz_bpd = qnz_ft3s * (7.4801 * 60 * 60 * 24 / 42)
+    return qnz_ft3s, qnz_bpd
 
 
 def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate: float, rho_te: float):
@@ -468,17 +511,22 @@ def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vt
 
 
 area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
-psuc = 880
+# psuc = 880
 
 # res_lis = multi_throat_entry_arrays(psu_min=876, psu_max=1100, tsu=82, ate=area_te, ipr_su=ipr, prop_su=e42)
 # multi_suction_graphs(res_lis)
 
-mini_tee = minimize_tee(80, area_te, ipr, e42)
+psu_min = minimize_tee(80, area_te, ipr, e42)
+qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu_min, 80, area_te, ipr, e42)
+pte = pte_zero_tee(pte_ray, rho_ray, vel_ray, snd_ray)
+pni = pf_press_depth(62.4, 3000, 4000)
+vnz = nozzle_velocity(pni, pte, 0.01, 62.4)
+print(nozzle_rate(vnz, e42jetpump.anoz / 144))
 
-qsu_std, press, dens, velo, sound = throat_entry_arrays(mini_tee, 80, area_te, ipr, e42)
+
 # note, suction oil flow rate is pulled out and can be used later
 # if wanted for the visualization
-throat_entry_graphs(press, dens, velo, sound)
+# throat_entry_graphs(press, dens, velo, sound)
 
 
 """
