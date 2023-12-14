@@ -392,11 +392,13 @@ def minimize_tee(tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> flo
     return psu_list[-1]
 
 
-def pte_zero_tee(pte_ray, rho_ray, vel_ray, snd_ray) -> float:
-    """Throat Entry Pressure with a zero TEE
+def zero_tee(
+    pte_ray: np.ndarray, rho_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray
+) -> tuple[float, float, float]:
+    """Throat Entry Parameters with a zero TEE
 
-    Calculate the throat entry pressure that the TEE crosses zero. Valid
-    for one suction pressure in the reservoir.
+    Calculate the throat entry pressure, density, and velocity where TEE crosses zero.
+    Valid for one suction pressure  of the pump / reservoir.
 
     Args:
         pte_ray (np array): Press Throat Entry Array, psig
@@ -406,13 +408,18 @@ def pte_zero_tee(pte_ray, rho_ray, vel_ray, snd_ray) -> float:
 
     Return:
         pte (float): Throat Entry Pressure, psig
+        rho_te (float): Throat Entry Density, lbm/ft3
+        vte (float): Throat Entry Velocity, ft/s
     """
     pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
     mask = pte_ray >= pmo  # only use values where pte_ray is greater than pmo, haven't hit mach 1
     kse_ray, ese_ray = energy_arrays(0.01, pte_ray[mask], rho_ray[mask], vel_ray[mask])
     tee_ray = kse_ray + ese_ray
+    # is there a way to speed up all these interpolations?
     pte = np.interp(0, np.flip(tee_ray), np.flip(pte_ray[mask]))
-    return pte
+    rho_te = np.interp(0, np.flip(tee_ray), np.flip(rho_ray[mask]))
+    vte = np.interp(0, np.flip(tee_ray), np.flip(vel_ray[mask]))
+    return pte, rho_te, vte
 
 
 def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
@@ -468,14 +475,14 @@ def nozzle_rate(vnz: float, anz: float) -> tuple[float, float]:
     return qnz_ft3s, qnz_bpd
 
 
-def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate: float, rho_te: float):
-    """Throat Mixture Equation
+def throat_diff(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate: float, rho_te: float):
+    """Throat Differential Pressure
 
-    Solve the throat mixture equation of the jet pump. Calculates throat discharge pressure.
-    Mixture Velocity, Mixture Density and other parameters.
+    Solves the throat mixture equation of the jet pump. Calculates throat differntial pressure.
+    Use the throat entry pressure and differential pressure to calculate throat mix pressure.
+    ptm = pte - dp_th
 
     Args:
-        pte (float): Pressure Throat Entry, psig
         kth (float): Friction of Throat Mix, Unitless
         vnz (float): Velocity of Nozzle, ft/s
         anz (float): Area of Nozzle, ft2
@@ -485,7 +492,7 @@ def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vt
         rho_te (float): Density of Throat Entry Mixture, lbm/ft3
 
     Returns:
-        ptm (float): Pressure Throat Mixture. psig
+        dp_th (float): Throat Differential Pressure, psid
     """
 
     mnz = vnz * anz * rho_nz  # mass flow of the mozzle
@@ -501,13 +508,30 @@ def throat_mix(pte: float, kth: float, vnz: float, anz: float, rho_nz: float, vt
     rho_tm = (mnz + mte) / (qnz + qte)  # density of total mixture
 
     # units of lbm/(s2*ft)
-    dp = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
+    dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
     # convert to lbf/in2
-    dp = dp / (32.174 * 144)
+    dp_tm = dp_tm / (32.174 * 144)
+    return dp_tm
 
-    ptm = pte - dp
 
-    return ptm
+def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
+    """Throat Watercut
+
+    Calculate watercut inside jet pump throat. This is the new watercut
+    after the power fluid and reservoir fluid have mixed together
+
+    Args:
+        qoil_std (float): Oil Rate, STD BOPD
+        wc_su (float): Watercut at pump suction, decimal
+        qwat_nz (float): Powerfluid Flowrate, BWPD
+
+    Returns:
+        wc_tm (float): Watercut at throat, decimal"""
+
+    qwat_su = qoil_std * wc_su / (1 - wc_su)
+    qwat_tot = qwat_nz + qwat_su
+    wc_tm = qwat_tot / (qwat_tot + qoil_std)
+    return wc_tm
 
 
 area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
@@ -518,10 +542,16 @@ area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
 
 psu_min = minimize_tee(80, area_te, ipr, e42)
 qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu_min, 80, area_te, ipr, e42)
-pte = pte_zero_tee(pte_ray, rho_ray, vel_ray, snd_ray)
+# need to return pte, rho_te, vte
+pte, rho_te, vte = zero_tee(pte_ray, rho_ray, vel_ray, snd_ray)
 pni = pf_press_depth(62.4, 3000, 4000)
 vnz = nozzle_velocity(pni, pte, 0.01, 62.4)
-print(nozzle_rate(vnz, e42jetpump.anoz / 144))
+anz = e42jetpump.anoz / 144
+qnz_ft3s, qnz_bpd = nozzle_rate(vnz, anz)
+dp_tm = throat_diff(0.1, vnz, anz, 62.4, vte, area_te, rho_te)
+ptm = pte - dp_tm
+wc_tm = throat_wc(qsu_std, e42.wc, qnz_bpd)
+print(e42.wc, wc_tm)
 
 
 # note, suction oil flow rate is pulled out and can be used later
