@@ -122,7 +122,6 @@ def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop
         rho_ray (np array): Density Throat Entry Array, lbm/ft3
         vel_ray (np array): Velocity Throat Entry Array, ft/s
         snd_ray (np array): Speed of Sound Array, ft/s
-        mach_ray (np array): Mach Number Array, unitless
     """
     rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
@@ -511,7 +510,7 @@ def throat_diff(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, a
     dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
     # convert to lbf/in2
     dp_tm = dp_tm / (32.174 * 144)
-    return dp_tm
+    return dp_tm, vtm
 
 
 def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
@@ -534,6 +533,140 @@ def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
     return wc_tm
 
 
+# other option is to just make a while loop that does something similiar
+# instead of calculating all the "extra" values
+def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: float, prop_tm: ResMix):
+    """Diffuser Raw Arrays
+
+    Create diffuser arrays. The arrays are used to find where the diffuser
+    pressure crosses the energy equilibrium mark and find discharge pressure.
+
+    Args:
+        ptm (float): Throat Mixture Pressure, psig
+        ttm (float): Throat Mixture Temp, deg F
+        ath (float): Throat Area, ft2
+        adi (float): Diffuser Area, ft2
+        qoil_std (float): Oil Rate, STD BOPD
+        prop_tm (ResMix): Properties of Throat Mixture
+
+    Returns:
+        vtm (float): Throat Mixture Velocity, ft/s
+        pdi_ray (np array): Press Diffuser Array, psig
+        rho_ray (np array): Density Diffuser Array, lbm/ft3
+        vdi_ray (np array): Velocity Diffuser Array, ft/s
+        snd_ray (np array): Speed of Sound Array, ft/s
+    """
+    rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density
+    vtm = None
+
+    ray_len = 30  # number of elements in the array
+
+    # create empty arrays to fill later
+    vdi_ray = np.empty(ray_len)
+    rho_ray = np.empty(ray_len)
+    snd_ray = np.empty(ray_len)
+
+    pdi_ray = np.linspace(ptm, ptm + 1000, ray_len)  # throat entry pressures
+
+    for i, pdi in enumerate(pdi_ray):
+        prop_tm = prop_tm.condition(pdi, ttm)
+
+        rho_oil = prop_tm.oil.density  # oil density
+        yoil, ywat, ygas = prop_tm.volm_fract()
+        qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
+        qtot = qoil + qwat + qgas
+
+        vdi_ray[i] = qtot / adi
+        rho_ray[i] = prop_tm.pmix()
+        snd_ray[i] = prop_tm.cmix()
+        if i == 0:
+            vtm = qtot / ath
+
+    return vtm, pdi_ray, rho_ray, vdi_ray, snd_ray
+
+
+def diffuser_energy(kdi, vtm, pdi_ray, rho_ray, vdi_ray):
+    """Specific Energy Arrays for Diffuser
+
+    Calculate the jet pump fluid kinetic energy and expansion energy.
+    Return arrys that can be graphed for visualization.
+
+    Args:
+        kdi (float): Diffuser Friction Loss, unitless
+        vtm (float): Velocity of throat mixture, ft/s
+        pdi_ray (np array): Press Diffuser Array, psig
+        rho_ray (np array): Density Diffuser Array, lbm/ft3
+        vdi_ray (np array): Velocity Diffuser Array, ft/s
+
+    Returns:
+        ke_ray (np array): Kinetic Energy, ft2/s2
+        ee_ray (np array): Expansion Energy, ft2/s2
+    """
+    # convert from psi to lbm/(ft*s2)
+    plbm = pdi_ray * 144 * 32.174
+    ee_ray = cumtrapz(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
+    ke_ray = (vdi_ray**2 - (1 - kdi) * vtm**2) / 2  # ft2/s2 kinetic energy
+    return ke_ray, ee_ray
+
+
+def diffuser_graphs(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
+    """Diffuser Graphs
+
+    Create a graph to visualize what is occuring in the diffuser section
+
+    Args:
+        vtm (float): Velocity of throat mixture, ft/s
+        pdi_ray (np array): Press Diffuser Array, psig
+        rho_ray (np array): Density Diffuser Array, lbm/ft3
+        vdi_ray (np array): Velocity Diffuser Array, ft/s
+        snd_ray (np array): Speed of Sound in Diffuser Array, ft/s
+
+    Returns:
+        Graphs of Specific Volume, Velocity, Specific Energy, and DEE
+    """
+    kse_ray, ese_ray = diffuser_energy(0.1, vtm, pdi_ray, rho_ray, vdi_ray)
+    dee_ray = kse_ray + ese_ray
+    ptm = pdi_ray[0]
+
+    fig, axs = plt.subplots(4, sharex=True)
+
+    axs[0].scatter(pdi_ray, 1 / rho_ray)
+    axs[0].set_ylabel("Specific Volume, ft3/lbm")
+
+    axs[1].scatter(pdi_ray, vdi_ray, label="Diffuser Outlet")
+    axs[1].scatter(pdi_ray, snd_ray, label="Speed of Sound")
+    axs[1].scatter(ptm, vtm, label="Diffuser Inlet")
+    axs[1].set_ylabel("Velocity, ft/s")
+    axs[1].legend()
+
+    axs[2].scatter(pdi_ray, ese_ray, label="Expansion")
+    axs[2].scatter(pdi_ray, kse_ray, label="Kinetic")
+    axs[2].axhline(y=0, color="black", linestyle="--", linewidth=1)
+    axs[2].set_ylabel("Specific Energy, ft2/s2")
+    axs[2].legend()
+
+    axs[3].scatter(pdi_ray, dee_ray)
+    axs[3].axhline(y=0, color="black", linestyle="--", linewidth=1)
+    axs[3].set_ylabel("DEE, ft2/s2")
+    axs[3].set_xlabel("Throat Entry Pressure, psig")
+
+    if max(dee_ray) >= 0 and min(dee_ray) <= 0:  # make sure a solution exists
+        pdi = np.interp(0, dee_ray, pdi_ray)
+
+        vdi = np.interp(pdi, pdi_ray, vdi_ray)
+        ycoord = (min(vdi_ray) + max(snd_ray)) / 2
+        axs[1].axvline(x=pdi, color="black", linestyle="--", linewidth=1)
+        axs[1].annotate(text=f"{round(vdi, 1)} ft/s", xy=(pdi, ycoord), rotation=90)
+
+        ycoord = min(dee_ray)
+        axs[3].axvline(x=pdi, color="black", linestyle="--", linewidth=1)
+        axs[3].annotate(text=f"{int(pdi)} psi", xy=(pdi, ycoord), rotation=90)
+        fig.suptitle(f"Diffuser Inlet and Outlet at {round(ptm,0)} and {round(pdi,0)} psi")
+    else:
+        fig.suptitle(f"Diffuser Inlet at {round(ptm,0)} psi")
+    plt.show()
+
+
 area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
 # psuc = 880
 
@@ -548,10 +681,19 @@ pni = pf_press_depth(62.4, 3000, 4000)
 vnz = nozzle_velocity(pni, pte, 0.01, 62.4)
 anz = e42jetpump.anoz / 144
 qnz_ft3s, qnz_bpd = nozzle_rate(vnz, anz)
-dp_tm = throat_diff(0.1, vnz, anz, 62.4, vte, area_te, rho_te)
+dp_tm, vtm = throat_diff(0.1, vnz, anz, 62.4, vte, area_te, rho_te)
+# note, vtm from throat equation and vtm from diffuser equation will not be equal
+# this is because throat equation is run at 400 psig, diffuser is run at 1100 psig
 ptm = pte - dp_tm
 wc_tm = throat_wc(qsu_std, e42.wc, qnz_bpd)
-print(e42.wc, wc_tm)
+# redefine the ResMixture with the additional waterlift power fluid
+e42_disch = ResMix(wc_tm, 1500, mpu_oil, mpu_wat, mpu_gas)
+ath = e42jetpump.athr / 144
+adi = tube.inn_area
+vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = diffuser_arrays(ptm, 80, ath, adi, qsu_std, e42_disch)
+diffuser_graphs(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
+# kde_ray, ede_ray = diffuser_energy(0.1, vtm, pdi_ray, rho_ray, vdi_ray)
+# print(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
 
 
 # note, suction oil flow rate is pulled out and can be used later
