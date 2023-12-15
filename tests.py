@@ -6,8 +6,8 @@ from matplotlib import pyplot as plt
 from scipy.integrate import cumtrapz, simps, trapz
 
 from flow.inflow import InFlow
+from geometry.jetpump import JetPump
 from geometry.pipe import Annulus, Pipe
-from jetpump import JetPump
 from pvt.blackoil import BlackOil
 from pvt.formgas import FormGas
 from pvt.formwat import FormWater
@@ -652,7 +652,6 @@ def diffuser_graphs(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
 
     if max(dee_ray) >= 0 and min(dee_ray) <= 0:  # make sure a solution exists
         pdi = np.interp(0, dee_ray, pdi_ray)
-
         vdi = np.interp(pdi, pdi_ray, vdi_ray)
         ycoord = (min(vdi_ray) + max(snd_ray)) / 2
         axs[1].axvline(x=pdi, color="black", linestyle="--", linewidth=1)
@@ -667,7 +666,7 @@ def diffuser_graphs(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
     plt.show()
 
 
-area_te = (e42jetpump.athr - e42jetpump.anoz) / 144
+area_te = e42jetpump.ate
 # psuc = 880
 
 # res_lis = multi_throat_entry_arrays(psu_min=876, psu_max=1100, tsu=82, ate=area_te, ipr_su=ipr, prop_su=e42)
@@ -679,7 +678,7 @@ qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu_min, 80, a
 pte, rho_te, vte = zero_tee(pte_ray, rho_ray, vel_ray, snd_ray)
 pni = pf_press_depth(62.4, 3000, 4000)
 vnz = nozzle_velocity(pni, pte, 0.01, 62.4)
-anz = e42jetpump.anoz / 144
+anz = e42jetpump.anz
 qnz_ft3s, qnz_bpd = nozzle_rate(vnz, anz)
 dp_tm, vtm = throat_diff(0.1, vnz, anz, 62.4, vte, area_te, rho_te)
 # note, vtm from throat equation and vtm from diffuser equation will not be equal
@@ -688,7 +687,7 @@ ptm = pte - dp_tm
 wc_tm = throat_wc(qsu_std, e42.wc, qnz_bpd)
 # redefine the ResMixture with the additional waterlift power fluid
 e42_disch = ResMix(wc_tm, 1500, mpu_oil, mpu_wat, mpu_gas)
-ath = e42jetpump.athr / 144
+ath = e42jetpump.ath
 adi = tube.inn_area
 vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = diffuser_arrays(ptm, 80, ath, adi, qsu_std, e42_disch)
 diffuser_graphs(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
