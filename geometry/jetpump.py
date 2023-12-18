@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-# eventually make dataclass called PumpCatalog
+# eventually make dataclass called PumpCatalog, with different manufacturers
 
 
 class JetPump:
