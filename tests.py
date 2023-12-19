@@ -1,4 +1,5 @@
 from flow import jetflow as jf
+from flow import jetplot as jplt
 from flow.inflow import InFlow
 from geometry.jetpump import JetPump
 from geometry.pipe import Annulus, Pipe
@@ -7,52 +8,48 @@ from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 from pvt.resmix import ResMix
 
-jpump_md = 6693  # feet
-jpump_tvd = 4096.8  # feet, interpolated off well profile
-
-bpd_pf = 3500  # bwpd, power fluid rate
-d_pf = 62.4  # lbm/ft3
-u_pf = 1  # cp, viscosity of power fluid
-ppf_surf = 3046  # psi, power fluid surf pressure
+jpump_tvd = 4050  # feet, interpolated off well profile
+rho_pf = 62.4  # lbm/ft3
+ppf_surf = 3175  # psi, power fluid surf pressure
 
 # testing the jet pump code on E-42
 tube = Pipe(out_dia=4.5, thick=0.5)  # E-42 tubing
 case = Pipe(out_dia=6.875, thick=0.5)  # E-42 casing
-ann = Annulus(tube, case)  # define the annulus
+ann = Annulus(inn_pipe=tube, out_pipe=case)  # define the annulus
 
-e42_ipr = InFlow(qwf=350, pwf=800, pres=1400)  # define an ipr
+e42_ipr = InFlow(qwf=188, pwf=800, pres=1400)  # define an ipr
 
-e42_jp = JetPump("13", "B")
+e42_jp = JetPump(nozzle_no="11", area_ratio="C")
 
 mpu_oil = BlackOil.schrader_oil()  # class method
 mpu_wat = FormWater.schrader_wat()  # class method
 mpu_gas = FormGas.schrader_gas()  # class method
 
-e42_res = ResMix(0.75, 1500, mpu_oil, mpu_wat, mpu_gas)
+form_wc = 0.86
+form_gor = 2300
+form_temp = 80
+e42_res = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_gas)
 
-temp = 80
-press = 700
 
-# res_lis = multi_throat_entry_arrays(psu_min=876, psu_max=1100, tsu=82, ate=area_te, ipr_su=ipr, prop_su=e42)
-# multi_suction_graphs(res_lis)
-
-psu_min = jf.minimize_tee(80, e42_jp.ate, e42_ipr, e42_res)
-qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jf.throat_entry_arrays(psu_min, 80, e42_jp.ate, e42_ipr, e42_res)
-# need to return pte, rho_te, vte
-pte, rho_te, vte = jf.zero_tee(pte_ray, rho_ray, vel_ray, snd_ray)
-pni = jf.pf_press_depth(62.4, 3000, 4000)
-vnz = jf.nozzle_velocity(pni, pte, 0.01, 62.4)
-qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, e42_jp.anz)
-dp_tm, vtm = jf.throat_dp(0.1, vnz, e42_jp.anz, 62.4, vte, e42_jp.ate, rho_te)
+psu_min = jf.minimize_tee(tsu=form_temp, ken=e42_jp.ken, ate=e42_jp.ate, ipr_su=e42_ipr, prop_su=e42_res)
+qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jf.throat_entry_arrays(psu_min, form_temp, e42_jp.ate, e42_ipr, e42_res)
+jplt.throat_entry_graphs(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
+pte, rho_te, vte = jf.cross_zero_tee(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
+pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
+vnz = jf.nozzle_velocity(pni, pte, e42_jp.knz, rho_pf)
 # note, vtm from throat equation and vtm from diffuser equation will not be equal
 # this is because throat equation is run at 400 psig, diffuser is run at 1100 psig
+dp_tm, vtm = jf.throat_dp(e42_jp.kth, vnz, e42_jp.anz, rho_pf, vte, e42_jp.ate, rho_te)
+
+qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, e42_jp.anz)
 wc_tm = jf.throat_wc(qsu_std, e42_res.wc, qnz_bpd)
 # redefine the ResMixture with the additional waterlift power fluid
-e42_disch = ResMix(wc_tm, 1500, mpu_oil, mpu_wat, mpu_gas)
+e42_disch = ResMix(wc_tm, form_gor, mpu_oil, mpu_wat, mpu_gas)
 ath = e42_jp.ath
 adi = tube.inn_area
 ptm = pte - dp_tm
-vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jf.diffuser_arrays(ptm, 80, ath, adi, qsu_std, e42_disch)
-jf.diffuser_graphs(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
+vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jf.diffuser_arrays(ptm, form_temp, ath, adi, qsu_std, e42_disch)
+jplt.diffuser_graphs(vtm, e42_jp.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
 # kde_ray, ede_ray = diffuser_energy(0.1, vtm, pdi_ray, rho_ray, vdi_ray)
 # print(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
+print(qnz_bpd)

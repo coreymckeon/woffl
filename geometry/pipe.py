@@ -85,8 +85,3 @@ class Annulus:
     def hyd_dia(self) -> float:
         """Annulus hydraulic diameter, inches"""
         return self.out_pipe.inn_dia - self.inn_pipe.out_dia
-
-
-# wb = Pipe(12, 0.5, .00012)
-# print(wb)
-# print(wb.inn_area)

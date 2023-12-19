@@ -281,18 +281,3 @@ class ResMix:
         cmix = math.sqrt(32.174 * 144 * ks / ps)  # speed of sound, ft/s
         cmix = round(cmix, 2)
         return cmix
-
-
-def prop_table(self, press_array, temp):
-    """
-    Name:   Property Table
-    Input:  press_array - Numpy Array, Lowest pressure to highest, psig
-            temp - evaluated temperature deg F
-    Output: Property Table
-            Oil, Water, Gas Density
-            Oil, Water, Gas Viscosity
-            3 Phase Mixture Density
-            Oil, Water, Gas Mass Fraction
-            Oil, Water, Gas Volm Fraction
-    Rev:    09/22/23 - K.Ellis wrote into Python
-    """

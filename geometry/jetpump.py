@@ -54,7 +54,7 @@ class JetPump:
         0.8947,
     ]
 
-    area_code = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
+    area_code = {"X": -1, "A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
 
     def __init__(
         self,
