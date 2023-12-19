@@ -50,6 +50,8 @@ adi = tube.inn_area
 ptm = pte - dp_tm
 vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jf.diffuser_arrays(ptm, form_temp, ath, adi, qsu_std, e42_disch)
 jplt.diffuser_graphs(vtm, e42_jp.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
+ohh, mama = jf.diffuser_discharge(ptm, form_temp, e42_jp.kdi, ath, adi, qsu_std, e42_disch)
 # kde_ray, ede_ray = diffuser_energy(0.1, vtm, pdi_ray, rho_ray, vdi_ray)
 # print(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
+print(ohh, mama)
 print(qnz_bpd)

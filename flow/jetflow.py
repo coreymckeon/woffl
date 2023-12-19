@@ -1,16 +1,13 @@
 import math
-from dataclasses import dataclass
 
 import numpy as np
-from matplotlib import pyplot as plt
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumtrapz, trapezoid
 
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
 
 # update code so JetPump is an input, for ate, atm and friction values
-# currently friction values of the JetPump are nested, not great...
 def actual_flow(
     oil_rate: float, poil_std: float, poil: float, yoil: float, ywat: float, ygas: float
 ) -> tuple[float, float, float]:
@@ -351,8 +348,6 @@ def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
     return wc_tm
 
 
-# other option is to just make a while loop that does something similiar
-# instead of calculating all the "extra" values
 def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: float, prop_tm: ResMix):
     """Diffuser Raw Arrays
 
@@ -425,3 +420,78 @@ def diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray):
     ee_ray = cumtrapz(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
     ke_ray = (vdi_ray**2 - (1 - kdi) * vtm**2) / 2  # ft2/s2 kinetic energy
     return ke_ray, ee_ray
+
+
+def diffuser_discharge(
+    ptm: float, ttm: float, kdi: float, ath: float, adi: float, qoil_std: float, prop_tm: ResMix
+) -> tuple[float, float]:
+    """Diffuser Discharge Pressure
+
+    Directly calculate the diffuser discharge pressure. Only loops until the diffuser total
+    energy is greater than 0. Then uses numpy interpolation for diffuser discharge pressure.
+
+    Args:
+        ptm (float): Throat Mixture Pressure, psig
+        ttm (float): Throat Mixture Temp, deg F
+        kdi (float): Diffuser Friction Factor, unitless
+        ath (float): Throat Area, ft2
+        adi (float): Diffuser Area, ft2
+        qoil_std (float): Oil Rate, STD BOPD
+        prop_tm (ResMix): Properties of Throat Mixture
+
+    Returns:
+        vtm (float): Throat Mixture Velocity
+        pdi (float): Diffuser Discharge Pressure, psig
+    """
+    rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density
+
+    prop_tm = prop_tm.condition(ptm, ttm)
+    rho_oil = prop_tm.oil.density  # oil density
+    yoil, ywat, ygas = prop_tm.volm_fract()
+    qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
+    qtot = qoil + qwat + qgas
+
+    vtm = qtot / ath
+    vdi = qtot / adi
+
+    pdi_ray = np.array([ptm])
+    vdi_ray = np.array([vdi])
+    rho_ray = np.array([prop_tm.pmix()])
+    # snd_list = [prop_tm.cmix()]
+
+    kse_ray = np.array([(vdi**2 - (1 - kdi) * vtm**2) / 2])
+    ese_ray = np.array([0])
+    dte_ray = np.array([kse_ray + ese_ray])
+
+    n = 0
+    pinc = 100  # pressure increase
+
+    while dte_ray[-1] < 0:
+        pdi = pdi_ray[-1] + pinc
+
+        prop_tm = prop_tm.condition(pdi, ttm)
+        rho_oil = prop_tm.oil.density  # oil density
+        yoil, ywat, ygas = prop_tm.volm_fract()
+        qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
+        qtot = qoil + qwat + qgas
+
+        vdi = qtot / adi
+        vdi_ray = np.append(vdi_ray, vdi)
+        kse_ray = np.append(kse_ray, (vdi**2 - (1 - kdi) * vtm**2) / 2)
+
+        pdi_ray = np.append(pdi_ray, pdi)
+        rho_ray = np.append(rho_ray, prop_tm.pmix())
+        # specific volume integration
+        sv_int = trapezoid(1 / rho_ray[-2:], 144 * 32.174 * pdi_ray[-2:])
+        ese_ray = np.append(ese_ray, ese_ray[-1] + sv_int)
+        dte_ray = np.append(dte_ray, kse_ray[-1] + ese_ray[-1])
+
+        n = n + 1
+        if n == 10:
+            print("Diffuser did not find discharge pressure")
+            break
+
+    print(f"Diffuser took {n} loops to find solution")
+    pdi = np.interp(0, dte_ray, pdi_ray)
+
+    return vtm, pdi
