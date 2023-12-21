@@ -217,24 +217,3 @@ def diffuser_graphs(vtm, kdi, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
     else:
         fig.suptitle(f"Diffuser Inlet at {round(ptm,0)} psi")
     plt.show()
-
-
-"""
-# find where mach = 1 (pmo), insert pmo into pte, calculate rho, vel and snd at arrays
-    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
-    # flip array for ascedning order instead of descending
-    pmo_idx = np.searchsorted(np.flip(pte_ray), pmo) - pte_ray.size  # find position of pmo
-
-    # repeat finding properties where Mach Number equals one
-    prop_su = prop_su.condition(pmo, tsu)
-    rho_oil = prop_su.oil.density  # oil density
-    yoil, ywat, ygas = prop_su.volm_fract()
-    qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
-    qtot = qoil + qwat + qgas
-
-    # insert values where Mach Number equals one
-    pte_ray = np.insert(arr=pte_ray, obj=pmo_idx, values=pmo)
-    vel_ray = np.insert(arr=vel_ray, obj=pmo_idx, values=qtot / ate)
-    rho_ray = np.insert(arr=rho_ray, obj=pmo_idx, values=prop_su.pmix())
-    snd_ray = np.insert(arr=snd_ray, obj=pmo_idx, values=prop_su.cmix())
-    """

@@ -1,7 +1,7 @@
 import math
 
 import numpy as np
-from scipy.integrate import cumtrapz, trapezoid
+from scipy.integrate import cumulative_trapezoid, trapezoid
 
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
@@ -9,16 +9,16 @@ from pvt.resmix import ResMix
 
 # update code so JetPump is an input, for ate, atm and friction values
 def actual_flow(
-    oil_rate: float, poil_std: float, poil: float, yoil: float, ywat: float, ygas: float
+    qoil_std: float, rho_oil_std: float, rho_oil: float, yoil: float, ywat: float, ygas: float
 ) -> tuple[float, float, float]:
     """Actual Flow of Mixture
 
     Calculate the actual flow rates of the oil, water and gas in ft3/s
 
     Args:
-        oil_rate (float): Oil Rate, BOPD
-        poil_std (float): Density Oil at Std Cond, lbm/ft3
-        poil (float): Density Oil Act. Cond, lbm/ft3
+        qoil_std (float): Oil Rate, BOPD
+        rho_oil_std (float): Density Oil at Std Cond, lbm/ft3
+        rho_oil (float): Density Oil Act. Cond, lbm/ft3
         yoil (float): Volm Fraction Oil Act. Cond, ft3/ft3
         ywat (float): Volm Fraction Water Act. Cond, ft3/ft3
         ygas (float): Volm Fraction Gas Act. Cond, ft3/ft3
@@ -29,15 +29,106 @@ def actual_flow(
         qgas (float): Gas Rate, actual ft3/s
     """
     # 42 gal/bbl, 7.48052 gal/ft3, 24 hr/day, 60min/hour, 60sec/min
-    qoil_std = oil_rate * 42 / (24 * 60 * 60 * 7.48052)  # ft3/s at standard conditions
-    moil = qoil_std * poil_std
-    qoil = moil / poil
+    qoil_cfs = qoil_std * 42 / (24 * 60 * 60 * 7.48052)  # ft3/s at standard conditions
+    moil = qoil_cfs * rho_oil_std  # mass flow of oil
+    qoil = moil / rho_oil  # actual flow, ft3/s
 
     qtot = qoil / yoil  # oil flow divided by oil total fraction
     qwat = ywat * qtot
     qgas = ygas * qtot
 
     return qoil, qwat, qgas
+
+
+def total_actual_flow(qoil_std: float, rho_oil_std: float, prop: ResMix) -> float:
+    """Total Actual Flow of Mixture
+
+    Calculate the total actual flow of the three phase mixture. Requires a
+    condition (pressure, temp) to have already been set in the ResMix. The
+    standard density of oil could have been looked up in the ResMix, but multiple
+    condition swapping was desired to be avoided. (Note: Update ResMix later to
+    store standard oil density?)
+
+    Args:
+        qoil_std (float): Oil Rate, BOPD
+        rho_oil_std (float): Density Oil at Std Cond, lbm/ft3
+        prop (ResMix): Properties of 3-Phase Mixutre
+
+    Returns:
+        qtot (float): Total Mixture Rate, actual ft3/s
+    """
+    rho_oil = prop.oil.density  # oil density
+    yoil, ywat, ygas = prop.volm_fract()
+    qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
+    qtot = qoil + qwat + qgas
+    return qtot
+
+
+# tee_final
+def tee_final(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+    """Throat Enterance Final Energy
+
+    Calculate the amount of energy in the throat enterance when the flow
+    hits sonic velocity, mach = 1 or when the pte is low on pressure (< pdecrease).
+    The suction pressure, psu and final enterance energy are fed into a secant
+    solver that finds psu that gives a zero final energy.
+
+    Args:
+        psu (float): Suction Pressure, psig
+        tsu (float): Suction Temp, deg F
+        ken (float): Enterance Friction Factor, unitless
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        tee_fin (float): Final Throat Energy Equation Value, ft2/s2
+    """
+    rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density
+    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+
+    prop_su = prop_su.condition(psu, tsu)
+    qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su)
+    vte = qtot / ate
+
+    pte_ray = np.array([psu])
+    vte_ray = np.array([vte])
+    rho_ray = np.array([prop_su.pmix()])
+    # snd_ray = np.array([prop_su.cmix()])
+    mach_ray = np.array([vte / prop_su.cmix()])
+
+    kse_ray = np.array([(1 + ken) * (vte**2) / 2])
+    ese_ray = np.array([0])
+    tee_ray = np.array([kse_ray + ese_ray])
+
+    pdec = 50  # pressure decrease
+    # keep mach under one, and pte above pdec, so it doesn't go negative
+    while mach_ray[-1] <= 1 and pte_ray[-1] > pdec:
+        pte = pte_ray[-1] - pdec
+
+        prop_su = prop_su.condition(pte, tsu)
+        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su)
+        vte = qtot / ate
+
+        vte_ray = np.append(vte_ray, vte)
+        kse_ray = np.append(kse_ray, (1 + ken) * (vte**2) / 2)
+
+        # snd_ray = np.append(snd_ray, prop_su.cmix())
+        mach_ray = np.append(mach_ray, vte / prop_su.cmix())
+
+        pte_ray = np.append(pte_ray, pte)
+        rho_ray = np.append(rho_ray, prop_su.pmix())
+
+        sv_int = trapezoid(1 / rho_ray[-2:], 144 * 32.174 * pte_ray[-2:])
+        ese_ray = np.append(ese_ray, ese_ray[-1] + sv_int)
+        tee_ray = np.append(tee_ray, kse_ray[-1] + ese_ray[-1])
+
+    if mach_ray[-1] >= 1:
+        tee_fin = np.interp(1, mach_ray, tee_ray)
+    else:
+        tee_fin = tee_ray[-1]
+
+    return tee_fin
 
 
 def throat_entry_mach_one(pte_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray) -> float:
@@ -99,11 +190,7 @@ def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop
 
     for i, pte in enumerate(pte_ray):
         prop_su = prop_su.condition(pte, tsu)
-
-        rho_oil = prop_su.oil.density  # oil density
-        yoil, ywat, ygas = prop_su.volm_fract()
-        qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
-        qtot = qoil + qwat + qgas
+        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su)
 
         vel_ray[i] = qtot / ate
         rho_ray[i] = prop_su.pmix()
@@ -131,45 +218,17 @@ def throat_entry_energy(ken, pte_ray, rho_ray, vel_ray):
 
     # convert from psi to lbm/(ft*s2)
     plbm = pte_ray * 144 * 32.174
-    ee_ray = cumtrapz(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
+    ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
     ke_ray = (1 + ken) * (vel_ray**2) / 2  # ft2/s2 kinetic energy
     return ke_ray, ee_ray
 
 
-def tee_near_pmo(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
-    """Throat Entry Equation near pmo, mach 1 pressure
-
-    Find the value of the throat entry equation near the mach 1 pressure. The following
-    function will be iterated across to minimize the throat entry equation.
-
-    Args:
-        psu (float): Suction Press, psig
-        tsu (float): Suction Temp, deg F
-        ken (float): Throat Entry Friction, unitless
-        ate (float): Throat Entry Area, ft2
-        ipr_su (InFlow): IPR of Reservoir
-        prop_su (ResMix): Properties of Suction Fluid
-
-    Returns:
-        tee_pmo (float): Throat Entry Value near pmo, psig"""
-
-    qoil_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu, tsu, ate, ipr_su, prop_su)
-    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
-    mask = pte_ray >= pmo  # only use values where pte_ray is greater than pmo, haven't hit mach 1
-    # note: do we even have to calc  and filter pmo? TEE vs pte is a parabola which anyway...?
-    # discontinuities with mask function might screw all this up...
-    kse_ray, ese_ray = throat_entry_energy(ken, pte_ray[mask], rho_ray[mask], vel_ray[mask])
-    tee_ray = kse_ray + ese_ray
-    tee_pmo = min(tee_ray)  # find the smallest value of tee where mach <=1
-    return tee_pmo
-
-
-def minimize_tee(tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+# tee minimize
+def tee_minimize(tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
     """Minimize Throat Entry Equation at pmo
 
     Find that psu that minimizes the throat entry equation for where Mach = 1 (pmo).
     Secant method for iteration, starting point is Res Pres minus 200 and 300 psig.
-    Boundary equation is the starting point that Bob Merrill uses in his paper.
 
     Args:
         tsu (float): Suction Temp, deg F
@@ -180,28 +239,24 @@ def minimize_tee(tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: Re
 
     Returns:
         psu (float): Suction Pressure, psig"""
-    # how can we guarentee mach values are reached???
     psu_list = [ipr_su.pres - 300, ipr_su.pres - 400]
     # store values of tee near mach=1 pressure
     tee_list = [
-        tee_near_pmo(psu_list[0], tsu, ken, ate, ipr_su, prop_su),
-        tee_near_pmo(psu_list[1], tsu, ken, ate, ipr_su, prop_su),
+        tee_final(psu_list[0], tsu, ken, ate, ipr_su, prop_su),
+        tee_final(psu_list[1], tsu, ken, ate, ipr_su, prop_su),
     ]
-    # criteria for when you've converged to an answer
-    psu_diff = 5
+    psu_diff = 5  # criteria for when you've converged to an answer
     n = 0  # loop counter
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
         # use secant method to calculate next guess value for psu to use
         psu_nxt = psu_list[-1] - tee_list[-1] * (psu_list[-2] - psu_list[-1]) / (tee_list[-2] - tee_list[-1])
-        tee_nxt = tee_near_pmo(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
+        tee_nxt = tee_final(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
         psu_list.append(psu_nxt)
         tee_list.append(tee_nxt)
         n = n + 1
         if n == 10:
             print("TEE Minimization did not converge")
             break
-    # print(psu_list)
-    # print(tee_list)
     return psu_list[-1]
 
 
@@ -383,11 +438,7 @@ def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: fl
 
     for i, pdi in enumerate(pdi_ray):
         prop_tm = prop_tm.condition(pdi, ttm)
-
-        rho_oil = prop_tm.oil.density  # oil density
-        yoil, ywat, ygas = prop_tm.volm_fract()
-        qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
-        qtot = qoil + qwat + qgas
+        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm)
 
         vdi_ray[i] = qtot / adi
         rho_ray[i] = prop_tm.pmix()
@@ -396,6 +447,11 @@ def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: fl
             vtm = qtot / ath
 
     return vtm, pdi_ray, rho_ray, vdi_ray, snd_ray
+
+
+# add a diffuser kinetic energy function?
+# def diffuser_kinetic
+# def diffuser_expanse ?
 
 
 def diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray):
@@ -417,7 +473,7 @@ def diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray):
     """
     # convert from psi to lbm/(ft*s2)
     plbm = pdi_ray * 144 * 32.174
-    ee_ray = cumtrapz(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
+    ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
     ke_ray = (vdi_ray**2 - (1 - kdi) * vtm**2) / 2  # ft2/s2 kinetic energy
     return ke_ray, ee_ray
 
@@ -446,10 +502,7 @@ def diffuser_discharge(
     rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density
 
     prop_tm = prop_tm.condition(ptm, ttm)
-    rho_oil = prop_tm.oil.density  # oil density
-    yoil, ywat, ygas = prop_tm.volm_fract()
-    qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
-    qtot = qoil + qwat + qgas
+    qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm)
 
     vtm = qtot / ath
     vdi = qtot / adi
@@ -470,12 +523,9 @@ def diffuser_discharge(
         pdi = pdi_ray[-1] + pinc
 
         prop_tm = prop_tm.condition(pdi, ttm)
-        rho_oil = prop_tm.oil.density  # oil density
-        yoil, ywat, ygas = prop_tm.volm_fract()
-        qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
-        qtot = qoil + qwat + qgas
-
+        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm)
         vdi = qtot / adi
+
         vdi_ray = np.append(vdi_ray, vdi)
         kse_ray = np.append(kse_ray, (vdi**2 - (1 - kdi) * vtm**2) / 2)
 

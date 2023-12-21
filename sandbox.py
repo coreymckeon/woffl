@@ -31,7 +31,7 @@ form_temp = 80
 e42_res = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_gas)
 
 
-psu_min = jf.minimize_tee(tsu=form_temp, ken=e42_jp.ken, ate=e42_jp.ate, ipr_su=e42_ipr, prop_su=e42_res)
+psu_min = jf.tee_minimize(tsu=form_temp, ken=e42_jp.ken, ate=e42_jp.ate, ipr_su=e42_ipr, prop_su=e42_res)
 qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jf.throat_entry_arrays(psu_min, form_temp, e42_jp.ate, e42_ipr, e42_res)
 jplt.throat_entry_graphs(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
 pte, rho_te, vte = jf.cross_zero_tee(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
