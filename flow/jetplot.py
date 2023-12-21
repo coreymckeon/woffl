@@ -2,12 +2,82 @@ from dataclasses import dataclass
 
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.integrate import cumulative_trapezoid, trapezoid
 
 from flow import jetflow as jf
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
-# functions that are strictly for visualizations
+# functions that were built predominately for visualizations
+
+
+def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
+    """Throat Entry Raw Arrays
+
+    Create a series of throat entry arrays. The arrays can be graphed to visualize.
+    What is occuring inside the throat entry while pressure is dropped. Keeps all the
+    values, even where pte velocity is greater than mach 1.
+
+    Args:
+        psu (float): Suction Pressure, psig
+        tsu (float): Suction Temp, deg F
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        qoil_std (float): Oil Rate, STD BOPD
+        pte_ray (np array): Press Throat Entry Array, psig
+        rho_ray (np array): Density Throat Entry Array, lbm/ft3
+        vel_ray (np array): Velocity Throat Entry Array, ft/s
+        snd_ray (np array): Speed of Sound Array, ft/s
+    """
+    rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density
+    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+
+    ray_len = 30  # number of elements in the array
+
+    # create empty arrays to fill later
+    vel_ray = np.empty(ray_len)
+    rho_ray = np.empty(ray_len)
+    snd_ray = np.empty(ray_len)
+
+    pte_ray = np.linspace(200, psu, ray_len)  # throat entry pressures
+    pte_ray = np.flip(pte_ray, axis=0)  # start with high pressure and go low
+
+    for i, pte in enumerate(pte_ray):
+        prop_su = prop_su.condition(pte, tsu)
+        qtot = jf.total_actual_flow(qoil_std, rho_oil_std, prop_su)
+
+        vel_ray[i] = qtot / ate
+        rho_ray[i] = prop_su.pmix()
+        snd_ray[i] = prop_su.cmix()
+
+    return qoil_std, pte_ray, rho_ray, vel_ray, snd_ray
+
+
+def throat_entry_energy(ken, pte_ray, rho_ray, vel_ray):
+    """Energy Arrays Specific for Throat Entry
+
+    Calculate the reservoir fluid kinetic energy and expansion energy. Return
+    arrays that can be graphed for visualization.
+
+    Args:
+        ken (float): Nozzle Enterance Friction Loss, unitless
+        pte_ray (np array): Press Throat Entry Array, psig
+        rho_ray (np array): Density Throat Entry Array, lbm/ft3
+        vel_ray (np array): Velocity Throat Entry Array, ft/s
+
+    Returns:
+        ke_ray (np array): Kinetic Energy, ft2/s2
+        ee_ray (np array): Expansion Energy, ft2/s2
+    """
+
+    # convert from psi to lbm/(ft*s2)
+    plbm = pte_ray * 144 * 32.174
+    ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
+    ke_ray = (1 + ken) * (vel_ray**2) / 2  # ft2/s2 kinetic energy
+    return ke_ray, ee_ray
 
 
 def throat_entry_graphs(ken, pte_ray, rho_ray, vel_ray, snd_ray) -> None:
@@ -28,7 +98,7 @@ def throat_entry_graphs(ken, pte_ray, rho_ray, vel_ray, snd_ray) -> None:
     mach_ray = vel_ray / snd_ray
     pmo = np.interp(1, mach_ray, pte_ray)  # interpolate for pressure at mach 1, pmo
     # fix this later for entrance friction loss
-    kse_ray, ese_ray = jf.throat_entry_energy(ken, pte_ray, rho_ray, vel_ray)
+    kse_ray, ese_ray = throat_entry_energy(ken, pte_ray, rho_ray, vel_ray)
     tee_ray = kse_ray + ese_ray
     psuc = pte_ray[0]
 
@@ -79,6 +149,29 @@ class throat_entry_result:
     tee_ray: np.ndarray
 
 
+def throat_entry_mach_one(pte_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray) -> float:
+    """Throat Entry Mach One
+
+    Calculates the pressure where the throat entry flow hits sonic velocity, mach = 1
+
+    Args:
+        pte_ray (np array): Press Throat Entry Array, psig
+        vel_ray (np array): Velocity Throat Entry Array, ft/s
+        snd_ray (np array): Speed of Sound Array, ft/s
+
+    Returns:
+        pmo (float): Pressure Mach One, psig
+    """
+    mach_ray = vel_ray / snd_ray
+    # check that the mach array has values that span one for proper interpolation
+    if np.max(mach_ray) <= 1:
+        raise ValueError("Max value in Mach array is less than one, increase pte")
+    if np.min(mach_ray) >= 1:
+        raise ValueError("Min value in Mach array is greater than one, decrease pte")
+    pmo = np.interp(1, mach_ray, pte_ray)
+    return pmo
+
+
 def multi_throat_entry_arrays(
     psu_min: float, psu_max: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> list:
@@ -113,9 +206,9 @@ def multi_throat_entry_arrays(
     psu_ray = np.linspace(psu_min, psu_max, ray_len)
 
     for psu in psu_ray:
-        qoil_std, pte_ray, rho_ray, vel_ray, snd_ray = jf.throat_entry_arrays(psu, tsu, ate, ipr_su, prop_su)
-        pmo = jf.throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
-        kse_ray, ese_ray = jf.throat_entry_energy(ken, pte_ray, rho_ray, vel_ray)
+        qoil_std, pte_ray, rho_ray, vel_ray, snd_ray = throat_entry_arrays(psu, tsu, ate, ipr_su, prop_su)
+        pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
+        kse_ray, ese_ray = throat_entry_energy(ken, pte_ray, rho_ray, vel_ray)
         tee_ray = kse_ray + ese_ray
 
         # story the results as a class
@@ -161,6 +254,76 @@ def multi_suction_graphs(res_lis: list) -> None:
     return None
 
 
+def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: float, prop_tm: ResMix):
+    """Diffuser Raw Arrays
+
+    Create diffuser arrays. The arrays are used to find where the diffuser
+    pressure crosses the energy equilibrium mark and find discharge pressure.
+
+    Args:
+        ptm (float): Throat Mixture Pressure, psig
+        ttm (float): Throat Mixture Temp, deg F
+        ath (float): Throat Area, ft2
+        adi (float): Diffuser Area, ft2
+        qoil_std (float): Oil Rate, STD BOPD
+        prop_tm (ResMix): Properties of Throat Mixture
+
+    Returns:
+        vtm (float): Throat Mixture Velocity, ft/s
+        pdi_ray (np array): Press Diffuser Array, psig
+        rho_ray (np array): Density Diffuser Array, lbm/ft3
+        vdi_ray (np array): Velocity Diffuser Array, ft/s
+        snd_ray (np array): Speed of Sound Array, ft/s
+    """
+    rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density
+    vtm = None
+
+    ray_len = 30  # number of elements in the array
+
+    # create empty arrays to fill later
+    vdi_ray = np.empty(ray_len)
+    rho_ray = np.empty(ray_len)
+    snd_ray = np.empty(ray_len)
+
+    pdi_ray = np.linspace(ptm, ptm + 1000, ray_len)  # throat entry pressures
+
+    for i, pdi in enumerate(pdi_ray):
+        prop_tm = prop_tm.condition(pdi, ttm)
+        qtot = jf.total_actual_flow(qoil_std, rho_oil_std, prop_tm)
+
+        vdi_ray[i] = qtot / adi
+        rho_ray[i] = prop_tm.pmix()
+        snd_ray[i] = prop_tm.cmix()
+        if i == 0:
+            vtm = qtot / ath
+
+    return vtm, pdi_ray, rho_ray, vdi_ray, snd_ray
+
+
+def diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray):
+    """Specific Energy Arrays for Diffuser
+
+    Calculate the jet pump fluid kinetic energy and expansion energy.
+    Return arrys that can be graphed for visualization.
+
+    Args:
+        vtm (float): Velocity of throat mixture, ft/s
+        kdi (float): Diffuser Friction Loss, unitless
+        pdi_ray (np array): Press Diffuser Array, psig
+        rho_ray (np array): Density Diffuser Array, lbm/ft3
+        vdi_ray (np array): Velocity Diffuser Array, ft/s
+
+    Returns:
+        ke_ray (np array): Kinetic Energy, ft2/s2
+        ee_ray (np array): Expansion Energy, ft2/s2
+    """
+    # convert from psi to lbm/(ft*s2)
+    plbm = pdi_ray * 144 * 32.174
+    ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
+    ke_ray = (vdi_ray**2 - (1 - kdi) * vtm**2) / 2  # ft2/s2 kinetic energy
+    return ke_ray, ee_ray
+
+
 def diffuser_graphs(vtm, kdi, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
     """Diffuser Graphs
 
@@ -177,7 +340,7 @@ def diffuser_graphs(vtm, kdi, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
     Returns:
         Graphs of Specific Volume, Velocity, Specific Energy, and DEE
     """
-    kse_ray, ese_ray = jf.diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray)
+    kse_ray, ese_ray = diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray)
     dee_ray = kse_ray + ese_ray
     ptm = pdi_ray[0]
 

@@ -64,8 +64,10 @@ def total_actual_flow(qoil_std: float, rho_oil_std: float, prop: ResMix) -> floa
     return qtot
 
 
-# tee_final
-def tee_final(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+# tee_final or tee_mach_one
+def tee_final(
+    psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+) -> tuple[float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Throat Enterance Final Energy
 
     Calculate the amount of energy in the throat enterance when the flow
@@ -83,6 +85,11 @@ def tee_final(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, pr
 
     Returns:
         tee_fin (float): Final Throat Energy Equation Value, ft2/s2
+        qoil_std (float): Oil flow from reservoir, stbopd
+        pte_ray
+        rho_ray
+        vte_ray
+        tee_ray
     """
     rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
@@ -128,103 +135,39 @@ def tee_final(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, pr
     else:
         tee_fin = tee_ray[-1]
 
-    return tee_fin
+    return tee_fin, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray
 
 
-def throat_entry_mach_one(pte_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray) -> float:
-    """Throat Entry Mach One
+def tee_zero(
+    pte_ray: np.ndarray, rho_ray: np.ndarray, vte_ray: np.ndarray, tee_ray: np.ndarray
+) -> tuple[float, float, float]:
+    """Throat Entry Parameters with zero TEE
 
-    Calculates the pressure where the throat entry flow hits sonic velocity, mach = 1
-
-    Args:
-        pte_ray (np array): Press Throat Entry Array, psig
-        vel_ray (np array): Velocity Throat Entry Array, ft/s
-        snd_ray (np array): Speed of Sound Array, ft/s
-
-    Returns:
-        pmo (float): Pressure Mach One, psig
-    """
-    mach_ray = vel_ray / snd_ray
-    # check that the mach array has values that span one for proper interpolation
-    if np.max(mach_ray) <= 1:
-        raise ValueError("Max value in Mach array is less than one, increase pte")
-    if np.min(mach_ray) >= 1:
-        raise ValueError("Min value in Mach array is greater than one, decrease pte")
-    pmo = np.interp(1, mach_ray, pte_ray)
-    return pmo
-
-
-def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
-    """Throat Entry Raw Arrays
-
-    Create a series of throat entry arrays. The arrays can be graphed to visualize.
-    What is occuring inside the throat entry while pressure is dropped. Keeps all the
-    values, even where pte velocity is greater than mach 1.
+    Calculate the throat entry pressure, density, and velocity where TEE crosses zero.
+    Valid for one suction pressure  of the pump / reservoir.
 
     Args:
-        psu (float): Suction Pressure, psig
-        tsu (float): Suction Temp, deg F
-        ate (float): Throat Entry Area, ft2
-        ipr_su (InFlow): IPR of Reservoir
-        prop_su (ResMix): Properties of Suction Fluid
-
-    Returns:
-        qoil_std (float): Oil Rate, STD BOPD
         pte_ray (np array): Press Throat Entry Array, psig
         rho_ray (np array): Density Throat Entry Array, lbm/ft3
-        vel_ray (np array): Velocity Throat Entry Array, ft/s
-        snd_ray (np array): Speed of Sound Array, ft/s
-    """
-    rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density
-    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+        vte_ray (np array): Velocity Throat Entry Array, ft/s
+        tee_ray (np array): Throat Entry Equation Array, ft/s
 
-    ray_len = 30  # number of elements in the array
-
-    # create empty arrays to fill later
-    vel_ray = np.empty(ray_len)
-    rho_ray = np.empty(ray_len)
-    snd_ray = np.empty(ray_len)
-
-    pte_ray = np.linspace(200, psu, ray_len)  # throat entry pressures
-    pte_ray = np.flip(pte_ray, axis=0)  # start with high pressure and go low
-
-    for i, pte in enumerate(pte_ray):
-        prop_su = prop_su.condition(pte, tsu)
-        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su)
-
-        vel_ray[i] = qtot / ate
-        rho_ray[i] = prop_su.pmix()
-        snd_ray[i] = prop_su.cmix()
-
-    return qoil_std, pte_ray, rho_ray, vel_ray, snd_ray
-
-
-def throat_entry_energy(ken, pte_ray, rho_ray, vel_ray):
-    """Energy Arrays Specific for Throat Entry
-
-    Calculate the reservoir fluid kinetic energy and expansion energy. Return
-    arrays that can be graphed for visualization.
-
-    Args:
-        ken (float): Nozzle Enterance Friction Loss, unitless
-        pte_ray (np array): Press Throat Entry Array, psig
-        rho_ray (np array): Density Throat Entry Array, lbm/ft3
-        vel_ray (np array): Velocity Throat Entry Array, ft/s
-
-    Returns:
-        ke_ray (np array): Kinetic Energy, ft2/s2
-        ee_ray (np array): Expansion Energy, ft2/s2
+    Return:
+        pte (float): Throat Entry Pressure, psig
+        rho_te (float): Throat Entry Density, lbm/ft3
+        vte (float): Throat Entry Velocity, ft/s
     """
 
-    # convert from psi to lbm/(ft*s2)
-    plbm = pte_ray * 144 * 32.174
-    ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
-    ke_ray = (1 + ken) * (vel_ray**2) / 2  # ft2/s2 kinetic energy
-    return ke_ray, ee_ray
+    pte = np.interp(0, np.flip(tee_ray), np.flip(pte_ray))
+    rho_te = np.interp(0, np.flip(tee_ray), np.flip(rho_ray))
+    vte = np.interp(0, np.flip(tee_ray), np.flip(vte_ray))
+
+    return pte, rho_te, vte
 
 
-# tee minimize
-def tee_minimize(tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+def tee_minimize(
+    tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+) -> tuple[float, float, float, float, float]:
     """Minimize Throat Entry Equation at pmo
 
     Find that psu that minimizes the throat entry equation for where Mach = 1 (pmo).
@@ -242,53 +185,23 @@ def tee_minimize(tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: Re
     psu_list = [ipr_su.pres - 300, ipr_su.pres - 400]
     # store values of tee near mach=1 pressure
     tee_list = [
-        tee_final(psu_list[0], tsu, ken, ate, ipr_su, prop_su),
-        tee_final(psu_list[1], tsu, ken, ate, ipr_su, prop_su),
+        tee_final(psu_list[0], tsu, ken, ate, ipr_su, prop_su)[0],
+        tee_final(psu_list[1], tsu, ken, ate, ipr_su, prop_su)[0],
     ]
     psu_diff = 5  # criteria for when you've converged to an answer
     n = 0  # loop counter
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
         # use secant method to calculate next guess value for psu to use
         psu_nxt = psu_list[-1] - tee_list[-1] * (psu_list[-2] - psu_list[-1]) / (tee_list[-2] - tee_list[-1])
-        tee_nxt = tee_final(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
+        tee_nxt, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray = tee_final(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
         psu_list.append(psu_nxt)
         tee_list.append(tee_nxt)
         n = n + 1
         if n == 10:
             print("TEE Minimization did not converge")
             break
-    return psu_list[-1]
-
-
-def cross_zero_tee(
-    ken: float, pte_ray: np.ndarray, rho_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray
-) -> tuple[float, float, float]:
-    """Throat Entry Parameters with a zero TEE
-
-    Calculate the throat entry pressure, density, and velocity where TEE crosses zero.
-    Valid for one suction pressure  of the pump / reservoir.
-
-    Args:
-        ken (float): Throat Entry Friction, unitless
-        pte_ray (np array): Press Throat Entry Array, psig
-        rho_ray (np array): Density Throat Entry Array, lbm/ft3
-        vel_ray (np array): Velocity Throat Entry Array, ft/s
-        snd_ray (np array): Speed of Sound Array, ft/s
-
-    Return:
-        pte (float): Throat Entry Pressure, psig
-        rho_te (float): Throat Entry Density, lbm/ft3
-        vte (float): Throat Entry Velocity, ft/s
-    """
-    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
-    mask = pte_ray >= pmo  # only use values where pte_ray is greater than pmo, haven't hit mach 1
-    kse_ray, ese_ray = throat_entry_energy(ken, pte_ray[mask], rho_ray[mask], vel_ray[mask])
-    tee_ray = kse_ray + ese_ray
-    # is there a way to speed up all these interpolations?
-    pte = np.interp(0, np.flip(tee_ray), np.flip(pte_ray[mask]))
-    rho_te = np.interp(0, np.flip(tee_ray), np.flip(rho_ray[mask]))
-    vte = np.interp(0, np.flip(tee_ray), np.flip(vel_ray[mask]))
-    return pte, rho_te, vte
+    pte, rho_te, vte = tee_zero(pte_ray, rho_ray, vte_ray, tee_ray)  # type: ignore
+    return psu_list[-1], qoil_std, pte, rho_te, vte  # type: ignore
 
 
 def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
@@ -349,7 +262,9 @@ def throat_dp(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate
 
     Solves the throat mixture equation of the jet pump. Calculates throat differntial pressure.
     Use the throat entry pressure and differential pressure to calculate throat mix pressure.
-    ptm = pte - dp_th
+    ptm = pte - dp_th. The biggest issue with this equation is it assumes the discharge conditions
+    are at same conditions as the inlet. This is false. There is an increase in pressure across the
+    diffuser. Which using this equation equates potentially 600 psig.
 
     Args:
         kth (float): Friction of Throat Mix, Unitless
@@ -403,79 +318,8 @@ def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
     return wc_tm
 
 
-def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: float, prop_tm: ResMix):
-    """Diffuser Raw Arrays
-
-    Create diffuser arrays. The arrays are used to find where the diffuser
-    pressure crosses the energy equilibrium mark and find discharge pressure.
-
-    Args:
-        ptm (float): Throat Mixture Pressure, psig
-        ttm (float): Throat Mixture Temp, deg F
-        ath (float): Throat Area, ft2
-        adi (float): Diffuser Area, ft2
-        qoil_std (float): Oil Rate, STD BOPD
-        prop_tm (ResMix): Properties of Throat Mixture
-
-    Returns:
-        vtm (float): Throat Mixture Velocity, ft/s
-        pdi_ray (np array): Press Diffuser Array, psig
-        rho_ray (np array): Density Diffuser Array, lbm/ft3
-        vdi_ray (np array): Velocity Diffuser Array, ft/s
-        snd_ray (np array): Speed of Sound Array, ft/s
-    """
-    rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density
-    vtm = None
-
-    ray_len = 30  # number of elements in the array
-
-    # create empty arrays to fill later
-    vdi_ray = np.empty(ray_len)
-    rho_ray = np.empty(ray_len)
-    snd_ray = np.empty(ray_len)
-
-    pdi_ray = np.linspace(ptm, ptm + 1000, ray_len)  # throat entry pressures
-
-    for i, pdi in enumerate(pdi_ray):
-        prop_tm = prop_tm.condition(pdi, ttm)
-        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm)
-
-        vdi_ray[i] = qtot / adi
-        rho_ray[i] = prop_tm.pmix()
-        snd_ray[i] = prop_tm.cmix()
-        if i == 0:
-            vtm = qtot / ath
-
-    return vtm, pdi_ray, rho_ray, vdi_ray, snd_ray
-
-
-# add a diffuser kinetic energy function?
-# def diffuser_kinetic
+# def diffuser_kinetic ?
 # def diffuser_expanse ?
-
-
-def diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray):
-    """Specific Energy Arrays for Diffuser
-
-    Calculate the jet pump fluid kinetic energy and expansion energy.
-    Return arrys that can be graphed for visualization.
-
-    Args:
-        vtm (float): Velocity of throat mixture, ft/s
-        kdi (float): Diffuser Friction Loss, unitless
-        pdi_ray (np array): Press Diffuser Array, psig
-        rho_ray (np array): Density Diffuser Array, lbm/ft3
-        vdi_ray (np array): Velocity Diffuser Array, ft/s
-
-    Returns:
-        ke_ray (np array): Kinetic Energy, ft2/s2
-        ee_ray (np array): Expansion Energy, ft2/s2
-    """
-    # convert from psi to lbm/(ft*s2)
-    plbm = pdi_ray * 144 * 32.174
-    ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
-    ke_ray = (vdi_ray**2 - (1 - kdi) * vtm**2) / 2  # ft2/s2 kinetic energy
-    return ke_ray, ee_ray
 
 
 def diffuser_discharge(
@@ -491,7 +335,7 @@ def diffuser_discharge(
         ttm (float): Throat Mixture Temp, deg F
         kdi (float): Diffuser Friction Factor, unitless
         ath (float): Throat Area, ft2
-        adi (float): Diffuser Area, ft2
+        adi (float): Diffuser / Tubing Area, ft2
         qoil_std (float): Oil Rate, STD BOPD
         prop_tm (ResMix): Properties of Throat Mixture
 
@@ -537,11 +381,11 @@ def diffuser_discharge(
         dte_ray = np.append(dte_ray, kse_ray[-1] + ese_ray[-1])
 
         n = n + 1
-        if n == 10:
+        if n == 15:
             print("Diffuser did not find discharge pressure")
             break
 
-    print(f"Diffuser took {n} loops to find solution")
+    # print(f"Diffuser took {n} loops to find solution")
     pdi = np.interp(0, dte_ray, pdi_ray)
 
     return vtm, pdi

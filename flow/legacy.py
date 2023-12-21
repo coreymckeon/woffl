@@ -33,22 +33,51 @@ def tee_near_pmo(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow,
     return tee_pmo
 
 
-"""
-# find where mach = 1 (pmo), insert pmo into pte, calculate rho, vel and snd at arrays
-    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
-    # flip array for ascedning order instead of descending
-    pmo_idx = np.searchsorted(np.flip(pte_ray), pmo) - pte_ray.size  # find position of pmo
+def cross_zero_tee(
+    ken: float, pte_ray: np.ndarray, rho_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray
+) -> tuple[float, float, float]:
+    """Throat Entry Parameters with a zero TEE
 
-    # repeat finding properties where Mach Number equals one
-    prop_su = prop_su.condition(pmo, tsu)
-    rho_oil = prop_su.oil.density  # oil density
-    yoil, ywat, ygas = prop_su.volm_fract()
-    qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
-    qtot = qoil + qwat + qgas
+    Calculate the throat entry pressure, density, and velocity where TEE crosses zero.
+    Valid for one suction pressure  of the pump / reservoir.
 
-    # insert values where Mach Number equals one
-    pte_ray = np.insert(arr=pte_ray, obj=pmo_idx, values=pmo)
-    vel_ray = np.insert(arr=vel_ray, obj=pmo_idx, values=qtot / ate)
-    rho_ray = np.insert(arr=rho_ray, obj=pmo_idx, values=prop_su.pmix())
-    snd_ray = np.insert(arr=snd_ray, obj=pmo_idx, values=prop_su.cmix())
+    Args:
+        ken (float): Throat Entry Friction, unitless
+        pte_ray (np array): Press Throat Entry Array, psig
+        rho_ray (np array): Density Throat Entry Array, lbm/ft3
+        vel_ray (np array): Velocity Throat Entry Array, ft/s
+        snd_ray (np array): Speed of Sound Array, ft/s
+
+    Return:
+        pte (float): Throat Entry Pressure, psig
+        rho_te (float): Throat Entry Density, lbm/ft3
+        vte (float): Throat Entry Velocity, ft/s
     """
+    pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
+    mask = pte_ray >= pmo  # only use values where pte_ray is greater than pmo, haven't hit mach 1
+    kse_ray, ese_ray = throat_entry_energy(ken, pte_ray[mask], rho_ray[mask], vel_ray[mask])
+    tee_ray = kse_ray + ese_ray
+    # is there a way to speed up all these interpolations?
+    pte = np.interp(0, np.flip(tee_ray), np.flip(pte_ray[mask]))
+    rho_te = np.interp(0, np.flip(tee_ray), np.flip(rho_ray[mask]))
+    vte = np.interp(0, np.flip(tee_ray), np.flip(vel_ray[mask]))
+    return pte, rho_te, vte
+
+
+# find where mach = 1 (pmo), insert pmo into pte, calculate rho, vel and snd at arrays
+pmo = throat_entry_mach_one(pte_ray, vel_ray, snd_ray)
+# flip array for ascedning order instead of descending
+pmo_idx = np.searchsorted(np.flip(pte_ray), pmo) - pte_ray.size  # find position of pmo
+
+# repeat finding properties where Mach Number equals one
+prop_su = prop_su.condition(pmo, tsu)
+rho_oil = prop_su.oil.density  # oil density
+yoil, ywat, ygas = prop_su.volm_fract()
+qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
+qtot = qoil + qwat + qgas
+
+# insert values where Mach Number equals one
+pte_ray = np.insert(arr=pte_ray, obj=pmo_idx, values=pmo)
+vel_ray = np.insert(arr=vel_ray, obj=pmo_idx, values=qtot / ate)
+rho_ray = np.insert(arr=rho_ray, obj=pmo_idx, values=prop_su.pmix())
+snd_ray = np.insert(arr=snd_ray, obj=pmo_idx, values=prop_su.cmix())

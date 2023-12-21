@@ -31,10 +31,12 @@ form_temp = 80
 e42_res = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_gas)
 
 
-psu_min = jf.tee_minimize(tsu=form_temp, ken=e42_jp.ken, ate=e42_jp.ate, ipr_su=e42_ipr, prop_su=e42_res)
-qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jf.throat_entry_arrays(psu_min, form_temp, e42_jp.ate, e42_ipr, e42_res)
+psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
+    tsu=form_temp, ken=e42_jp.ken, ate=e42_jp.ate, ipr_su=e42_ipr, prop_su=e42_res
+)
+qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(psu_min, form_temp, e42_jp.ate, e42_ipr, e42_res)
 jplt.throat_entry_graphs(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
-pte, rho_te, vte = jf.cross_zero_tee(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
+# pte, rho_te, vte = jf.cross_zero_tee(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
 pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
 vnz = jf.nozzle_velocity(pni, pte, e42_jp.knz, rho_pf)
 # note, vtm from throat equation and vtm from diffuser equation will not be equal
@@ -48,10 +50,11 @@ e42_disch = ResMix(wc_tm, form_gor, mpu_oil, mpu_wat, mpu_gas)
 ath = e42_jp.ath
 adi = tube.inn_area
 ptm = pte - dp_tm
-vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jf.diffuser_arrays(ptm, form_temp, ath, adi, qsu_std, e42_disch)
+vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jplt.diffuser_arrays(ptm, form_temp, ath, adi, qsu_std, e42_disch)
 jplt.diffuser_graphs(vtm, e42_jp.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
 ohh, mama = jf.diffuser_discharge(ptm, form_temp, e42_jp.kdi, ath, adi, qsu_std, e42_disch)
 # kde_ray, ede_ray = diffuser_energy(0.1, vtm, pdi_ray, rho_ray, vdi_ray)
 # print(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
-print(ohh, mama)
+print(f"Throat increase in pressure is {round(dp_tm, 0)} psi")
+print(vtm, ohh, mama)
 print(qnz_bpd)
