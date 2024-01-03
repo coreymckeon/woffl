@@ -67,7 +67,11 @@ class FormGas:
 
     @classmethod
     def schrader_gas(cls):
-        return cls(gas_sg=0.8)
+        return cls(gas_sg=0.65)
+
+    @classmethod
+    def methane_gas(cls):
+        return cls(gas_sg=0.55)
 
     # almost need seperate function to change pressure / temperature
     def condition(self, press, temp):

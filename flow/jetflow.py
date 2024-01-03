@@ -298,6 +298,73 @@ def throat_dp(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate
     return dp_tm, vtm
 
 
+def throat_discharge(
+    pte: float,
+    tte: float,
+    kth: float,
+    vnz: float,
+    anz: float,
+    rho_nz: float,
+    vte: float,
+    ate: float,
+    rho_te: float,
+    prop_tm: ResMix,
+):
+    """Throat Differential Pressure
+
+    Solves the throat mixture equation of the jet pump. Calculates throat differntial pressure.
+    Use the throat entry pressure and differential pressure to calculate throat mix pressure.
+    Account for the discharge pressure is greater than the inlet pressure.
+
+    Args:
+        pte (float): Pressure of Throat Entry, psig
+        tte (float): Temperature of Throat Entry, deg F
+        kth (float): Friction of Throat Mix, Unitless
+        vnz (float): Velocity of Nozzle, ft/s
+        anz (float): Area of Nozzle, ft2
+        rho_nz (float): Density of Nozzle Fluid, lbm/ft3
+        vte (float): Velocity of Throat Entry Mixture, ft/s
+        ate (float): Area of Throat Entry, ft2
+        rho_te (float): Density of Throat Entry Mixture, lbm/ft3
+        prop_tm (ResMix): Properties of the Throat Mixture
+
+    Returns:
+        ptm (float): Throat Discharge Pressure, psig
+    """
+    mnz = vnz * anz * rho_nz  # mass flow of the mozzle
+    mte = vte * ate * rho_te  # mass flow of the throat entry
+    ath = anz + ate  # area of the throat
+    mtm = mnz + mte  # mass flow of total mixture
+
+    rho_tm = prop_tm.condition(pte, tte).pmix()  # density of total mixture
+    vtm = mtm / (ath * rho_tm)  # velocity of total mixture
+    # units of lbm/(s2*ft)
+    dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
+    # convert to lbf/in2
+    dp_tm = dp_tm / (32.174 * 144)
+    ptm = pte - dp_tm
+    ptm_list = [pte, ptm]
+    ptm_diff = 5
+    n = 0
+    while abs(ptm_list[-2] - ptm_list[-1]) > ptm_diff:
+        ptm = ptm_list[-1]
+
+        rho_tm = prop_tm.condition(ptm, tte).pmix()  # density of total mixture
+        vtm = mtm / (ath * rho_tm)  # velocity of total mixture
+        # units of lbm/(s2*ft)
+        dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
+        # convert to lbf/in2
+        dp_tm = dp_tm / (32.174 * 144)
+        ptm = pte - dp_tm
+        ptm_list.append(ptm)
+        n = n + 1
+        if n == 10:
+            print("Throat Mixture did not converge")
+            break
+    print(f"Throat took {n} loops to find solution")
+    return ptm_list[-1]
+
+
 def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
     """Throat Watercut
 

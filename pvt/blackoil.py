@@ -32,7 +32,7 @@ class BlackOil:
 
     @classmethod
     def schrader_oil(cls):
-        return cls(oil_api=22, bubblepoint=1750, gas_sg=0.8)
+        return cls(oil_api=22, bubblepoint=1750, gas_sg=0.65)
 
     def condition(self, press: float, temp: float):
         """Set condition of evaluation
