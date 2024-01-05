@@ -7,6 +7,7 @@ class FormGas:
 
     # turns the black formatting on or off
     # fmt: off
+    # flake8: noqa
     fyprop = {'n2':  [28.02, 0.4700, 29.31,  493.0, 227.3, 1.443, 0.2916, 0.0450,  13.3, 0, 0],
               'co2': [44.01, 0.5000, 31.18, 1070.6, 547.6, 1.505, 0.2742, 0.2310, 350.4, 0, 0],
               'h2s': [34.08, 0.5000, 31.18, 1306.0, 672.4, 1.564, 0.2831, 0.1000, 383.1, 0, 672],
@@ -26,6 +27,7 @@ class FormGas:
               'h2o': [18.02, 1.0000, 62.37, 3206.0, 1165.0, 0.916, 0.2350, 0.3440, 671.6, 0, 0],
               'o2': [32.00, 0.5000, 31.18,  732.0, 278.0, 1.174, 0.2880, 0.0250, 182.2, 0, 0]}
     # fmt: on
+    # flake8: qa
 
     # will leave the dictionary lookups alone for now, come back later for molecular composition
 

@@ -51,3 +51,7 @@ axs[2].set_xlabel("Pressure, psig")
 fig.suptitle(f"Pure Methane Properties at {temp} deg F")
 
 plt.show()
+
+# note McCain calculates the isothermal compressibility of methane
+# at 1000 psia and 68 deg F on page 174 as 1120E-6 psi-1
+# or .001120 psi-1, maybe set up a test for this as well?
