@@ -21,6 +21,7 @@ hy_visc = hys_df["viscosity"]
 py_rho = []
 py_z_fact = []
 py_visc = []
+py_comp = []
 
 py_meth = FormGas.methane_gas()
 
@@ -29,8 +30,9 @@ for prs in prs_ray:
     py_rho.append(py_meth.density)
     py_z_fact.append(py_meth.zfactor())
     py_visc.append(py_meth.viscosity())
+    py_comp.append(py_meth.compress())
 
-fig, axs = plt.subplots(3, sharex=True)
+fig, axs = plt.subplots(4, sharex=True)
 
 axs[0].scatter(prs_ray, hy_rho, label="hysys")
 axs[0].scatter(prs_ray, py_rho, label="python")
@@ -46,12 +48,13 @@ axs[2].scatter(prs_ray, hy_z_fact, label="hysys")
 axs[2].scatter(prs_ray, py_z_fact, label="python")
 axs[2].set_ylabel("Z-Factor, Unitless")
 axs[2].legend()
-axs[2].set_xlabel("Pressure, psig")
+
+# properties of petroleum fluids, 2nd Edition, McCain, Pag 174
+axs[3].scatter(1000 - 14.7, 0.001120, label="McCain, 68 deg F")
+axs[3].scatter(prs_ray, py_comp, label="python")
+axs[3].set_ylabel("Gas Compressibility, psi^-1")
+axs[3].set_xlabel("Pressure, psig")
+axs[3].legend()
 
 fig.suptitle(f"Pure Methane Properties at {temp} deg F")
-
 plt.show()
-
-# note McCain calculates the isothermal compressibility of methane
-# at 1000 psia and 68 deg F on page 174 as 1120E-6 psi-1
-# or .001120 psi-1, maybe set up a test for this as well?

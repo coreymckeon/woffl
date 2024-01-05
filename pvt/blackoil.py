@@ -13,7 +13,6 @@ class BlackOil:
         Returns:
                 Self
         """
-
         if (10 < oil_api < 40) is False:
             raise ValueError(f"Oil API {oil_api} Outside Range")
 
@@ -67,7 +66,7 @@ class BlackOil:
             press = self.pbp  # calculate gas solubility using bubblepoint pressure
         else:
             press = self.press
-        rs = self.solubility_vasquez(press, self.temp, self.oil_api, self.gas_sg)
+        rs = self.solubility_kartoatmodjo(press, self.temp, self.oil_api, self.gas_sg)
         return rs
 
     def compress(self) -> float:
@@ -84,7 +83,6 @@ class BlackOil:
         rs = self.gas_solubility()  # solubility of gas in the oil
         if self.press > self.pbp:  # above bubblepoint
             co = self.compressibility_vasquez_above(self.press, self.temp, self.oil_api, self.gas_sg, rs)
-
         else:  # below the bubblepoint
             co = self.compressibility_mccain_below(self.press, self.temp, self.oil_api, self.gas_sg, rs)
             # co = self.compressibility_kartoatmodjo_above(self.press, self.temp, self.oil_api, self.gas_sg, rs)

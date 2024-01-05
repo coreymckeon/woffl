@@ -7,7 +7,7 @@ from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
 
-# update code so JetPump is an input, for ate, atm and friction values
+# rename insitu_volm_flow or actual_volm_flow
 def actual_flow(
     qoil_std: float, rho_oil_std: float, rho_oil: float, yoil: float, ywat: float, ygas: float
 ) -> tuple[float, float, float]:
@@ -64,6 +64,7 @@ def total_actual_flow(qoil_std: float, rho_oil_std: float, prop: ResMix) -> floa
     return qtot
 
 
+# update code so JetPump is an input, for ate, atm and friction values
 # tee_final or tee_mach_one
 def tee_final(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
@@ -331,7 +332,7 @@ def throat_discharge(
     Returns:
         ptm (float): Throat Discharge Pressure, psig
     """
-    mnz = vnz * anz * rho_nz  # mass flow of the mozzle
+    mnz = vnz * anz * rho_nz  # mass flow of the nozzle
     mte = vte * ate * rho_te  # mass flow of the throat entry
     ath = anz + ate  # area of the throat
     mtm = mnz + mte  # mass flow of total mixture

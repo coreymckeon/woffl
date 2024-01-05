@@ -8,7 +8,7 @@ from flow import jetflow as jf
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
-# functions that were built predominately for visualizations
+# functions that are built predominately for visualizations
 
 
 def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
