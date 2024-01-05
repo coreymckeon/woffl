@@ -53,17 +53,14 @@ class FormGas:
 
         # the following is the code for Pseudo Critical Pressure from correlations
         # can be adjusted later for H2S or CO2 if necessary
-        self._pcrit = 756.8 - 131.07 * self.gas_sg - 3.6 * self.gas_sg**2  # psia
+        self._pcrit = 756.8 - 131.07 * gas_sg - 3.6 * gas_sg**2  # psia
 
         # the following is the code for Pseudo Critical Temp from correlations
         # can be adjusted later for H2S or CO2 if necessary
-        self._tcrit = 169.2 + 349.5 * self.gas_sg - 74.0 * self.gas_sg**2  # rankine
+        self._tcrit = 169.2 + 349.5 * gas_sg - 74.0 * gas_sg**2  # rankine
 
-        # calculate molecular weight
-        # reservoir engineer book, red
-        self.mw = round(28.96443 * self.gas_sg, 4)
+        self.mw = 28.96443 * gas_sg
 
-    # does something when you print your class
     def __repr__(self):
         return f"Gas: {self.gas_sg} SG and {self.mw} Mol Weight"
 
@@ -89,14 +86,10 @@ class FormGas:
         self.press = press
         self.temp = temp
 
-        # input press in psig
-        # input temp in deg F
-        self._pressa = self.press + 14.7  # convert psig to psia
-        self._tempr = self.temp + 459.67  # convert fahr to rankine
+        self._pressa = press + 14.7  # convert psig to psia
+        self._tempr = temp + 459.67  # convert fahr to rankine
 
-        # calculate pseudo reduced temperature and pressure
-        # the following have not been adjusted for non-hydrocarbon gas such as H2S or CO2
-        # code can be modified later if this is needed
+        # not adjusted for non-hydrocarbon gas such as H2S or CO2
         self._ppr = self._pressa / self._pcrit  # unitless, pressure pseudo reduced
         self._tpr = self._tempr / self._tcrit  # unitless, temperature pseudo reduced
         return self
@@ -116,20 +109,9 @@ class FormGas:
             Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 16
             Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
         """
-        try:
-            # calculate m and n, method given to me in multiphase clase
-            # not sure where the equations come from exactly
-            self._m = 0.51 * (self._tpr) ** (-4.133)
-            self._n = 0.038 - 0.026 * (self._tpr) ** (1 / 2)
-
-        except AttributeError:
-            print("Need to define Pressure and Temperature")
-
-        # calculate z-factor
-        # does everything have to use self?
-        zfactor = 1 - self._m * self._ppr + self._n * self._ppr**2 + 0.0003 * self._ppr**3
-        zfactor = round(zfactor, 4)
-        self._zfactor = zfactor
+        m = 0.51 * (self._tpr) ** (-4.133)
+        n = 0.038 - 0.026 * (self._tpr) ** (1 / 2)
+        zfactor = 1 - m * self._ppr + n * self._ppr**2 + 0.0003 * self._ppr**3
         return zfactor
 
     @property
@@ -150,10 +132,7 @@ class FormGas:
             Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
         """
         zval = self.zfactor()  # call method if it hasn't been already?
-
         dgas = self._pressa * self.mw / (zval * FormGas._R * self._tempr)
-        dgas = round(dgas, 4)
-        self.dgas = dgas
         return dgas
 
     def viscosity(self) -> float:
@@ -166,31 +145,14 @@ class FormGas:
 
         Returns:
             ugas (float): gas viscosity, cP
-
-        References:
-            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 16
-            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
         """
-        dens = self.density  # call method if you haven't done it already?
-        mw = self.mw
-        tempr = self._tempr
-
-        K = ((9.4 + 0.02 * mw) * tempr**1.5) / (209 + 19 * mw + tempr)
-        X = 3.5 + (986 / tempr) + 0.01 * mw
-        Y = 2.4 - 0.2 * X
-
-        # [eqn B-72] viscosity of the gas
-        ugas = (10**-4) * K * math.exp(X * (dens / 62.4) ** Y)
-        ugas = round(ugas, 5)
-        self.ugas = ugas
-        return ugas
+        ug = self.viscosity_lee(self._tempr, self.mw, self.density)
+        return ug
 
     def compress(self) -> float:
         """Gas Compressibility Isothermal
 
         Calculate isothermal gas compressibility.
-        Inverse of the bulk modulus of elasticity.
-        Need to previously define a pressure / temperature
 
         Args:
             None
@@ -210,7 +172,6 @@ class FormGas:
         z2 = self.condition(p2, temp).zfactor()
 
         cg = 1 / p1 - (1 / z1) * ((z2 - z1) / (p2 - p1))
-        cg = round(cg, 7)
         return cg
 
     def hydrate_check(self) -> tuple[bool, float]:
@@ -229,7 +190,31 @@ class FormGas:
             hydrate temp (float): Return Temperature of hydrate formation at pressure
 
         References:
-            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 176
+            - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill Page 176
         """
         # placeholder for future work
         return True, 55
+
+    @staticmethod
+    def viscosity_lee(tempr: float, mw: float, rho_gas: float) -> float:
+        """Lee et. al Gas Viscosity
+
+        Gas viscosity following Lee 1966 et al methodology.
+
+        Args:
+            tempr (float): Absolute Temperature of Gas, deg R
+            mw (float): Molecular Weight of Gas Mixture, lb/lb-mol
+            rho_gas (float): In-Situ Density of Gas, lbm/ft3
+
+        Returns:
+            ug (float): Gas Viscosity, cP
+
+        References:
+            - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 304
+        """
+        # tempr = temp + 459.67
+        K = ((9.4 + 0.02 * mw) * tempr**1.5) / (209 + 19 * mw + tempr)
+        X = 3.5 + (986 / tempr) + 0.01 * mw
+        Y = 2.4 - 0.2 * X
+        ug = (10**-4) * K * math.exp(X * (rho_gas / 62.4) ** Y)
+        return ug

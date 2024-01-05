@@ -140,10 +140,10 @@ class BlackOil:
         """
         rs = self.gas_solubility()
         uod = self.viscosity_dead_kartoatmodjo(self.temp, self.oil_api)
-        uol = self.visosity_live_kartoatmodjo_below(uod, rs)
+        uol = self.viscosity_live_kartoatmodjo_below(uod, rs)
         if self.press > self.pbp:  # above bubblepoint
             uob = uol
-            uol = self.visosity_live_kartoatmodjo_above(uob, self.press, self.pbp)
+            uol = self.viscosity_live_kartoatmodjo_above(uob, self.press, self.pbp)
         return uol
 
     @staticmethod
@@ -423,7 +423,7 @@ class BlackOil:
         return uod
 
     @staticmethod
-    def visosity_live_beggs_below(uod: float, rs: float) -> float:
+    def viscosity_live_beggs_below(uod: float, rs: float) -> float:
         """Live Oil Viscosity, Below Bubble Point
 
         Live oil viscosity below bubblepoint following Beggs methodology.
@@ -445,7 +445,7 @@ class BlackOil:
         return uol
 
     @staticmethod
-    def visosity_live_beggs_above(uob: float, press: float, pbp: float) -> float:
+    def viscosity_live_beggs_above(uob: float, press: float, pbp: float) -> float:
         """Live Oil Viscosity, Above Bubble Point
 
         Live oil viscosity above bubblepoint following Beggs methodology.
@@ -488,7 +488,7 @@ class BlackOil:
         return uod
 
     @staticmethod
-    def visosity_live_kartoatmodjo_below(uod: float, rs: float) -> float:
+    def viscosity_live_kartoatmodjo_below(uod: float, rs: float) -> float:
         """Live Oil Viscosity, Below Bubble Point
 
         Live oil viscosity below bubblepoint following Kartoatmodjo methodology.
@@ -510,7 +510,7 @@ class BlackOil:
         return uol
 
     @staticmethod
-    def visosity_live_kartoatmodjo_above(uob: float, press: float, pbp: float) -> float:
+    def viscosity_live_kartoatmodjo_above(uob: float, press: float, pbp: float) -> float:
         """Live Oil Viscosity, Above Bubble Point
 
         Live oil viscosity above bubblepoint following Kartoatmodjo methodology.
