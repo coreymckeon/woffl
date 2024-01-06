@@ -4,6 +4,10 @@ from pvt.blackoil import BlackOil
 from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 
+# add property / method that calculates / stores standard oil density
+# just call it on init for 0 psig and 60 deg F, that way it is only
+# called once during the __init__ method
+
 
 class ResMix:
     def __init__(self, wc: float, fgor: int, oil: BlackOil, wat: FormWater, gas: FormGas) -> None:
@@ -25,6 +29,8 @@ class ResMix:
         self.oil = oil
         self.wat = wat
         self.gas = gas
+        # store it so you don't have to call it continually
+        self.rho_oil_std = oil.condition(0, 60).density
 
     def __repr__(self) -> str:
         # return(f'Mixture with {self.oil.oil_api} API Oil')
@@ -65,14 +71,14 @@ class ResMix:
                 None
 
         Returns:
-                poil (float): density of oil, lbm/ft3
-                pwat (float): density of water, lbm/ft3
-                pgas (float): density of gas, lbm/ft3
+                rho_oil (float): density of oil, lbm/ft3
+                rho_wat (float): density of water, lbm/ft3
+                rho_gas (float): density of gas, lbm/ft3
         """
-        poil = self.oil.density
-        pwat = self.wat.density
-        pgas = self.gas.density
-        return poil, pwat, pgas
+        rho_oil = self.oil.density
+        rho_wat = self.wat.density
+        rho_gas = self.gas.density
+        return rho_oil, rho_wat, rho_gas
 
     def visc_comp(self) -> tuple[float, float, float]:
         """Viscosity Components
@@ -281,3 +287,18 @@ class ResMix:
         cmix = math.sqrt(32.174 * 144 * ks / ps)  # speed of sound, ft/s
         cmix = round(cmix, 2)
         return cmix
+
+    # add non-static methods that just require a standard oil volume and it will
+    # calculate out the insitu volume flow and mass flow...uses the static methods
+
+    @staticmethod
+    def _static_insitu_volm_flow(
+        qoil_std: float, rho_oil_std: float, rho_oil: float, yoil: float, ywat: float, ygas: float
+    ) -> tuple[float, float, float]:
+        return 1, 1, 1
+
+    @staticmethod
+    def _static_insitu_mass_flow(
+        qoil_std: float, rho_oil_std: float, rho_oil: float, yoil: float, ywat: float, ygas: float
+    ) -> tuple[float, float, float]:
+        return 1, 1, 1
