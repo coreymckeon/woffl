@@ -288,17 +288,100 @@ class ResMix:
         cmix = round(cmix, 2)
         return cmix
 
-    # add non-static methods that just require a standard oil volume and it will
-    # calculate out the insitu volume flow and mass flow...uses the static methods
+    def insitu_volm_flow(self, qoil_std: float) -> tuple[float, float, float]:
+        """Insitu Volumetric Flow of Components
+
+        Calculate the insitu volumetric flow rates of the oil, water and gas in ft3/s
+
+        Args:
+            qoil_std (float): Oil Rate, BOPD
+
+        Returns:
+            qoil (float): Oil Volumetric Flow, Insitu ft3/s
+            qwat (float): Water Volumetric Flow, Insitu ft3/s
+            qgas (float): Gas Volumetric Flow, Insitu ft3/s
+        """
+        yoil, ywat, ygas = self.volm_fract()
+        qoil, qwat, qgas = self._static_insitu_volm_flow(qoil_std, self.rho_oil_std, self.oil.density, yoil, ywat, ygas)
+        return qoil, qwat, qgas
 
     @staticmethod
     def _static_insitu_volm_flow(
         qoil_std: float, rho_oil_std: float, rho_oil: float, yoil: float, ywat: float, ygas: float
     ) -> tuple[float, float, float]:
-        return 1, 1, 1
+        """Insitu Volumetric Flow of Components
+
+        Calculate the insitu volumetric flow rates of the oil, water and gas in ft3/s
+
+        Args:
+            qoil_std (float): Oil Rate, BOPD
+            rho_oil_std (float): Density Oil at Std Cond, lbm/ft3
+            rho_oil (float): Density Oil Insitu Cond, lbm/ft3
+            yoil (float): Volm Fraction Oil Insitu Cond, ft3/ft3
+            ywat (float): Volm Fraction Water Insitu Cond, ft3/ft3
+            ygas (float): Volm Fraction Gas Insitu Cond, ft3/ft3
+
+        Returns:
+            qoil (float): Oil Volumetric Flow, Insitu ft3/s
+            qwat (float): Water Volumetric Flow, Insitu ft3/s
+            qgas (float): Gas Volumetric Flow, Insitu ft3/s
+        """
+        # 42 gal/bbl, 7.48052 gal/ft3, 24 hr/day, 60min/hour, 60sec/min
+        qoil_cfs = qoil_std * 42 / (24 * 60 * 60 * 7.48052)  # ft3/s at standard conditions
+        moil = qoil_cfs * rho_oil_std  # mass flow of oil
+        qoil = moil / rho_oil  # actual flow, ft3/s
+
+        qtot = qoil / yoil  # oil flow divided by oil total fraction
+        qwat = ywat * qtot
+        qgas = ygas * qtot
+
+        return qoil, qwat, qgas
+
+    def insitu_mass_flow(self, qoil_std: float) -> tuple[float, float, float]:
+        """Insitu Mass Flow of Components
+
+        Calculate the insitu mass flow rates of the oil, water and gas in lbm/s
+        The fractions change with pressure and temperature from the gas solubility in the oil.
+        As a result the mass fractions cannot be assumed to be constant in the process.
+
+        Args:
+            qoil_std (float): Oil Rate, BOPD
+
+        Returns:
+            moil (float): Oil Mass Flow, lbm/s
+            mwat (float): Water Mass Flow, lbm/s
+            mgas (float): Gas Mass Flow, lbm/s
+        """
+        xoil, xwat, xgas = self.mass_fract()
+        moil, mwat, mgas = self._static_insitu_mass_flow(qoil_std, self.rho_oil_std, xoil, xwat, xgas)
+        return moil, mwat, mgas
 
     @staticmethod
     def _static_insitu_mass_flow(
-        qoil_std: float, rho_oil_std: float, rho_oil: float, yoil: float, ywat: float, ygas: float
+        qoil_std: float, rho_oil_std: float, xoil: float, xwat: float, xgas: float
     ) -> tuple[float, float, float]:
-        return 1, 1, 1
+        """Insitu Mass Flow of Components
+
+        Calculate the insitu mass flow rates of the oil, water and gas in lbm/s
+        The fractions change with pressure and temperature from the gas solubility in the oil.
+        As a result the mass fractions cannot be assumed to be constant in the process.
+
+        Args:
+            qoil_std (float): Oil Rate, BOPD
+            rho_oil_std (float): Density Oil at Std Cond, lbm/ft3
+            xoil (float): Mass Fraction Oil Insitu Cond, lbm/lbm
+            xwat (float): Mass Fraction Water Insitu Cond, lbm/lbm
+            xgas (float): Mass Fraction Gas Insitu Cond, lbm/lbm
+
+        Returns:
+            moil (float): Oil Mass Flow, lbm/s
+            mwat (float): Water Mass Flow, lbm/s
+            mgas (float): Gas Mass Flow, lbm/s
+        """
+        # 42 gal/bbl, 7.48052 gal/ft3, 24 hr/day, 60min/hour, 60sec/min
+        qoil_cfs = qoil_std * 42 / (24 * 60 * 60 * 7.48052)  # ft3/s at standard conditions
+        moil = qoil_cfs * rho_oil_std  # mass flow of oil
+        mtot = moil / xoil
+        mwat = xwat * mtot
+        mgas = xgas * mtot
+        return moil, mwat, mgas

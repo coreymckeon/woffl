@@ -7,63 +7,6 @@ from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
 
-# rename insitu_volm_flow or actual_volm_flow
-def actual_flow(
-    qoil_std: float, rho_oil_std: float, rho_oil: float, yoil: float, ywat: float, ygas: float
-) -> tuple[float, float, float]:
-    """Actual Flow of Mixture
-
-    Calculate the actual flow rates of the oil, water and gas in ft3/s
-
-    Args:
-        qoil_std (float): Oil Rate, BOPD
-        rho_oil_std (float): Density Oil at Std Cond, lbm/ft3
-        rho_oil (float): Density Oil Act. Cond, lbm/ft3
-        yoil (float): Volm Fraction Oil Act. Cond, ft3/ft3
-        ywat (float): Volm Fraction Water Act. Cond, ft3/ft3
-        ygas (float): Volm Fraction Gas Act. Cond, ft3/ft3
-
-    Returns:
-        qoil (float): Oil rate, actual ft3/s
-        qwat (float): Water rate, actual ft3/s
-        qgas (float): Gas Rate, actual ft3/s
-    """
-    # 42 gal/bbl, 7.48052 gal/ft3, 24 hr/day, 60min/hour, 60sec/min
-    qoil_cfs = qoil_std * 42 / (24 * 60 * 60 * 7.48052)  # ft3/s at standard conditions
-    moil = qoil_cfs * rho_oil_std  # mass flow of oil
-    qoil = moil / rho_oil  # actual flow, ft3/s
-
-    qtot = qoil / yoil  # oil flow divided by oil total fraction
-    qwat = ywat * qtot
-    qgas = ygas * qtot
-
-    return qoil, qwat, qgas
-
-
-def total_actual_flow(qoil_std: float, rho_oil_std: float, prop: ResMix) -> float:
-    """Total Actual Flow of Mixture
-
-    Calculate the total actual flow of the three phase mixture. Requires a
-    condition (pressure, temp) to have already been set in the ResMix. The
-    standard density of oil could have been looked up in the ResMix, but multiple
-    condition swapping was desired to be avoided. (Note: Update ResMix later to
-    store standard oil density?)
-
-    Args:
-        qoil_std (float): Oil Rate, BOPD
-        rho_oil_std (float): Density Oil at Std Cond, lbm/ft3
-        prop (ResMix): Properties of 3-Phase Mixutre
-
-    Returns:
-        qtot (float): Total Mixture Rate, actual ft3/s
-    """
-    rho_oil = prop.oil.density  # oil density
-    yoil, ywat, ygas = prop.volm_fract()
-    qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
-    qtot = qoil + qwat + qgas
-    return qtot
-
-
 # update code so JetPump is an input, for ate, atm and friction values
 # tee_final or tee_mach_one
 def tee_final(
@@ -92,11 +35,13 @@ def tee_final(
         vte_ray
         tee_ray
     """
-    rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density
-    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+    # rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density # legacy
 
+    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
     prop_su = prop_su.condition(psu, tsu)
-    qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su)
+    qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+
+    # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su) # legacy
     vte = qtot / ate
 
     pte_ray = np.array([psu])
@@ -115,7 +60,8 @@ def tee_final(
         pte = pte_ray[-1] - pdec
 
         prop_su = prop_su.condition(pte, tsu)
-        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su)
+        # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su) # legacy
+        qtot = sum(prop_su.insitu_volm_flow(qoil_std))
         vte = qtot / ate
 
         vte_ray = np.append(vte_ray, vte)
@@ -411,10 +357,11 @@ def diffuser_discharge(
         vtm (float): Throat Mixture Velocity
         pdi (float): Diffuser Discharge Pressure, psig
     """
-    rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density
+    # rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density # legacy
 
     prop_tm = prop_tm.condition(ptm, ttm)
-    qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm)
+    qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
+    # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm) # legacy
 
     vtm = qtot / ath
     vdi = qtot / adi
@@ -435,7 +382,8 @@ def diffuser_discharge(
         pdi = pdi_ray[-1] + pinc
 
         prop_tm = prop_tm.condition(pdi, ttm)
-        qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm)
+        qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
+        # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm) # legacy
         vdi = qtot / adi
 
         vdi_ray = np.append(vdi_ray, vdi)
