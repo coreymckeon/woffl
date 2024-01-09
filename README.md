@@ -1,2 +1,4 @@
 # WOFFL
-Water Optimization For Fluidic Lift. Focused on production optimization and other data analytics.
+Water Optimization For Fluidic Lift
+
+Numerical solver for understanding subsurface jet pump fluid dynamics.
