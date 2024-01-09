@@ -4,10 +4,6 @@ from pvt.blackoil import BlackOil
 from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 
-# add property / method that calculates / stores standard oil density
-# just call it on init for 0 psig and 60 deg F, that way it is only
-# called once during the __init__ method
-
 
 class ResMix:
     def __init__(self, wc: float, fgor: int, oil: BlackOil, wat: FormWater, gas: FormGas) -> None:

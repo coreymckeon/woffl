@@ -146,7 +146,7 @@ class FormGas:
         Returns:
             ugas (float): gas viscosity, cP
         """
-        ug = self.viscosity_lee(self._tempr, self.mw, self.density)
+        ug = self._viscosity_lee(self._tempr, self.mw, self.density)
         return ug
 
     def compress(self) -> float:
@@ -196,7 +196,7 @@ class FormGas:
         return True, 55
 
     @staticmethod
-    def viscosity_lee(tempr: float, mw: float, rho_gas: float) -> float:
+    def _viscosity_lee(tempr: float, mw: float, rho_gas: float) -> float:
         """Lee et. al Gas Viscosity
 
         Gas viscosity following Lee 1966 et al methodology.
