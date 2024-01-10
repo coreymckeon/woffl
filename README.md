@@ -1,3 +1,2 @@
-![woffl_github8](https://github.com/kwellis/woffl/assets/62774251/ac05bc6f-77a8-42d9-b7c7-f67d0ec3fd7c)
-Water Optimization for Fluidic Lift   
-Numerical solver for understanding the fluid dynamics of three phase subsurface jet pumps. Written in python and sql.
+Nume![woffl_github7](https://github.com/kwellis/woffl/assets/62774251/8b80146f-a503-4576-8f43-f1aa45d93a05)
+rical solver for understanding the fluid dynamics of three phase subsurface jet pumps. Written in python and sql.
