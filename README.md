@@ -7,7 +7,8 @@ The fundamental equation in the analysis of a jet pump is the un-integrated ener
 $$\frac{dp}{\rho} + \nu d\nu = 0$$
 The fluid density is denoted by $\rho$ and the velocity is denoted by $\nu$. 
 #### Relevant Papers   
-- Cunningham, R. G., 1974, “Gas Compression With the Liquid Jet Pump,” Journal of Fluids Engineering, 96(3), pp. 203–215.
-- Cunningham, R. G., 1995, “Liquid Jet Pumps for Two-Phase Flows,” Journal of Fluids Engineering, 117(2), pp. 309–316.
-- Merrill, R., Shankar, V., and Chapman, T., 2020, “Three-Phase Numerical Solution for Jet Pumps Applied to a Large Oilfield,” Day 2 Tue, November 10, 2020.
+- Cunningham, R. G., 1974, “Gas Compression With the Liquid Jet Pump,” ASME J Fluids Eng, 96(3), pp. 203–215.
+- Cunningham, R. G., 1995, “Liquid Jet Pumps for Two-Phase Flows,” ASME J Fluids Eng, 117(2), pp. 309–316.
+- Merrill, R., Shankar, V., and Chapman, T., 2020, “Three-Phase Numerical Solution for Jet Pumps Applied to a Large Oilfield,” SPE Day 2 Tue, November 10, 2020.
+- Himr, D., Habán, V., Pochylý, F., 2009, "Sound Speed in the Mixture Water - Air", Engineering Mechanics Conference, Svratka, Czech Republic, May 11–14, 2009, Paper # 255, pp. 393-401. 
 
