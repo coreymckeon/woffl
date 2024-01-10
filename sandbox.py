@@ -26,7 +26,7 @@ mpu_wat = FormWater.schrader_wat()  # class method
 mpu_gas = FormGas.schrader_gas()  # class method
 
 form_wc = 0.86
-form_gor = 2300
+form_gor = 2300  # formation gor
 form_temp = 80
 e42_res = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_gas)
 
