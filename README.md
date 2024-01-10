@@ -5,7 +5,8 @@ Jet pump studies fron the 1970's were interested in pumping single phase incompr
 #### Fundamental Equation
 The fundamental equation in the analysis of a jet pump is the unintegrated energy equation. No work is done, heat is not transferred and a significant height difference is not present. The unintegrated energy equation takes the following form.    
 \begin{align*}
-$\frac{dp}{\rho} + \nud\nu = 0$
+a & = b \\
+\frac{dp}{\rho} + \nud\nu = 0
 \end{align*}
 #### Relevant Papers   
 - Cunningham, R. G., 1974, “Gas Compression With the Liquid Jet Pump,” Journal of Fluids Engineering, 96(3), pp. 203–215.
