@@ -35,19 +35,15 @@ def tee_final(
         vte_ray
         tee_ray
     """
-    # rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density # legacy
-
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
     prop_su = prop_su.condition(psu, tsu)
     qtot = sum(prop_su.insitu_volm_flow(qoil_std))
 
-    # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su) # legacy
     vte = qtot / ate
 
     pte_ray = np.array([psu])
     vte_ray = np.array([vte])
     rho_ray = np.array([prop_su.pmix()])
-    # snd_ray = np.array([prop_su.cmix()])
     mach_ray = np.array([vte / prop_su.cmix()])
 
     kse_ray = np.array([(1 + ken) * (vte**2) / 2])
@@ -60,14 +56,12 @@ def tee_final(
         pte = pte_ray[-1] - pdec
 
         prop_su = prop_su.condition(pte, tsu)
-        # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_su) # legacy
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
         vte = qtot / ate
 
         vte_ray = np.append(vte_ray, vte)
         kse_ray = np.append(kse_ray, (1 + ken) * (vte**2) / 2)
 
-        # snd_ray = np.append(snd_ray, prop_su.cmix())
         mach_ray = np.append(mach_ray, vte / prop_su.cmix())
 
         pte_ray = np.append(pte_ray, pte)

@@ -136,13 +136,27 @@ class BlackOil:
         Returns:
             uoil (float): live oil viscosity, cP
         """
-        rs = self.gas_solubility()
         uod = self.viscosity_dead_kartoatmodjo(self.temp, self.oil_api)
-        uol = self.viscosity_live_kartoatmodjo_below(uod, rs)
+        uol = self.viscosity_live_kartoatmodjo_below(uod, self.gas_solubility())
         if self.press > self.pbp:  # above bubblepoint
             uob = uol
             uol = self.viscosity_live_kartoatmodjo_above(uob, self.press, self.pbp)
         return uol
+
+    def tension(self) -> float:
+        """Live Oil Surface Tension
+
+        Calculate the live oil surface tension
+
+        Args:
+            None
+
+        Returns:
+            sigo (float): Live Oil Surface Tension, lbf/ft"""
+        sigod = self.tension_dead_abdul(self.temp, self.oil_api)
+        sigol = self.tension_live_abdul(sigod, self.gas_solubility())  # dyne/cm
+        sigo = sigol * 0.0000685  # lbf/ft
+        return sigo
 
     @staticmethod
     def fvf_standing_below(temp: float, oil_api: float, gas_sg: float, rs: float) -> float:
@@ -527,3 +541,47 @@ class BlackOil:
         """
         uol = 1.00081 * uob + 0.001127 * (press - pbp) * (-0.006517 * uob**1.8148 + 0.038 * uob**1.590)
         return uol
+
+    @staticmethod
+    def tension_dead_abdul(temp: float, oil_api: float) -> float:
+        """Surface Tension Dead Oil
+
+        Dead oil surface tension from the Abdul-Majeed 2000 Method
+
+        Args:
+            temp (float): Oil Temperature, deg F
+            oil_api (float): Oil API Degrees
+
+        Returns:
+            sigod (float): Dead Oil Surface Tension, dyne/cm
+
+        References:
+            - Estimation of gas - oil surface tension, G.H. Abdul-Majeed, J Petroleum Science (2000)"""
+
+        temp_c = (5 / 9) * (temp - 32)
+        A = 1.11591 - 0.00305 * temp_c
+        sigod = A * (38.085 - 0.259 * oil_api)
+        return sigod
+
+    @staticmethod
+    def tension_live_abdul(sigod: float, rs: float) -> float:
+        """Surface Tension Live Oil
+
+        Live oil surface tension from the Abdul-Majeed 2000 Method
+
+        Args:
+            sigod (float): Dead Oil Surface Tension, dyne/cm
+            oil_api (float): Gas Solubility, scf/stb
+
+        Returns:
+            sigol (float): Live Oil Surface Tension, dyne/cm
+
+        References:
+            - Estimation of gas - oil surface tension, G.H. Abdul-Majeed, J Petroleum Science (2000)
+        """
+        rs_si = rs * 7.4801 / 42  # units of ft3/ft3, equivalent to m3/m3
+        if rs_si < 50:
+            sigol = sigod / (1 + 0.02549 * rs_si**1.0157)
+        else:
+            sigol = sigod * 32.0436 * rs_si**-1.1367
+        return sigol

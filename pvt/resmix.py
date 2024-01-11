@@ -11,7 +11,7 @@ class ResMix:
 
         Args:
                 wc (float): Watercut of the Mixture, 0 to 1
-                fgor (int): Formation GOR of the Mixture
+                fgor (int): Formation GOR of the Mixture, scf/stb
                 oil (BlackOil): Class with Oil_API, Gas_SG, Bubblepoint
                 wat (FormWater): Class with Water SG
                 gas (FormGas): Class with Gas SG
@@ -25,8 +25,13 @@ class ResMix:
         self.oil = oil
         self.wat = wat
         self.gas = gas
-        # store it so you don't have to call it continually
-        self.rho_oil_std = oil.condition(0, 60).density
+
+        # store standard densities so you don't have to call continually
+        pstd = 0  # psig standard pressure
+        tstd = 60  # deg f standard temperature
+        self.rho_oil_std = oil.condition(pstd, tstd).density
+        self.rho_wat_std = wat.condition(pstd, tstd).density
+        self.rho_gas_std = gas.condition(pstd, tstd).density
 
     def __repr__(self) -> str:
         # return(f'Mixture with {self.oil.oil_api} API Oil')
@@ -122,74 +127,21 @@ class ResMix:
         Uses algebraic relationships of wc, gor and density to solve for mass fractions.
 
         Args:
-                None
+            None
 
         Returns:
-                xoil (float): mass fraction of oil in the mixture
-                xwat (float): mass fraction of water in the mixture
-                xgas (float): mass fraction of gas in the mixture
+            xoil (float): mass fraction of oil in the mixture
+            xwat (float): mass fraction of water in the mixture
+            xgas (float): mass fraction of gas in the mixture
 
         References:
-                Derivations from Kaelin available on request
+            Derivations from Kaelin available on request
         """
-        # pull out the eval. press and temp first
-        # standard condition will overwrite them otherwise
-        press = self.press
-        temp = self.temp
-
-        pstd = 0  # psig standard pressure
-        tstd = 60  # deg f standard temperature
-
-        # wc and fgor are evaluated at standard conditions
-        poil, pwat, pgas = self.condition(pstd, tstd).dens_comp()
-
-        # convert back to evaluated conditions
-        self = self.condition(press, temp)
-
-        wc = self.wc
-        fgor = self.fgor
-        rs = self.oil.gas_solubility()
-
-        # mass based gas solubility
-        mrs = (7.48 / 42) * rs * pgas / poil
-
-        # convert from scf/bbl to scf/cf
-        # densities are at standard conditions
-        # mass formation gas oil ratio
-        mfgor = (7.48 / 42) * fgor * pgas / poil
-
-        # mass watercut
-        mwc = pwat * wc / (pwat * wc + poil * (1 - wc))
-
-        # mass formation gas to liquid ratio
-        mfglr = (7.48 / 42) * fgor * pgas * (1 - wc) / (wc * pwat + (1 - wc) * poil)
-
-        # mass fraction of gas
-        xgas = mfglr / (1 + mfglr)
-
-        # mass fraction of oil
-        xoil = (1 - mwc) / (1 + mfgor * (1 - mwc))
-
-        # mass fraction of water
-        xwat = 1 - xoil - xgas
-
-        # correct for the gas that is inside the oil
-        xrs = xoil * mrs
-
-        # calculate new mass fraction of free gas
-        xgas = xgas - xrs
-        # make sure mass fraction of gas is always zero or above
-        xgas = max(xgas, 0)
-
-        xoil = 1 - xwat - xgas
-
-        # round the mass fractions
-        deci = 4
-        xgas = round(xgas, deci)
-        xoil = round(xoil, deci)
-        xwat = round(xwat, deci)
-
-        # mass fractions
+        # use static method from below to run the calcs
+        xoil, xwat, xgas = self._owg_mass_fraction(
+            self.wc, self.fgor, self.oil.gas_solubility(), self.rho_oil_std, self.rho_wat_std, self.rho_gas_std
+        )
+        # return the mass fractions
         return xoil, xwat, xgas
 
     def pmix(self) -> float:
@@ -204,19 +156,13 @@ class ResMix:
         Returns:
                 pmix (float): density of mixture, lbm/ft3
         """
-        press = self.press
-        temp = self.temp
-
-        xoil, xwat, xgas = self.condition(press, temp).mass_fract()
-        poil, pwat, pgas = self.condition(press, temp).dens_comp()
+        xoil, xwat, xgas = self.mass_fract()
+        rho_oil, rho_wat, rho_gas = self.dens_comp()
 
         # mixture specific volume
-        vmix = (xoil / poil) + (xwat / pwat) + (xgas / pgas)
-
-        pmix = 1 / vmix
-        pmix = round(pmix, 4)
-
-        return pmix
+        vmix = (xoil / rho_oil) + (xwat / rho_wat) + (xgas / rho_gas)
+        rho_mix = 1 / vmix
+        return rho_mix
 
     def volm_fract(self) -> tuple[float, float, float]:
         """Volume Fractions
@@ -232,27 +178,16 @@ class ResMix:
                 ywat (float): volume fraction of water in the mixture
                 ygas (float): volume fraction of gas in the mixture
         """
-        press = self.press
-        temp = self.temp
-
-        # these condition calls are probably redundant
-        xoil, xwat, xgas = self.condition(press, temp).mass_fract()
-        poil, pwat, pgas = self.condition(press, temp).dens_comp()
+        xoil, xwat, xgas = self.mass_fract()
+        rho_oil, rho_wat, rho_gas = self.dens_comp()
 
         # mixture specific volume
-        vmix = (xoil / poil) + (xwat / pwat) + (xgas / pgas)
+        vmix = (xoil / rho_oil) + (xwat / rho_wat) + (xgas / rho_gas)
+        rho_mix = 1 / vmix
 
-        pmix = 1 / vmix
-
-        yoil = xoil * pmix / poil
-        ywat = xwat * pmix / pwat
-        ygas = xgas * pmix / pgas
-
-        # round the mass fractions
-        deci = 4
-        yoil = round(yoil, deci)
-        ywat = round(ywat, deci)
-        ygas = round(ygas, deci)
+        yoil = xoil * rho_mix / rho_oil
+        ywat = xwat * rho_mix / rho_wat
+        ygas = xgas * rho_mix / rho_gas
 
         return yoil, ywat, ygas
 
@@ -271,8 +206,6 @@ class ResMix:
         References:
                 Sound Speed in the Mixture Water-Air D.Himr (2009)
         """
-        # paper calculated 390 ft/s there conditions
-        # we calculated 460 ft/s, with our conditions, seems ballpark
         co, cw, cg = self.comp_comp()  # isothermal compressibility
         yoil, ywat, ygas = self.volm_fract()  # volume fractions
         ps = self.pmix()
@@ -281,7 +214,6 @@ class ResMix:
         ks = 1 / cs  # mixture bulk modulus of elasticity
 
         cmix = math.sqrt(32.174 * 144 * ks / ps)  # speed of sound, ft/s
-        cmix = round(cmix, 2)
         return cmix
 
     def insitu_volm_flow(self, qoil_std: float) -> tuple[float, float, float]:
@@ -330,7 +262,6 @@ class ResMix:
         qtot = qoil / yoil  # oil flow divided by oil total fraction
         qwat = ywat * qtot
         qgas = ygas * qtot
-
         return qoil, qwat, qgas
 
     def insitu_mass_flow(self, qoil_std: float) -> tuple[float, float, float]:
@@ -381,3 +312,58 @@ class ResMix:
         mwat = xwat * mtot
         mgas = xgas * mtot
         return moil, mwat, mgas
+
+    @staticmethod
+    def _owg_mass_fraction(
+        wc: float, fgor: float, rs: float, rho_oil_std: float, rho_wat_std: float, rho_gas_std: float
+    ) -> tuple[float, float, float]:
+        """Oil Water and Gas Mass Fractions
+
+        Return the mass fractions of the oil, water and gas from the mixture.
+        Uses algebraic relationships of wc, gor and density to solve for mass fractions.
+        Densities are evaluated at standard conditions
+
+        Args:
+            wc (float): Watercut of the Mixture, 0 to 1
+            fgor (float): Formation GOR of the Mixture, scf/stb
+            rs (float): Gas Solubility of the Oil, scf/stb
+            rho_oil_std (float): Oil Density Standard Conditions, lbm/ft3
+            rho_wat_std (float): Water Density Standard Conditions, lbm/ft3
+            rho_gas_std (float): Gas Density Standard Conditions, lbm/ft3
+
+        Returns:
+            xoil (float): mass fraction of oil in the mixture
+            xwat (float): mass fraction of water in the mixture
+            xgas (float): mass fraction of gas in the mixture
+
+        References:
+            Derivations from Kaelin available on request
+        """
+        # mass based gas solubility
+        mrs = (7.48 / 42) * rs * rho_gas_std / rho_oil_std
+        # mass formation gas oil ratio, convert from scf/bbl to scf/cf
+        mfgor = (7.48 / 42) * fgor * rho_gas_std / rho_oil_std
+        # mass watercut
+        mwc = rho_wat_std * wc / (rho_wat_std * wc + rho_oil_std * (1 - wc))
+
+        # mass formation gas to liquid ratio
+        mfglr = (7.48 / 42) * fgor * rho_gas_std * (1 - wc) / (wc * rho_wat_std + (1 - wc) * rho_oil_std)
+
+        # mass fraction of gas
+        xgas = mfglr / (1 + mfglr)
+        # mass fraction of oil
+        xoil = (1 - mwc) / (1 + mfgor * (1 - mwc))
+        # mass fraction of water
+        xwat = 1 - xoil - xgas
+
+        # correct for the gas that is inside the oil
+        xrs = xoil * mrs
+        # calculate new mass fraction of free gas
+        xgas = xgas - xrs
+        # make sure mass fraction of gas is always zero or above
+        xgas = max(xgas, 0)
+
+        xoil = 1 - xwat - xgas
+
+        # mass fractions
+        return xoil, xwat, xgas

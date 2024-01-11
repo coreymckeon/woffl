@@ -96,6 +96,21 @@ class FormWater:
         References:
             https://roymech.org/Related/Fluids/Fluids_Water_Props.html
         """
-        cw = 0.0004543  # 1/MPa
-        cw = round(cw / 145.038, 7)  # 1/psi
+        cw_si = 0.0004543  # 1/MPa
+        cw = cw_si / 145.038  # 1/psi
         return cw
+
+    def tension(self) -> float:
+        """Water Surface Tension
+
+        Calculate the water surface tension
+
+        Args:
+            None
+
+        Returns:
+            sigw (float): Water Surface Tension, lbf/ft
+        """
+        sigw_cgs = 72.8  # dyne /cm
+        sigw = sigw_cgs * 0.0000685  # lbf/ft
+        return sigw
