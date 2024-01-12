@@ -15,7 +15,7 @@ def tee_final(
     """Throat Enterance Final Energy
 
     Calculate the amount of energy in the throat enterance when the flow
-    hits sonic velocity, mach = 1 or when the pte is low on pressure (< pdecrease).
+    hits sonic velocity, mach = 1 or when the pte is low on pressure (< pdec).
     The suction pressure, psu and final enterance energy are fed into a secant
     solver that finds psu that gives a zero final energy.
 
@@ -30,10 +30,10 @@ def tee_final(
     Returns:
         tee_fin (float): Final Throat Energy Equation Value, ft2/s2
         qoil_std (float): Oil flow from reservoir, stbopd
-        pte_ray
-        rho_ray
-        vte_ray
-        tee_ray
+        pte_ray (np array): Press Throat Entry Array, psig
+        rho_ray (np array): Density Throat Entry Array, lbm/ft3
+        vte_ray (np array): Velocity Throat Entry Array, ft/s
+        tee_ray (np array): Throat Entry Equation Array, ft/s
     """
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
     prop_su = prop_su.condition(psu, tsu)
@@ -54,7 +54,6 @@ def tee_final(
     # keep mach under one, and pte above pdec, so it doesn't go negative
     while mach_ray[-1] <= 1 and pte_ray[-1] > pdec:
         pte = pte_ray[-1] - pdec
-
         prop_su = prop_su.condition(pte, tsu)
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
         vte = qtot / ate
@@ -281,8 +280,7 @@ def throat_discharge(
     vtm = mtm / (ath * rho_tm)  # velocity of total mixture
     # units of lbm/(s2*ft)
     dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
-    # convert to lbf/in2
-    dp_tm = dp_tm / (32.174 * 144)
+    dp_tm = dp_tm / (32.174 * 144)  # convert to lbf/in2
     ptm = pte - dp_tm
     ptm_list = [pte, ptm]
     ptm_diff = 5
@@ -351,11 +349,8 @@ def diffuser_discharge(
         vtm (float): Throat Mixture Velocity
         pdi (float): Diffuser Discharge Pressure, psig
     """
-    # rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density # legacy
-
     prop_tm = prop_tm.condition(ptm, ttm)
     qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
-    # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm) # legacy
 
     vtm = qtot / ath
     vdi = qtot / adi
@@ -363,7 +358,6 @@ def diffuser_discharge(
     pdi_ray = np.array([ptm])
     vdi_ray = np.array([vdi])
     rho_ray = np.array([prop_tm.pmix()])
-    # snd_list = [prop_tm.cmix()]
 
     kse_ray = np.array([(vdi**2 - (1 - kdi) * vtm**2) / 2])
     ese_ray = np.array([0])
@@ -374,10 +368,8 @@ def diffuser_discharge(
 
     while dte_ray[-1] < 0:
         pdi = pdi_ray[-1] + pinc
-
         prop_tm = prop_tm.condition(pdi, ttm)
         qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
-        # qtot = total_actual_flow(qoil_std, rho_oil_std, prop_tm) # legacy
         vdi = qtot / adi
 
         vdi_ray = np.append(vdi_ray, vdi)
