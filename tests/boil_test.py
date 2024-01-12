@@ -64,3 +64,5 @@ axs[4].set_xlabel("Pressure, psig")
 
 fig.suptitle(f"Oil {py_boil.oil_api} API Properties at {temp} deg F")
 plt.show()
+
+print(f"Oil Surface Tension: {round(py_boil.tension() / 0.0000685, 2)} dyne/cm")
