@@ -27,7 +27,7 @@ class BlackOil:
         self.gas_sg = gas_sg
 
     def __repr__(self):
-        return f"Oil: {self.oil_api} API and a {round(self.gas_sg,2)} SG Gas"
+        return f"Oil: {self.oil_api} API and a {round(self.gas_sg, 2)} SG Gas"
 
     @classmethod
     def schrader_oil(cls):
