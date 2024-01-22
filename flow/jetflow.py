@@ -75,7 +75,7 @@ def tee_final(
     else:
         tee_fin = tee_ray[-1]
 
-    return tee_fin, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray
+    return tee_fin, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray  # type: ignore
 
 
 def tee_zero(
@@ -102,7 +102,7 @@ def tee_zero(
     rho_te = np.interp(0, np.flip(tee_ray), np.flip(rho_ray))
     vte = np.interp(0, np.flip(tee_ray), np.flip(vte_ray))
 
-    return pte, rho_te, vte
+    return pte, rho_te, vte  # type: ignore
 
 
 def tee_minimize(
@@ -390,4 +390,4 @@ def diffuser_discharge(
     # print(f"Diffuser took {n} loops to find solution")
     pdi = np.interp(0, dte_ray, pdi_ray)
 
-    return vtm, pdi
+    return vtm, pdi  # type: ignore

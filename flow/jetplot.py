@@ -165,12 +165,12 @@ def throat_entry_mach_one(pte_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.
     """
     mach_ray = vel_ray / snd_ray
     # check that the mach array has values that span one for proper interpolation
-    if np.max(mach_ray) <= 1:
+    if np.max(mach_ray) <= 1:  # type: ignore
         raise ValueError("Max value in Mach array is less than one, increase pte")
-    if np.min(mach_ray) >= 1:
+    if np.min(mach_ray) >= 1:  # type: ignore
         raise ValueError("Min value in Mach array is greater than one, decrease pte")
     pmo = np.interp(1, mach_ray, pte_ray)
-    return pmo
+    return pmo  # type: ignore
 
 
 def multi_throat_entry_arrays(
