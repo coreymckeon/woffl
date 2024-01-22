@@ -69,17 +69,34 @@ class ResMix:
         Requires a pressure and temperature condition to previously be set.
 
         Args:
-                None
+            None
 
         Returns:
-                rho_oil (float): density of oil, lbm/ft3
-                rho_wat (float): density of water, lbm/ft3
-                rho_gas (float): density of gas, lbm/ft3
+            rho_oil (float): density of oil, lbm/ft3
+            rho_wat (float): density of water, lbm/ft3
+            rho_gas (float): density of gas, lbm/ft3
         """
         rho_oil = self.oil.density
         rho_wat = self.wat.density
         rho_gas = self.gas.density
         return rho_oil, rho_wat, rho_gas
+
+    def dens_two(self) -> tuple[float, float]:
+        """Density of Two Phases, Liquid and Gas
+
+        Computes the liquid mixture density. Used in multiphase equations for piping.
+
+        Args:
+            None
+
+        Returns:
+            rho_liq (float): Density of Liquid, lbm/ft3
+            rho_gas (float): Density of Gas, lbm/ft3
+        """
+        rho_oil, rho_wat, rho_gas = self.dens_comp()
+        yoil, ywat, ygas = self.volm_fract()  # volume fractions
+        rho_liq = self.homogenous_liquid(yoil, ywat, rho_oil, rho_wat)
+        return rho_liq, rho_gas
 
     def visc_comp(self) -> tuple[float, float, float]:
         """Viscosity Components
@@ -99,6 +116,38 @@ class ResMix:
         uwat = self.wat.viscosity()
         ugas = self.gas.viscosity()
         return uoil, uwat, ugas
+
+    def visc_two(self) -> tuple[float, float]:
+        """Viscosity of Two Phases, Liquid and Gas
+
+        Computes the liquid mixture viscosity. Used in multiphase equations for piping.
+
+        Args:
+            None
+
+        Returns:
+            uliq (float): Viscosity of Liquid, cP
+            ugas (float): Viscosity of Gas, cP
+        """
+        uoil, uwat, ugas = self.visc_comp()
+        yoil, ywat, ygas = self.volm_fract()  # volume fractions
+        uliq = self.homogenous_liquid(yoil, ywat, uoil, uwat)
+        return uliq, ugas
+
+    def tension(self) -> float:
+        """Surface Tension of Liquid Phase
+
+        Args:
+            None
+
+        Returns:
+            sig_liq (float): Surface Tension Liquid, lbf/ft
+        """
+        sig_oil = self.oil.tension()
+        sig_wat = self.wat.tension()
+        yoil, ywat, ygas = self.volm_fract()  # volume fractions
+        sig_liq = self.homogenous_liquid(yoil, ywat, sig_oil, sig_wat)
+        return sig_liq
 
     def comp_comp(self) -> tuple[float, float, float]:
         """Compressibility Components
@@ -171,12 +220,12 @@ class ResMix:
         Requires a pressure and temperature condition to previously be set.
 
         Args:
-                None
+            None
 
         Returns:
-                yoil (float): volume fraction of oil in the mixture
-                ywat (float): volume fraction of water in the mixture
-                ygas (float): volume fraction of gas in the mixture
+            yoil (float): volume fraction of oil in the mixture
+            ywat (float): volume fraction of water in the mixture
+            ygas (float): volume fraction of gas in the mixture
         """
         xoil, xwat, xgas = self.mass_fract()
         rho_oil, rho_wat, rho_gas = self.dens_comp()
@@ -367,3 +416,26 @@ class ResMix:
 
         # mass fractions
         return xoil, xwat, xgas
+
+    @staticmethod
+    def homogenous_liquid(yoil, ywat, prop_oil, prop_wat) -> float:
+        """Mixture Property of Homogenous Liquid
+
+        Uses common assumption of homogenous liquid for calculating properties.
+        Properties could be density, viscosity or surface tension
+
+        Args:
+            yoil (float): Volume fraction of oil in the mixture
+            ywat (float): Volume fraction of water in the mixture
+            prop_oil (float): Property of the Oil
+            prop_wat (float): Property of the Wat
+
+        Return:
+            prop_liq (float): Property of the Liquid
+
+        References:
+            - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 35
+        """
+        fw = ywat / (yoil + ywat)  # water fraction of the liquid
+        prop_liq = prop_oil * (1 - fw) + prop_wat * fw
+        return prop_liq
