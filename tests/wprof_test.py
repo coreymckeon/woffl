@@ -1,6 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from wellprofile import WellProfile, hd_array, profileplot, segments_fit, vertical_angle
+
+from geometry.wellprofile import (
+    WellProfile,
+    hd_array,
+    profileplot,
+    segments_fit,
+    vertical_angle,
+)
+
+# only works if the command python -m tests.wprof_test is used
 
 # imported values from e42
 md_list = [

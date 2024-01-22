@@ -236,10 +236,12 @@ def multi_suction_graphs(res_lis: list) -> None:
     Returns:
         Graphs
     """
-    ax = plt.gca()
+    # ax = plt.gca() # old matplotlib code
     for res in res_lis:
         tee_pmo = np.interp(res.pmo, np.flip(res.pte_ray), np.flip(res.tee_ray))
-        color = next(ax._get_lines.prop_cycler)["color"]
+        # color = next(ax._get_lines.prop_cycler)["color"] # old matplotlib code
+        prop_cycle = plt.rcParams["axes.prop_cycle"]  # new color method
+        color = next(prop_cycle.by_key()["color"])  # new color method
         # only graph values where the mach number is under one
         pte_ray = res.pte_ray[res.pte_ray >= res.pmo]
         tee_ray = res.tee_ray[res.pte_ray >= res.pmo]
