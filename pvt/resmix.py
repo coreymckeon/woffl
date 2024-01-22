@@ -10,14 +10,14 @@ class ResMix:
         """Initialize a Reservoir Mixture
 
         Args:
-                wc (float): Watercut of the Mixture, 0 to 1
-                fgor (int): Formation GOR of the Mixture, scf/stb
-                oil (BlackOil): Class with Oil_API, Gas_SG, Bubblepoint
-                wat (FormWater): Class with Water SG
-                gas (FormGas): Class with Gas SG
+            wc (float): Watercut of the Mixture, 0 to 1
+            fgor (int): Formation GOR of the Mixture, scf/stb
+            oil (BlackOil): Class with Oil_API, Gas_SG, Bubblepoint
+            wat (FormWater): Class with Water SG
+            gas (FormGas): Class with Gas SG
 
         Returns:
-                Self
+            Self
         """
 
         self.wc = wc  # specify a decimal
@@ -41,11 +41,11 @@ class ResMix:
         """Set condition of evaluation
 
         Args:
-                press (float): Pressure of the mixture, psig
-                temp (float): Temperature of the mixture, deg F
+            press (float): Pressure of the mixture, psig
+            temp (float): Temperature of the mixture, deg F
 
         Returns:
-                Self
+            Self
         """
         # define the condition, where are you at?
         # what is the pressure and what is the temperature?
@@ -105,12 +105,12 @@ class ResMix:
         Requires a pressure and temperature condition to previously be set.
 
         Args:
-                None
+            None
 
         Returns:
-                uoil (float): viscosity of oil, cP
-                uwat (float): viscosity of water, cP
-                ugas (float): viscosity of gas, cP
+            uoil (float): viscosity of oil, cP
+            uwat (float): viscosity of water, cP
+            ugas (float): viscosity of gas, cP
         """
         uoil = self.oil.viscosity()
         uwat = self.wat.viscosity()
@@ -156,12 +156,12 @@ class ResMix:
         Requires a pressure and temperature condition to previously be set.
 
         Args:
-                None
+            None
 
         Returns:
-                co (float): compressibility of oil, psi**-1
-                cw (float): compressibility of oil, psi**-1
-                cg (float): compressibility of oil, psi**-1
+            co (float): compressibility of oil, psi**-1
+            cw (float): compressibility of oil, psi**-1
+            cg (float): compressibility of oil, psi**-1
         """
         co = self.oil.compress()
         cw = self.wat.compress()
@@ -200,10 +200,10 @@ class ResMix:
         Requires a pressure and temperature condition to previously be set.
 
         Args:
-                None
+            None
 
         Returns:
-                pmix (float): density of mixture, lbm/ft3
+            pmix (float): density of mixture, lbm/ft3
         """
         xoil, xwat, xgas = self.mass_fract()
         rho_oil, rho_wat, rho_gas = self.dens_comp()
@@ -247,13 +247,13 @@ class ResMix:
         Requires a pressure and temperature condition to previously be set.
 
         Args:
-                None
+            None
 
         Returns:
-                cmix (float): speed of sound in the mixture, ft/s
+            cmix (float): speed of sound in the mixture, ft/s
 
         References:
-                Sound Speed in the Mixture Water-Air D.Himr (2009)
+            Sound Speed in the Mixture Water-Air D.Himr (2009)
         """
         co, cw, cg = self.comp_comp()  # isothermal compressibility
         yoil, ywat, ygas = self.volm_fract()  # volume fractions
@@ -418,7 +418,7 @@ class ResMix:
         return xoil, xwat, xgas
 
     @staticmethod
-    def homogenous_liquid(yoil, ywat, prop_oil, prop_wat) -> float:
+    def homogenous_liquid(yoil: float, ywat: float, prop_oil: float, prop_wat: float) -> float:
         """Mixture Property of Homogenous Liquid
 
         Uses common assumption of homogenous liquid for calculating properties.
