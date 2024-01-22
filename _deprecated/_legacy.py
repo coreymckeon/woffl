@@ -82,42 +82,44 @@ vel_ray = np.insert(arr=vel_ray, obj=pmo_idx, values=qtot / ate)
 rho_ray = np.insert(arr=rho_ray, obj=pmo_idx, values=prop_su.pmix())
 snd_ray = np.insert(arr=snd_ray, obj=pmo_idx, values=prop_su.cmix())
 
-    @staticmethod
-    def almarhoun_fvf_above(press, temp, oil_api, pbp, gas_sg, rs, bob) -> float:
-        """Al-Marhoun FVF Above Bubblepoint
 
-        Calculate the formation volume factor. Using Al-Marhoun
-        In the 2015 Paper Al-Marhoun wrote, he doesn't discuss this method
-        As a result, I am guessing that he doesn't want to use it.
+@staticmethod
+def almarhoun_fvf_above(press, temp, oil_api, pbp, gas_sg, rs, bob) -> float:
+    """Al-Marhoun FVF Above Bubblepoint
 
-        Args:
-            press (float): Pressure of the oil, psig
-            temp (float): Temperature of the oil, deg F
-            oil_api (float): Oil API Degrees
-            pbp (float): Bubblepoint pressure, psig
-            gas_sg (float): Gas Specific Gravity, air
-            rs (float): Solubility of Gas in Oil, SCF/STB
-            bob (float): Oil FVF at Bubblepoint, RB/STB
+    Calculate the formation volume factor. Using Al-Marhoun
+    In the 2015 Paper Al-Marhoun wrote, he doesn't discuss this method
+    As a result, I am guessing that he doesn't want to use it.
 
-        Returns:
-            bo (float): Oil FVF, rb/stb
+    Args:
+        press (float): Pressure of the oil, psig
+        temp (float): Temperature of the oil, deg F
+        oil_api (float): Oil API Degrees
+        pbp (float): Bubblepoint pressure, psig
+        gas_sg (float): Gas Specific Gravity, air
+        rs (float): Solubility of Gas in Oil, SCF/STB
+        bob (float): Oil FVF at Bubblepoint, RB/STB
 
-        References:
-            - New Correlations for FVF of Oil and Gas, M. Al-Marhoun (1992) PETSOC-92-03-02
-        """
+    Returns:
+        bo (float): Oil FVF, rb/stb
 
-        # oil_sg = 141.5 / (oil_api + 131.5)  # oil specific gravity
+    References:
+        - New Correlations for FVF of Oil and Gas, M. Al-Marhoun (1992) PETSOC-92-03-02
+    """
 
-        # oil fvf above bubblepoint pressure
-        a5 = -0.0136680 * 10**-3
-        a6 = -0.0195682 * 10**-6
-        a7 = 0.02409026
-        a8 = -0.0926019 * 10**-6
+    # oil_sg = 141.5 / (oil_api + 131.5)  # oil specific gravity
 
-        c = a5 * rs + a6 * rs**2 + a7 * gas_sg + a8 * (temp + 460) ** 2
+    # oil fvf above bubblepoint pressure
+    a5 = -0.0136680 * 10**-3
+    a6 = -0.0195682 * 10**-6
+    a7 = 0.02409026
+    a8 = -0.0926019 * 10**-6
 
-        bo = bob * (press / pbp) ** c
-        return bo
+    c = a5 * rs + a6 * rs**2 + a7 * gas_sg + a8 * (temp + 460) ** 2
+
+    bo = bob * (press / pbp) ** c
+    return bo
+
 
 # rename insitu_volm_flow or actual_volm_flow
 # created a method inside ResMix, that does just this
