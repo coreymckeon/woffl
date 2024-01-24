@@ -74,7 +74,7 @@ def serghide(reynolds: float, rel_ruff: float) -> float:
     """Serghide Equation for Darcy-Weisbach Friction Factor
 
     Args:
-        reynolds (float): Reynolds Number, Re unitless
+        reynolds (float): Reynolds Number, Re unitless.
         rel_ruff (float): Relative Roughness, e/D unitless
 
     Returns:
