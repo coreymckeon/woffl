@@ -21,22 +21,6 @@ def sigmoid(x: float, L: float, x0: float, k: float, b: float) -> float:
     return y
 
 
-def froude(vmix: float, dhyd: float) -> float:
-    """Froude Number
-
-    Args:
-        vmix (float): Homogenous Mixture Velocity, ft/s
-        dhyd (float): Hydraulic Diameter, inches
-
-    Returns:
-        froude (float): Froude Number, unitless
-    """
-    g = 32.174  # ft/s2
-    d = dhyd / 12  # feet
-    froude = vmix**2 / (g * d)
-    return froude
-
-
 def ros_nlv(vsl: float, rho_liq: float, sig_liq: float) -> float:
     """Ros Dimensionless Liquid Velocity
 
@@ -99,12 +83,64 @@ def ros_lp(ros_nd: float) -> tuple[float, float]:
         ros_nd (float): Ros Pipe Diameter Number
 
     Return:
-        ros_l1 (float): Ros l1 number
-        ros_l2 (float): Ros l2 number
+        ros_l1 (float): Ros L1 number
+        ros_l2 (float): Ros L2 number
+
+    References:
+        - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 93
     """
     ros_l1 = sigmoid(ros_nd, 1.02, 43.39, -0.139, 0.99)
     ros_l2 = sigmoid(ros_nd, 0.698, 39.287, 0.093, 0.46)
     return ros_l1, ros_l2
+
+
+def ros_flow_pattern(ros_ngv: float, ros_nlv: float, ros_nd: float) -> str:
+    """Ros Vertical Flow Pattern
+
+    Args:
+        ros_ngv (float): Ros Gas Velocity Number, unitless
+        ros_nlv (float): Ros Liquid Velocity Number, unitless
+        ros_nd (float): Ros Pipe Diameter Number, unitless
+
+    Returns:
+        vpat (str): Vertical Flow Pattern
+
+    References:
+        - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 92"""
+    l1, l2 = ros_lp(ros_nd)
+    bound_bs = l1 + l2 * ros_nlv  # bubble slug boundary
+    bound_st = 50 + 36 * ros_nlv  # slug transistion boundary
+    bound_tm = 75 + 84 * ros_nlv**0.75  # transition mist boundary
+
+    if ros_ngv <= bound_bs:
+        vpat = "bubble"
+    elif (bound_bs < ros_ngv) and (ros_ngv <= bound_st):
+        vpat = "slug"
+    elif (bound_st < ros_ngv) and (ros_ngv <= bound_tm):
+        vpat = "transistion"
+    elif bound_tm < ros_ngv:
+        vpat = "mist"
+    else:
+        # I should throw an error here
+        vpat = "unknown"
+
+    return vpat
+
+
+def froude(vmix: float, dhyd: float) -> float:
+    """Froude Number
+
+    Args:
+        vmix (float): Homogenous Mixture Velocity, ft/s
+        dhyd (float): Hydraulic Diameter, inches
+
+    Returns:
+        froude (float): Froude Number, unitless
+    """
+    g = 32.174  # ft/s2
+    d = dhyd / 12  # feet
+    froude = vmix**2 / (g * d)
+    return froude
 
 
 def beggs_flow_pattern(nslh: float, froude: float) -> tuple[str, float]:
@@ -144,6 +180,7 @@ def beggs_flow_pattern(nslh: float, froude: float) -> tuple[str, float]:
     elif (nslh >= 0.4) and (froude > l4):
         hpat = "distributed"
     else:
+        # need to thrown an error here
         hpat = "unknown"
 
     return hpat, tran
