@@ -1,11 +1,24 @@
-# area for writing two phase flow equations
-# mainly will be limited to using beggs / brill
-# empirical equation for starting
-
 import math
 
-# beggs and brill horizontal flow pattern prediction
+import numpy as np
+
+
 # NFr, NLv, NRe
+def sigmoid(x: float, L: float, x0: float, k: float, b: float) -> float:
+    """Sigmoid Function for Curve Fitting
+
+    Args:
+        x (float): Input data
+        L (float): Scales Output Range from [0, 1] to [0, L]
+        x0 (float): Middle point of Sigmoid on x-axis
+        k (float): Scales the input, remains in (-inf, inf)
+        b (float): Output bias, changing range from [0, L] to [b, L + b]
+
+    Returns:
+        y (float): Sigmoid Function Output
+    """
+    y = L / (1 + np.exp(-k * (x - x0))) + b
+    return y
 
 
 def froude(vmix: float, dhyd: float) -> float:
@@ -56,6 +69,42 @@ def ros_ngv(vsg: float, rho_liq: float, sig_liq: float) -> float:
     sig_liq = sig_liq * g  # lbm/s2, unit conversion
     ros_ngv = vsg * (rho_liq / (g * sig_liq)) ** (1 / 4)
     return ros_ngv
+
+
+def ros_nd(dhyd: float, rho_liq: float, sig_liq: float) -> float:
+    """Ros Dimensionless Pipe Diameter
+
+    Args:
+        dhyd (float): Hydraulic Diameter, inches
+        rho_liq (float): Liquid Density, lbm/ft3
+        sig_liq (float): Liquid Surface Tension, lbf/ft
+
+    Return:
+        ros_nd (float): Ros Dimensionless Pipe Diameter
+    """
+    g = 32.174  # ft/s2
+    dhyd = dhyd / 12  # ft
+    sig_liq = sig_liq * g  # lbm/s2, unit conversion
+    ros_nd = dhyd * (rho_liq * g / sig_liq) ** (1 / 2)
+    return ros_nd
+
+
+def ros_lp(ros_nd: float) -> tuple[float, float]:
+    """Ros L1 and L2 Bubble to Slug Transistion Parameter
+
+    Ros did not provide an equation. Only a figure was provided to look at.
+    The sigmoid function was used for a curve fit of the Ros figure.
+
+    Args:
+        ros_nd (float): Ros Pipe Diameter Number
+
+    Return:
+        ros_l1 (float): Ros l1 number
+        ros_l2 (float): Ros l2 number
+    """
+    ros_l1 = sigmoid(ros_nd, 1.02, 43.39, -0.139, 0.99)
+    ros_l2 = sigmoid(ros_nd, 0.698, 39.287, 0.093, 0.46)
+    return ros_l1, ros_l2
 
 
 def beggs_flow_pattern(nslh: float, froude: float) -> tuple[str, float]:
