@@ -3,7 +3,8 @@ import math
 import numpy as np
 
 
-# NFr, NLv, NRe
+# NFr, NLv, NGv, Nd, NRe
+# HLn, HLs_0, HLs_a
 def sigmoid(x: float, L: float, x0: float, k: float, b: float) -> float:
     """Sigmoid Function for Curve Fitting
 
@@ -288,7 +289,6 @@ def beggs_phi(c: float, incline: float) -> float:
 
 
 # inc looks like int...
-# NFr, NLv, NGv, NRe
 def beggs_holdup_inc(nslh: float, froude: float, ros_nlv: float, incline: float, hpat: str, tparm: float) -> float:
     """Beggs and Brill Incline Holdup
 
@@ -307,7 +307,7 @@ def beggs_holdup_inc(nslh: float, froude: float, ros_nlv: float, incline: float,
     c_list = list(beggs_cf(nslh, froude, ros_nlv))
     phi_seg, phi_int, phi_dis, phi_down = [beggs_phi(c, incline) for c in c_list]
 
-    # inclined liquid holdup
+    # inclined liquid holdup, calculated for each flow regime
     ilh_up = {
         "segregated": hlh_seg * phi_seg,
         "intermittent": hlh_int * phi_int,
@@ -418,21 +418,50 @@ def beggs_ek(p: float, rho_ns: float, vmix: float, vsg: float) -> float:
         vsg (float): Superficial Gas Velocity, ft/s
 
     Returns:
-        ek (float): Beggs Dimensionless Kinetic Energy"""
+        ek (float): Beggs Dimensionless Kinetic Energy
+    """
+    p_abs = p + 14.7  # psia
+    p_base = p_abs * 144 * 32.174  # lbm/(s2*ft)
+    ek = vmix * vsg * rho_ns / p_base
+    ek = min(ek, 0.9)  # ensure ek doesn't get bigger than 0.9
+    return ek
 
-    # need to ensure that ek doesn't get bigger or equal to one?
-    # also, need to check the units...of the equation
-    return 0.01
+
+def beggs_press_static(rho_slip: float, height: float) -> float:
+    """Beggs Static Differential Pressure
+
+    Similiar to single phase but the density is the slip mixture.
+    Positive height is up, negative height is down.
+
+    Args:
+        rho_slip (float): Slip Mixture Density, lbm/ft3
+        height (float): Fluid Vertical Height, feet
+
+    Returns:
+        dp_stat (float): Static Differential Pressure, psi
+    """
+    dp_stat = rho_slip * height / 144  # psi, gravity cancels each other out with US Units
+    return dp_stat
 
 
-# need to create two phase flow testing and move to test folder
-if __name__ == "__main__":
-    # example problem by Dun-Ros Two Phase Flow in Pipes by Beggs / Brill page 3-31
-    # print(ros_flow_pattern(9.29, 6.02, 41.34))
-    # print(beggs_flow_pattern(0.6, 1.04))
+def beggs_press_friction(fb: float, rho_ns: float, vmix: float, dhyd: float, length: float) -> float:
+    """Beggs Frictional Differential Pressure
 
-    # better to use the original beggs and brill book
-    print(beggs_holdup_horz(0.393, 5.67))
-    print(beggs_flow_pattern(0.393, 5.67))
-    print(beggs_phi(0.1014, 90))
-    print(beggs_holdup_inc(0.393, 5.67, 6.02, 90, "intermittent", 1))
+    Similiar to single phase but uses beggs friction factor, and no-slip mixture
+    as well as no slip density. (Which is kind of weird if we have Holdup...)
+
+    Args:
+        fb (float): Beggs friction factor of the pipe, unitless
+        rho_ns (float): No Slip Mixture Density, lbm/ft3 (why use no slip...?)
+        vmix (float): No Slip Mixture Velocity, ft/s
+        dhyd (float): Hydraulic Diameter, inches
+        length (float): Length of Pipe Segment, feet
+
+    Returns:
+        dp_fric (float): Frictional Differential Pressure, psi
+    """
+    g = 32.174  # 1 lbf equals 32.174 lbm*ft/s2
+    dhyd = dhyd / 12  # feet
+    dp_fric = fb * rho_ns * vmix**2 * length / (2 * dhyd * g)  # lbf/ft2
+    dp_fric = dp_fric / 144  # lbf/in2
+    return dp_fric

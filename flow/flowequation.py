@@ -124,7 +124,7 @@ def diff_press_friction(ff: float, rho: float, vel: float, dhyd: float, length: 
     Returns:
         dp_fric (float): Frictional Differential Pressure, psi
     """
-    g = 32.174  # 1lbf equals 32.174 lbm*ft/s2
+    g = 32.174  # 1 lbf equals 32.174 lbm*ft/s2
     dhyd = dhyd / 12  # feet
     dp_fric = ff * rho * vel**2 * length / (2 * dhyd * g)  # lbf/ft2
     dp_fric = dp_fric / 144  # lbf/in2
