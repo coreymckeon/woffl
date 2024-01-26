@@ -106,11 +106,13 @@ def ros_flow_pattern(ros_ngv: float, ros_nlv: float, ros_nd: float) -> str:
         vpat (str): Vertical Flow Pattern
 
     References:
-        - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 92"""
+        - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 92
+        - Two Phase Flow in Pipes (1988) Beggs and Brill, Page 3-31"""
     l1, l2 = ros_lp(ros_nd)
     bound_bs = l1 + l2 * ros_nlv  # bubble slug boundary
     bound_st = 50 + 36 * ros_nlv  # slug transistion boundary
     bound_tm = 75 + 84 * ros_nlv**0.75  # transition mist boundary
+    # print(f"L1: {l1}, L2 {l2}, Lb: {bound_bs}, Ls: {bound_st}, Lm: {bound_tm}")
 
     if ros_ngv <= bound_bs:
         vpat = "bubble"
@@ -200,41 +202,35 @@ def beggs_holdup_base(nslh: float, froude: float, a: float, b: float, c: float) 
         hlh (float): Slip Horizontal Liquid Holdup
 
     References:
-        - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 58
+        - Applied Multiphase Flow in Pipes (2017) Al-Safran and Brill, Page 58 (error in eqn)
     """
-    hlh = a * nslh**b / ((froude**2) ** c)
+    hlh = a * nslh**b / froude**c
     return hlh
 
 
-def beggs_holdup_horz(nslh: float, froude: float, hpat: str, tparm: float) -> float:
+def beggs_holdup_horz(nslh: float, froude: float) -> tuple[float, float, float]:
     """Beggs and Brill Liquid Holdup Horizontal Piping
+
+    Horizontal Holdup with no incline. Calculates all three to be used in interpolating
+    if the flow pattern is transistional.
 
     Args:
         nslh (float): No Slip Liquid Holdup, unitless
         froude (float): Froude Number, unitless
-        hpat (str): Horizontal Flow Pattern
-        tparm (float): Transitional Flow Interpolating Parameter
 
     Return:
-        hlh (float): Slip Horizontal Liquid Holdup
+        hlh_seg (float): Segregated Slip Horizontal Liquid Holdup
+        hlh_int (float): Intermittent Slip Horizontal Liquid Holdup
+        hlh_dis (float): Distributed Slip Horizontal Liquid Holdup
     """
     hlh_seg = beggs_holdup_base(nslh, froude, 0.98, 0.4846, 0.0868)
     hlh_int = beggs_holdup_base(nslh, froude, 0.845, 0.5351, 0.0173)
-    hlh_tran = tparm * hlh_seg + (1 - tparm) * hlh_int
     hlh_dis = beggs_holdup_base(nslh, froude, 1.065, 0.5824, 0.0609)
-
-    hlh_map = {
-        "segregated": hlh_seg,
-        "intermittent": hlh_int,
-        "distributed": hlh_dis,
-        "transition": hlh_tran,
-    }
-    hlh = hlh_map[hpat]
-    return hlh
+    return hlh_seg, hlh_int, hlh_dis
 
 
-def beggs_cfactor(nslh: float, ros_nlv: float, froude: float, e: float, f: float, g: float, h: float) -> float:
-    """Beggs and Brill C Factor Equation
+def beggs_cf_base(nslh: float, ros_nlv: float, froude: float, e: float, f: float, g: float, h: float) -> float:
+    """Beggs and Brill C Factor Base
 
     Args:
         nslh (float): No Slip Liquid Holdup, unitless
@@ -246,47 +242,96 @@ def beggs_cfactor(nslh: float, ros_nlv: float, froude: float, e: float, f: float
         h (float): Beggs Empirical Inclined Coefficient
 
     Return:
-        hlh (float): Slip Horizontal Liquid Holdup
+        c (float): Beggs C Factor
     """
     c = (1 - nslh) * math.log(e * (nslh**f) * (ros_nlv**g) * (froude**h))
     return c
 
 
-# NFr, NLv, NGv, NRe
-def beggs_psi(nslh: float, ros_nlv: float, froude: float, incline: float, hpat: str, tparm: float) -> float:
-    """Beggs and Brill Psi
+def beggs_cf(nslh: float, ros_nlv: float, froude: float) -> tuple[float, float, float, float]:
+    """Beggs and Brill C Factor Equation
 
     Args:
         nslh (float): No Slip Liquid Holdup, unitless
         ros_nlv (float): Ros Dimensionless Liquid Velocity
         froude (float): Froude Number, unitless
-        incline (float): Pipe Angle from Horizontal, degrees (?)
-        hpat (str): Horizontal Flow Pattern
-        tparm (float): Transistional Flow Interpolating Parameter (do we need this?)
 
     Return:
-        psi (float): Liquid Holdup Correction for Inclined Piping
+        c_seg (float): Segregated Beggs C Factor
+        c_int (float): Intermittent
+        c_dis (float): Distributed
+        c_down (float): Dowhill
+    """
+    c_seg = beggs_cf_base(nslh, ros_nlv, froude, 0.0110, -3.7680, 3.5390, -1.6140)
+    c_int = beggs_cf_base(nslh, ros_nlv, froude, 2.9600, 0.3050, -0.4473, 0.0978)
+    c_dis = 0
+    c_down = beggs_cf_base(nslh, ros_nlv, froude, 4.7, -0.3692, 0.1244, -0.5056)
+    return c_seg, c_int, c_dis, c_down
+
+
+def beggs_phi(c: float, incline: float) -> float:
+    """Beggs and Brill Phi
+
+    The phi term is actually psi, but the nomenclature was changed since psi looks
+    too much like pounds per square inch when reading it quickly.
+
+    Args:
+        c (float): Beggs C Factor
+        incline (float): Angle from Horizontal, degrees
+
+    Return:
+        phi (float): Liquid Holdup Correction for Inclined Piping
     """
     inc_rad = math.radians(incline)
+    phi = 1 + c * (math.sin(1.8 * inc_rad) - 0.333 * (math.sin(1.8 * inc_rad)) ** 3)
+    return phi
 
-    # does interpolating on psi do the same thing as interpolating on the angled liquid holdup?
-    # psi is multipled by HL...?
-    # interpolate on psi and interpolate on HL horizontal, does that still work? or am I double interp?
 
-    c_seg = beggs_cfactor(nslh, ros_nlv, froude, 0.0110, -3.7680, 3.5390, -1.6140)
-    c_int = beggs_cfactor(nslh, ros_nlv, froude, 2.9600, 0.3050, -0.4473, 0.0978)
-    c_tran = tparm * c_seg + (1 - tparm) * c_int  # this doesn't work...
-    c_dis = 0
-    c_down = beggs_cfactor(nslh, ros_nlv, froude, 4.7, -0.3692, 0.1244, -0.5056)
+# inc looks like int...
+# NFr, NLv, NGv, NRe
+# nslh, froude, ros_nlv...that order?
+# CHANGE THE ORDER TO NSLH, FROUDE, then ROS_NLV!
+def beggs_holdup_inc(nslh: float, ros_nlv: float, froude: float, incline: float, hpat: str, tparm: float) -> float:
+    """Beggs and Brill Incline Holdup
+
+    Args:
+        nslh (float): No Slip Liquid Holdup, unitless
+        ros_nlv (float): Ros Dimensionless Liquid Velocity
+        froude (float): Froude Number, unitless
+        incline (float): Pipe Angle from Horizontal, degrees
+        hpat (str): Horizontal Flow Pattern
+        tparm (float): Transistional Flow Interpolating Parameter
+
+    Return:
+        ilh (float): Inclined Liquid Holdup
+    """
+    hlh_seg, hlh_int, hlh_dis = beggs_holdup_horz(nslh, froude)
+    c_list = list(beggs_cf(nslh, ros_nlv, froude))
+
+    phi_seg, phi_int, phi_dis, phi_down = [beggs_phi(c, incline) for c in c_list]
+
+    # inclined liquid holdup
+    ilh_up = {
+        "segregated": hlh_seg * phi_seg,
+        "intermittent": hlh_int * phi_int,
+        "distributed": hlh_dis * phi_dis,
+        "transition": tparm * hlh_seg * phi_seg + (1 - tparm) * hlh_int * phi_int,
+    }
+
+    # declined liquid holdup
+    ilh_down = {
+        "segregated": hlh_seg * phi_down,
+        "intermittent": hlh_int * phi_down,
+        "distributed": hlh_dis * phi_down,
+        "transition": tparm * hlh_seg * phi_down + (1 - tparm) * hlh_int * phi_down,
+    }
 
     if incline < 0:
-        hpat = "downhill"
+        ilh = ilh_down[hpat]
+    else:
+        ilh = ilh_up[hpat]
 
-    c_map = {"segregated": c_seg, "intermittent": c_int, "distributed": c_dis, "transition": c_tran, "downhill": c_down}
-    c = c_map[hpat]
-
-    psi = 1 + c * (math.sin(1.8 * inc_rad) - 0.333 * (math.sin(1.8 * inc_rad)) ** 3)
-    return psi
+    return ilh
 
 
 def payne_correction(ilh: float, incline: float) -> float:
@@ -310,5 +355,14 @@ def payne_correction(ilh: float, incline: float) -> float:
     return clh
 
 
-print(beggs_flow_pattern(0.6, 1.04))
-print(beggs_holdup_horz(0.6, 1.04, "intermittent", 1))
+# need to create two phase flow testing and move to test folder
+if __name__ == "__main__":
+    # example problem by Dun-Ros Two Phase Flow in Pipes by Beggs / Brill page 3-31
+    # print(ros_flow_pattern(9.29, 6.02, 41.34))
+    # print(beggs_flow_pattern(0.6, 1.04))
+
+    # better to use the original bess and brill book
+    print(beggs_holdup_horz(0.393, 5.67))
+    print(beggs_flow_pattern(0.393, 5.67))
+    print(beggs_phi(0.1014, 90))
+    print(beggs_holdup_inc(0.393, 6.02, 5.67, 90, "intermittent", 1))
