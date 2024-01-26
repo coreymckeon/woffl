@@ -229,13 +229,13 @@ def beggs_holdup_horz(nslh: float, froude: float) -> tuple[float, float, float]:
     return hlh_seg, hlh_int, hlh_dis
 
 
-def beggs_cf_base(nslh: float, ros_nlv: float, froude: float, e: float, f: float, g: float, h: float) -> float:
+def beggs_cf_base(nslh: float, froude: float, ros_nlv: float, e: float, f: float, g: float, h: float) -> float:
     """Beggs and Brill C Factor Base
 
     Args:
         nslh (float): No Slip Liquid Holdup, unitless
-        ros_nlv (float): Ros Dimensionless Liquid Velocity
         froude (float): Froude Number, unitless
+        ros_nlv (float): Ros Dimensionless Liquid Velocity
         e (float): Beggs Empirical Inclined Coefficient
         f (float): Beggs Empirical Inclined Coefficient
         g (float): Beggs Empirical Inclined Coefficient
@@ -248,13 +248,13 @@ def beggs_cf_base(nslh: float, ros_nlv: float, froude: float, e: float, f: float
     return c
 
 
-def beggs_cf(nslh: float, ros_nlv: float, froude: float) -> tuple[float, float, float, float]:
+def beggs_cf(nslh: float, froude: float, ros_nlv: float) -> tuple[float, float, float, float]:
     """Beggs and Brill C Factor Equation
 
     Args:
         nslh (float): No Slip Liquid Holdup, unitless
-        ros_nlv (float): Ros Dimensionless Liquid Velocity
         froude (float): Froude Number, unitless
+        ros_nlv (float): Ros Dimensionless Liquid Velocity
 
     Return:
         c_seg (float): Segregated Beggs C Factor
@@ -262,10 +262,10 @@ def beggs_cf(nslh: float, ros_nlv: float, froude: float) -> tuple[float, float, 
         c_dis (float): Distributed
         c_down (float): Dowhill
     """
-    c_seg = beggs_cf_base(nslh, ros_nlv, froude, 0.0110, -3.7680, 3.5390, -1.6140)
-    c_int = beggs_cf_base(nslh, ros_nlv, froude, 2.9600, 0.3050, -0.4473, 0.0978)
+    c_seg = beggs_cf_base(nslh, froude, ros_nlv, 0.0110, -3.7680, 3.5390, -1.6140)
+    c_int = beggs_cf_base(nslh, froude, ros_nlv, 2.9600, 0.3050, -0.4473, 0.0978)
     c_dis = 0
-    c_down = beggs_cf_base(nslh, ros_nlv, froude, 4.7, -0.3692, 0.1244, -0.5056)
+    c_down = beggs_cf_base(nslh, froude, ros_nlv, 4.7, -0.3692, 0.1244, -0.5056)
     return c_seg, c_int, c_dis, c_down
 
 
@@ -289,15 +289,13 @@ def beggs_phi(c: float, incline: float) -> float:
 
 # inc looks like int...
 # NFr, NLv, NGv, NRe
-# nslh, froude, ros_nlv...that order?
-# CHANGE THE ORDER TO NSLH, FROUDE, then ROS_NLV!
-def beggs_holdup_inc(nslh: float, ros_nlv: float, froude: float, incline: float, hpat: str, tparm: float) -> float:
+def beggs_holdup_inc(nslh: float, froude: float, ros_nlv: float, incline: float, hpat: str, tparm: float) -> float:
     """Beggs and Brill Incline Holdup
 
     Args:
         nslh (float): No Slip Liquid Holdup, unitless
-        ros_nlv (float): Ros Dimensionless Liquid Velocity
         froude (float): Froude Number, unitless
+        ros_nlv (float): Ros Dimensionless Liquid Velocity
         incline (float): Pipe Angle from Horizontal, degrees
         hpat (str): Horizontal Flow Pattern
         tparm (float): Transistional Flow Interpolating Parameter
@@ -306,8 +304,7 @@ def beggs_holdup_inc(nslh: float, ros_nlv: float, froude: float, incline: float,
         ilh (float): Inclined Liquid Holdup
     """
     hlh_seg, hlh_int, hlh_dis = beggs_holdup_horz(nslh, froude)
-    c_list = list(beggs_cf(nslh, ros_nlv, froude))
-
+    c_list = list(beggs_cf(nslh, froude, ros_nlv))
     phi_seg, phi_int, phi_dis, phi_down = [beggs_phi(c, incline) for c in c_list]
 
     # inclined liquid holdup
@@ -355,14 +352,87 @@ def payne_correction(ilh: float, incline: float) -> float:
     return clh
 
 
+def beggs_yf(nslh: float, ilh: float) -> float:
+    """Beggs and Brill Y Factor
+
+    Ratio of no slip liquid holdup to slip liquid holdup squared.
+    Page 69 from Al-Safran Book.
+
+    Args:
+        nslh (float): No Slip Liquid Holdup
+        ilh (float): Slip Liquid Holdup
+
+    Returns:
+        y (float): Beggs and Brill y factor
+    """
+    y = nslh / ilh**2
+    return y
+
+
+def beggs_sf(y: float) -> float:
+    """Beggs and Brill S Factor
+
+    Used for properly scalling friction factor for Beggs and Brill piping.
+    Page 69 from Al-Safran Book.
+
+    Args:
+        y (float): Beggs and Brill y factor
+
+    Returns:
+        s (float): Beggs and Brill s factor
+    """
+    if (1 < y) and (y < 1.2):
+        s = math.log(2.2 * y - 1.2)
+    else:
+        ln_y = math.log(y)
+        s = ln_y / (-0.0523 + 3.182 * ln_y - 0.8725 * ln_y**2 + 0.01853 * ln_y**4)
+    return s
+
+
+def beggs_ff(fns: float, s: float) -> float:
+    """Beggs and Brill Friction Factor
+
+    Slip friction factor for Beggs and Brill piping.
+    Page 69 from Al-Safran Book.
+
+    Args:
+        fns: No Slip Friction Factor, Darcy
+        s (float): Beggs and Brill s factor
+
+    Returns:
+        fs (float): Slip Friction Factor, Beggs and Brill
+    """
+    fs = fns * math.exp(s)
+    return fs
+
+
+def beggs_ek(p: float, rho_ns: float, vmix: float, vsg: float) -> float:
+    """Beggs Dimensionless Kinetic Energy
+
+    Page 69 from Al-Safran Book, Equation 4.42
+
+    Args:
+        p (float): Pressure, psig
+        rho_ns (float): No Slip Mixture Density, lbm/ft3
+        vmix (float): No Slip Mixture Velocity, ft/s
+        vsg (float): Superficial Gas Velocity, ft/s
+
+    Returns:
+        ek (float): Beggs Dimensionless Kinetic Energy"""
+
+    # need to ensure that ek doesn't get bigger or equal to one?
+    # also, need to check the units...of the equation
+    return 0.01
+
+
 # need to create two phase flow testing and move to test folder
 if __name__ == "__main__":
     # example problem by Dun-Ros Two Phase Flow in Pipes by Beggs / Brill page 3-31
     # print(ros_flow_pattern(9.29, 6.02, 41.34))
     # print(beggs_flow_pattern(0.6, 1.04))
 
-    # better to use the original bess and brill book
+    # better to use the original beggs and brill book
     print(beggs_holdup_horz(0.393, 5.67))
     print(beggs_flow_pattern(0.393, 5.67))
     print(beggs_phi(0.1014, 90))
-    print(beggs_holdup_inc(0.393, 6.02, 5.67, 90, "intermittent", 1))
+    print(beggs_holdup_inc(0.393, 5.67, 6.02, 90, "intermittent", 1))
