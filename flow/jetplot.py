@@ -32,7 +32,6 @@ def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop
         vel_ray (np array): Velocity Throat Entry Array, ft/s
         snd_ray (np array): Speed of Sound Array, ft/s
     """
-    # rho_oil_std = prop_su.oil.condition(0, 60).density  # oil standard density # legacy
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
 
     ray_len = 30  # number of elements in the array
@@ -48,7 +47,6 @@ def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop
     for i, pte in enumerate(pte_ray):
         prop_su = prop_su.condition(pte, tsu)
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
-        # qtot = jf.total_actual_flow(qoil_std, rho_oil_std, prop_su) # legacy
 
         vel_ray[i] = qtot / ate
         rho_ray[i] = prop_su.pmix()
@@ -278,7 +276,6 @@ def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: fl
         vdi_ray (np array): Velocity Diffuser Array, ft/s
         snd_ray (np array): Speed of Sound Array, ft/s
     """
-    # rho_oil_std = prop_tm.oil.condition(0, 60).density  # oil standard density , legacy
     vtm = None
     ray_len = 30  # number of elements in the array
 
@@ -292,7 +289,6 @@ def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: fl
     for i, pdi in enumerate(pdi_ray):
         prop_tm = prop_tm.condition(pdi, ttm)
         qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
-        # qtot = jf.total_actual_flow(qoil_std, rho_oil_std, prop_tm) # legacy
 
         vdi_ray[i] = qtot / adi
         rho_ray[i] = prop_tm.pmix()
