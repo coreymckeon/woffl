@@ -41,7 +41,7 @@ pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
 vnz = jf.nozzle_velocity(pni, pte, e42_jp.knz, rho_pf)
 # note, vtm from throat equation and vtm from diffuser equation will not be equal
 # this is because throat equation is run at 400 psig, diffuser is run at 1100 psig
-dp_tm, vtm = jf.throat_dp(e42_jp.kth, vnz, e42_jp.anz, rho_pf, vte, e42_jp.ate, rho_te)
+# dp_tm, vtm = jf.throat_dp(e42_jp.kth, vnz, e42_jp.anz, rho_pf, vte, e42_jp.ate, rho_te)
 
 qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, e42_jp.anz)
 wc_tm = jf.throat_wc(qsu_std, e42_res.wc, qnz_bpd)
@@ -50,13 +50,13 @@ e42_disch = ResMix(wc_tm, form_gor, mpu_oil, mpu_wat, mpu_gas)
 ptm_new = jf.throat_discharge(pte, form_temp, 0.41, vnz, e42_jp.anz, rho_pf, vte, e42_jp.ate, rho_te, e42_disch)
 ath = e42_jp.ath
 adi = tube.inn_area
-ptm = pte - dp_tm
-print(f"Old Throat Discharge: {round(ptm, 1)} psi, New Throat Discharge: {round(ptm_new, 1)} psi")
-vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jplt.diffuser_arrays(ptm, form_temp, ath, adi, qsu_std, e42_disch)
+# ptm = pte - dp_tm
+# print(f"Old Throat Discharge: {round(ptm, 1)} psi, New Throat Discharge: {round(ptm_new, 1)} psi")
+vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jplt.diffuser_arrays(ptm_new, form_temp, ath, adi, qsu_std, e42_disch)
 jplt.diffuser_graphs(vtm, e42_jp.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
 ohh, mama = jf.diffuser_discharge(ptm_new, form_temp, 0.35, ath, adi, qsu_std, e42_disch)
 # kde_ray, ede_ray = diffuser_energy(0.1, vtm, pdi_ray, rho_ray, vdi_ray)
 # print(vtm, pdi_ray, rho_ray, vdi_ray, snd_ray)
-print(f"Throat increase in pressure is {round(dp_tm, 0)} psi")
-print(vtm, ohh, mama)
+# print(f"Throat increase in pressure is {round(dp_tm, 0)} psi")
+# print(vtm, ohh, mama)
 print(qnz_bpd)

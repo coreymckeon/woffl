@@ -176,3 +176,44 @@ def total_actual_flow(qoil_std: float, rho_oil_std: float, prop: ResMix) -> floa
     qoil, qwat, qgas = actual_flow(qoil_std, rho_oil_std, rho_oil, yoil, ywat, ygas)
     qtot = qoil + qwat + qgas
     return qtot
+
+
+def throat_dp(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate: float, rho_te: float):
+    """Throat Differential Pressure
+
+    Solves the throat mixture equation of the jet pump. Calculates throat differntial pressure.
+    Use the throat entry pressure and differential pressure to calculate throat mix pressure.
+    ptm = pte - dp_th. The biggest issue with this equation is it assumes the discharge conditions
+    are at same conditions as the inlet. This is false. There is an increase in pressure across the
+    diffuser. Which using this equation equates potentially 600 psig.
+
+    Args:
+        kth (float): Friction of Throat Mix, Unitless
+        vnz (float): Velocity of Nozzle, ft/s
+        anz (float): Area of Nozzle, ft2
+        rho_nz (float): Density of Nozzle Fluid, lbm/ft3
+        vte (float): Velocity of Throat Entry Mixture, ft/s
+        ate (float): Area of Throat Entry, ft2
+        rho_te (float): Density of Throat Entry Mixture, lbm/ft3
+
+    Returns:
+        dp_th (float): Throat Differential Pressure, psid
+    """
+
+    mnz = vnz * anz * rho_nz  # mass flow of the mozzle
+    qnz = vnz * anz  # volume flow of the nozzle
+
+    mte = vte * ate * rho_te  # mass flow of the throat entry
+    qte = vte * ate  # volume flow of the throat entry
+
+    ath = anz + ate  # area of the throat
+
+    mtm = mnz + mte  # mass flow of total mixture
+    vtm = (vnz * anz + vte * ate) / ath  # velocity of total mixture
+    rho_tm = (mnz + mte) / (qnz + qte)  # density of total mixture
+
+    # units of lbm/(s2*ft)
+    dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
+    # convert to lbf/in2
+    dp_tm = dp_tm / (32.174 * 144)
+    return dp_tm, vtm

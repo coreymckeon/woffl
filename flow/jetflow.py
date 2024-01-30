@@ -1,10 +1,46 @@
 import math
 
 import numpy as np
-from scipy.integrate import cumulative_trapezoid, trapezoid
+from scipy.integrate import trapezoid
 
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
+
+
+def enterance_ke(ken: float, vte: float) -> float:
+    """Throat Enterance Kinetic Energy
+
+    Calculate the kinetic energy in the throat enterance.
+    Substract the energy lost due to friction.
+
+    Args:
+        ken: Throat Entry Friction Factor, unitless
+        vte: Velocity at Throat Entry, ft/s
+
+    Returns:
+        ke_te: Throat Enterance Kinetic Energy, ft2/s2
+    """
+    ke_te = (1 + ken) * (vte**2) / 2
+    return ke_te
+
+
+def incremental_ee(prs_ray: np.ndarray, rho_ray: np.ndarray) -> float:
+    """Fluid Incremental Expansion Energy
+
+    Calculate the incremental change in expansion energy for a fluid over a
+    pressure change. Uses the trapezoid rule to sum the area under the density
+    curve for a difference in pressure. Equal to Sum (dp/ρ). The length of the
+    arrays must match and be equal or greater than length 2.
+
+    Args:
+        prs_ray (np.ndarray): Array of pressures, psig
+        rho_ray (np.ndarray): Array of densitys, lbm/ft3
+
+    Returns:
+        ee_inc (float): Expansion Energy Incremental, ft2/s2
+    """
+    ee_inc = trapezoid(1 / rho_ray, 144 * 32.174 * prs_ray)
+    return ee_inc
 
 
 # update code so JetPump is an input, for ate, atm and friction values
@@ -46,32 +82,34 @@ def tee_final(
     rho_ray = np.array([prop_su.pmix()])
     mach_ray = np.array([vte / prop_su.cmix()])
 
-    kse_ray = np.array([(1 + ken) * (vte**2) / 2])
-    ese_ray = np.array([0])
+    # kse_ray = np.array([(1 + ken) * (vte**2) / 2])
+    kse_ray = np.array([enterance_ke(ken, vte)])
+    ese_ray = np.array([0])  # initial pe is zero
     tee_ray = np.array([kse_ray + ese_ray])
 
     pdec = 50  # pressure decrease
-    # keep mach under one, and pte above pdec, so it doesn't go negative
-    while mach_ray[-1] <= 1 and pte_ray[-1] > pdec:
+
+    while (
+        mach_ray[-1] <= 1 and pte_ray[-1] > pdec
+    ):  # keep mach under one, and pte above pdec, so it doesn't go negative
         pte = pte_ray[-1] - pdec
         prop_su = prop_su.condition(pte, tsu)
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
         vte = qtot / ate
 
         vte_ray = np.append(vte_ray, vte)
-        kse_ray = np.append(kse_ray, (1 + ken) * (vte**2) / 2)
 
         mach_ray = np.append(mach_ray, vte / prop_su.cmix())
 
         pte_ray = np.append(pte_ray, pte)
         rho_ray = np.append(rho_ray, prop_su.pmix())
 
-        sv_int = trapezoid(1 / rho_ray[-2:], 144 * 32.174 * pte_ray[-2:])
-        ese_ray = np.append(ese_ray, ese_ray[-1] + sv_int)
+        kse_ray = np.append(kse_ray, enterance_ke(ken, vte))
+        ese_ray = np.append(ese_ray, ese_ray[-1] + incremental_ee(pte_ray[-2:], rho_ray[-2:]))
         tee_ray = np.append(tee_ray, kse_ray[-1] + ese_ray[-1])
 
     if mach_ray[-1] >= 1:
-        tee_fin = np.interp(1, mach_ray, tee_ray)
+        tee_fin = np.interp(1, mach_ray, tee_ray)  # find tee where mach = 1
     else:
         tee_fin = tee_ray[-1]
 
@@ -121,7 +159,12 @@ def tee_minimize(
         prop_su (ResMix): Properties of Suction Fluid
 
     Returns:
-        psu (float): Suction Pressure, psig"""
+        psu (float): Suction Pressure, psig
+        qoil_std (float): Oil Rate, STBOPD
+        pte (float): Throat Entry Pressure, psig
+        rho_te (float): Throat Entry Density, lbm/ft3
+        vte (float): Throat Entry Velocity, ft/s
+    """
     psu_list = [ipr_su.pres - 300, ipr_su.pres - 400]
     # store values of tee near mach=1 pressure
     tee_list = [
@@ -175,7 +218,7 @@ def nozzle_velocity(pni: float, pte: float, knz: float, rho_nz: float) -> float:
     Returns:
         vnz (float): Nozzle Velocity, ft/s
     """
-    vnz = math.sqrt(2 * 32.2 * 144 * (pni - pte) / (rho_nz * (1 + knz)))
+    vnz = math.sqrt(2 * 32.174 * 144 * (pni - pte) / (rho_nz * (1 + knz)))
     return vnz
 
 
@@ -197,17 +240,29 @@ def nozzle_rate(vnz: float, anz: float) -> tuple[float, float]:
     return qnz_ft3s, qnz_bpd
 
 
-def throat_dp(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate: float, rho_te: float):
-    """Throat Differential Pressure
-
-    Solves the throat mixture equation of the jet pump. Calculates throat differntial pressure.
-    Use the throat entry pressure and differential pressure to calculate throat mix pressure.
-    ptm = pte - dp_th. The biggest issue with this equation is it assumes the discharge conditions
-    are at same conditions as the inlet. This is false. There is an increase in pressure across the
-    diffuser. Which using this equation equates potentially 600 psig.
+def fluid_momentum(vel: float, area: float, rho: float) -> float:
+    """Fluid Momentum
 
     Args:
-        kth (float): Friction of Throat Mix, Unitless
+        vel (float): Velocity of the Fluid, ft/s
+        area (float): Cross Sectional Area of the Flow, ft2
+        rho (float): Density of the Fluid, lbm/ft3
+
+    Returns:
+        mom_fld (float): Fluid Momentum, lbm*ft/s2
+    """
+    return rho * vel**2 * area
+
+
+def throat_inlet_momentum(
+    vnz: float, anz: float, rho_nz: float, vte: float, ate: float, rho_te: float
+) -> tuple[float, float]:
+    """Throat Inlet Momentum
+
+    Calculate the inlet momentum of the throat in lbm/(s2*ft). The units
+    are actually pressure, but referred to as momentum to help differentiate.
+
+    Args:
         vnz (float): Velocity of Nozzle, ft/s
         anz (float): Area of Nozzle, ft2
         rho_nz (float): Density of Nozzle Fluid, lbm/ft3
@@ -216,26 +271,50 @@ def throat_dp(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate
         rho_te (float): Density of Throat Entry Mixture, lbm/ft3
 
     Returns:
-        dp_th (float): Throat Differential Pressure, psid
+        mom_nz (float): Nozzle Momentum, lbm*ft/s2
+        mom_te (float): Entry Momentum, lbm*ft/s2
     """
+    mom_nz = fluid_momentum(vnz, anz, rho_nz)  # momentum of the nozzle
+    mom_te = fluid_momentum(vte, ate, rho_te)  # momentum of the throat entry
+    return mom_nz, mom_te
 
-    mnz = vnz * anz * rho_nz  # mass flow of the mozzle
-    qnz = vnz * anz  # volume flow of the nozzle
 
-    mte = vte * ate * rho_te  # mass flow of the throat entry
-    qte = vte * ate  # volume flow of the throat entry
+def throat_outlet_momentum(kth: float, vtm: float, ath: float, rho_tm: float) -> tuple[float, float]:
+    """Throat Outlet Momentum
 
-    ath = anz + ate  # area of the throat
+    Calculate the outlet momentum of the throat in lbm/(s2*ft). The units
+    are actually pressure, but referred to as momentum to help differentiate.
+    Writing the equation this way exposes the somewhat arbitrary feeling of the 0.5 assigned to the friction.
+    It is being considered whether to drop the 0.5 or keep it.
 
-    mtm = mnz + mte  # mass flow of total mixture
-    vtm = (vnz * anz + vte * ate) / ath  # velocity of total mixture
-    rho_tm = (mnz + mte) / (qnz + qte)  # density of total mixture
+    Args:
+        kth (float): Throat Friction Factor, unitless
+        vtm (float): Velocity of Throat Mixture, ft/s
+        ath (float): Area of the Throat, ft2
+        rho_tm (float): Density of Throat Mixture, lbm/ft3
 
-    # units of lbm/(s2*ft)
-    dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
-    # convert to lbf/in2
-    dp_tm = dp_tm / (32.174 * 144)
-    return dp_tm, vtm
+    Returns:
+        mom_tm (float): Throat Mixting Momentum, lbm*ft/s2
+        mom_fr (float): Throat Friction Momemum, lbm*ft/s2
+    """
+    n = 0.5  # normally 0.5
+    mom_tm = fluid_momentum(vtm, ath, rho_tm)
+    mom_fr = n * kth * mom_tm
+    return mom_tm, mom_fr
+
+
+def mom_to_psi(mom: float, area: float) -> float:
+    """Convert Momentum across an area to lbf/in2
+
+    Args:
+        mom (float): Fluid Momentum, lbm*ft/s2
+        area (float): Cross Sectional Area, ft2
+
+    Return:
+        p_mom (float): Equivalent Pressure of Momentum, psi
+    """
+    p_mom = mom / (area * 32.174 * 144)
+    return p_mom
 
 
 def throat_discharge(
@@ -250,11 +329,12 @@ def throat_discharge(
     rho_te: float,
     prop_tm: ResMix,
 ):
-    """Throat Differential Pressure
+    """Throat Discharge Pressure
 
     Solves the throat mixture equation of the jet pump. Calculates throat differntial pressure.
     Use the throat entry pressure and differential pressure to calculate throat mix pressure.
-    Account for the discharge pressure is greater than the inlet pressure.
+    Account for the discharge pressure is greater than the inlet pressure. Loops through the
+    calculated discharge pressure until a converged answer occurs.
 
     Args:
         pte (float): Pressure of Throat Entry, psig
@@ -271,6 +351,8 @@ def throat_discharge(
     Returns:
         ptm (float): Throat Discharge Pressure, psig
     """
+    mom_nz, mom_te = throat_inlet_momentum(vnz, anz, rho_nz, vte, ate, rho_te)
+
     mnz = vnz * anz * rho_nz  # mass flow of the nozzle
     mte = vte * ate * rho_te  # mass flow of the throat entry
     ath = anz + ate  # area of the throat
@@ -278,11 +360,14 @@ def throat_discharge(
 
     rho_tm = prop_tm.condition(pte, tte).pmix()  # density of total mixture
     vtm = mtm / (ath * rho_tm)  # velocity of total mixture
-    # units of lbm/(s2*ft)
-    dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
-    dp_tm = dp_tm / (32.174 * 144)  # convert to lbf/in2
+
+    mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
+    mom_tot = mom_fr + mom_tm - mom_nz - mom_te
+    dp_tm = mom_to_psi(mom_tot, ath)  # lbf/in2
+
     ptm = pte - dp_tm
     ptm_list = [pte, ptm]
+
     ptm_diff = 5
     n = 0
     while abs(ptm_list[-2] - ptm_list[-1]) > ptm_diff:
@@ -290,10 +375,10 @@ def throat_discharge(
 
         rho_tm = prop_tm.condition(ptm, tte).pmix()  # density of total mixture
         vtm = mtm / (ath * rho_tm)  # velocity of total mixture
-        # units of lbm/(s2*ft)
-        dp_tm = 0.5 * kth * rho_tm * vtm**2 + mtm * vtm / ath - mnz * vnz / ath - mte * vte / ath
-        # convert to lbf/in2
-        dp_tm = dp_tm / (32.174 * 144)
+
+        mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
+        mom_tot = mom_fr + mom_tm - mom_nz - mom_te
+        dp_tm = mom_to_psi(mom_tot, ath)  # lbf/in2
         ptm = pte - dp_tm
         ptm_list.append(ptm)
         n = n + 1
@@ -324,8 +409,22 @@ def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
     return wc_tm
 
 
-# def diffuser_kinetic ?
-# def diffuser_expanse ?
+def diffuser_ke(kdi: float, vtm: float, vdi: float) -> float:
+    """Diffuser Kinetic Energy
+
+    Calculate the kinetic energy in the diffuser.
+    Substract the energy lost due to friction.
+
+    Args:
+        kdi: Diffuser Friction Factor, unitless
+        vtm: Velocity at Throat Mixture, ft/s
+        vdi: Velocity at Diffuser Discharge, ft/s
+
+    Returns:
+        ke_di: Diffuser Kinetic Energy, ft2/s2
+    """
+    ke_di = (vdi**2 - (1 - kdi) * vtm**2) / 2
+    return ke_di
 
 
 def diffuser_discharge(
@@ -359,7 +458,7 @@ def diffuser_discharge(
     vdi_ray = np.array([vdi])
     rho_ray = np.array([prop_tm.pmix()])
 
-    kse_ray = np.array([(vdi**2 - (1 - kdi) * vtm**2) / 2])
+    kse_ray = np.array([diffuser_ke(kdi, vtm, vdi)])
     ese_ray = np.array([0])
     dte_ray = np.array([kse_ray + ese_ray])
 
@@ -373,13 +472,12 @@ def diffuser_discharge(
         vdi = qtot / adi
 
         vdi_ray = np.append(vdi_ray, vdi)
-        kse_ray = np.append(kse_ray, (vdi**2 - (1 - kdi) * vtm**2) / 2)
 
         pdi_ray = np.append(pdi_ray, pdi)
         rho_ray = np.append(rho_ray, prop_tm.pmix())
-        # specific volume integration
-        sv_int = trapezoid(1 / rho_ray[-2:], 144 * 32.174 * pdi_ray[-2:])
-        ese_ray = np.append(ese_ray, ese_ray[-1] + sv_int)
+
+        kse_ray = np.append(kse_ray, diffuser_ke(kdi, vtm, vdi))
+        ese_ray = np.append(ese_ray, ese_ray[-1] + incremental_ee(pdi_ray[-2:], rho_ray[-2:]))
         dte_ray = np.append(dte_ray, kse_ray[-1] + ese_ray[-1])
 
         n = n + 1
