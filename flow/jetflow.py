@@ -11,7 +11,7 @@ def enterance_ke(ken: float, vte: float) -> float:
     """Throat Enterance Kinetic Energy
 
     Calculate the kinetic energy in the throat enterance.
-    Substract the energy lost due to friction.
+    Add the energy lost due to friction to balance out with EE.
 
     Args:
         ken: Throat Entry Friction Factor, unitless
@@ -44,11 +44,10 @@ def incremental_ee(prs_ray: np.ndarray, rho_ray: np.ndarray) -> float:
 
 
 # update code so JetPump is an input, for ate, atm and friction values
-# tee_final or tee_mach_one
-def tee_final(
+def tee_last(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Throat Enterance Final Energy
+    """Throat Enterance Energy Last Value in Array
 
     Calculate the amount of energy in the throat enterance when the flow
     hits sonic velocity, mach = 1 or when the pte is low on pressure (< pdec).
@@ -69,7 +68,7 @@ def tee_final(
         pte_ray (np array): Press Throat Entry Array, psig
         rho_ray (np array): Density Throat Entry Array, lbm/ft3
         vte_ray (np array): Velocity Throat Entry Array, ft/s
-        tee_ray (np array): Throat Entry Equation Array, ft/s
+        tee_ray (np array): Throat Entry Equation Array, ft2/s2
     """
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
     prop_su = prop_su.condition(psu, tsu)
@@ -82,7 +81,6 @@ def tee_final(
     rho_ray = np.array([prop_su.pmix()])
     mach_ray = np.array([vte / prop_su.cmix()])
 
-    # kse_ray = np.array([(1 + ken) * (vte**2) / 2])
     kse_ray = np.array([enterance_ke(ken, vte)])
     ese_ray = np.array([0])  # initial pe is zero
     tee_ray = np.array([kse_ray + ese_ray])
@@ -98,7 +96,6 @@ def tee_final(
         vte = qtot / ate
 
         vte_ray = np.append(vte_ray, vte)
-
         mach_ray = np.append(mach_ray, vte / prop_su.cmix())
 
         pte_ray = np.append(pte_ray, pte)
@@ -116,6 +113,24 @@ def tee_final(
     return tee_fin, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray  # type: ignore
 
 
+def tee_positive_slope(pte_ray: np.ndarray, tee_ray: np.ndarray) -> list:
+    """Throat Entry Equation with Positive Slope
+
+    Only keeps the points along the TEE that have a positive slope. Numpy gradient
+    function uses central distance theorem, so the output is the same length as input.
+
+    Args:
+        pte_ray (np array): Pressure Throat Entry Array, psig
+        tee_ray (np array): Throat Entry Equation Array, ft2/s2
+
+    Returns:
+        mask (list?): Identify points where slope is positive
+    """
+    dtdp = np.gradient(tee_ray, pte_ray)  # uses central limit thm, so same size
+    mask = dtdp >= 0  # only points where slope is greater than or equal to zero
+    return mask
+
+
 def tee_zero(
     pte_ray: np.ndarray, rho_ray: np.ndarray, vte_ray: np.ndarray, tee_ray: np.ndarray
 ) -> tuple[float, float, float]:
@@ -128,19 +143,18 @@ def tee_zero(
         pte_ray (np array): Press Throat Entry Array, psig
         rho_ray (np array): Density Throat Entry Array, lbm/ft3
         vte_ray (np array): Velocity Throat Entry Array, ft/s
-        tee_ray (np array): Throat Entry Equation Array, ft/s
+        tee_ray (np array): Throat Entry Equation Array, ft2/s2
 
     Return:
         pte (float): Throat Entry Pressure, psig
         rho_te (float): Throat Entry Density, lbm/ft3
         vte (float): Throat Entry Velocity, ft/s
     """
-    # need to figure out how to only interpolate / keep points
-    # where the slope of tee vs. pte is positive
+    mask = tee_positive_slope(pte_ray, tee_ray)  # only look at points with a positive slope
 
-    pte = np.interp(0, np.flip(tee_ray), np.flip(pte_ray))
-    rho_te = np.interp(0, np.flip(tee_ray), np.flip(rho_ray))
-    vte = np.interp(0, np.flip(tee_ray), np.flip(vte_ray))
+    pte = np.interp(0, np.flip(tee_ray[mask]), np.flip(pte_ray[mask]))
+    rho_te = np.interp(0, np.flip(tee_ray[mask]), np.flip(rho_ray[mask]))
+    vte = np.interp(0, np.flip(tee_ray[mask]), np.flip(vte_ray[mask]))
 
     return pte, rho_te, vte  # type: ignore
 
@@ -151,7 +165,7 @@ def tee_minimize(
     """Minimize Throat Entry Equation at pmo
 
     Find that psu that minimizes the throat entry equation for where Mach = 1 (pmo).
-    Secant method for iteration, starting point is Res Pres minus 200 and 300 psig.
+    Secant method for iteration, starting point is Res Pres minus 300 and 400 psig.
 
     Args:
         tsu (float): Suction Temp, deg F
@@ -170,15 +184,15 @@ def tee_minimize(
     psu_list = [ipr_su.pres - 300, ipr_su.pres - 400]
     # store values of tee near mach=1 pressure
     tee_list = [
-        tee_final(psu_list[0], tsu, ken, ate, ipr_su, prop_su)[0],
-        tee_final(psu_list[1], tsu, ken, ate, ipr_su, prop_su)[0],
+        tee_last(psu_list[0], tsu, ken, ate, ipr_su, prop_su)[0],
+        tee_last(psu_list[1], tsu, ken, ate, ipr_su, prop_su)[0],
     ]
     psu_diff = 5  # criteria for when you've converged to an answer
     n = 0  # loop counter
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
         # use secant method to calculate next guess value for psu to use
         psu_nxt = psu_list[-1] - tee_list[-1] * (psu_list[-2] - psu_list[-1]) / (tee_list[-2] - tee_list[-1])
-        tee_nxt, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray = tee_final(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
+        tee_nxt, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray = tee_last(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
         psu_list.append(psu_nxt)
         tee_list.append(tee_nxt)
         n = n + 1
@@ -186,7 +200,6 @@ def tee_minimize(
             print("TEE Minimization did not converge")
             break
     pte, rho_te, vte = tee_zero(pte_ray, rho_ray, vte_ray, tee_ray)  # type: ignore
-    print(pte_ray, tee_ray)
     return psu_list[-1], qoil_std, pte, rho_te, vte  # type: ignore
 
 
@@ -387,7 +400,7 @@ def throat_discharge(
         if n == 10:
             print("Throat Mixture did not converge")
             break
-    print(f"Throat took {n} loops to find solution")
+    # print(f"Throat took {n} loops to find solution")
     return ptm_list[-1]
 
 
@@ -415,7 +428,7 @@ def diffuser_ke(kdi: float, vtm: float, vdi: float) -> float:
     """Diffuser Kinetic Energy
 
     Calculate the kinetic energy in the diffuser.
-    Substract the energy lost due to friction.
+    Substract the energy lost due to friction from inlet fluid.
 
     Args:
         kdi: Diffuser Friction Factor, unitless
@@ -489,5 +502,4 @@ def diffuser_discharge(
 
     # print(f"Diffuser took {n} loops to find solution")
     pdi = np.interp(0, dte_ray, pdi_ray)
-
     return vtm, pdi  # type: ignore

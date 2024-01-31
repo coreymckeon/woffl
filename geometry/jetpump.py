@@ -62,8 +62,8 @@ class JetPump:
         area_ratio: str,
         knz: float = 0.01,
         ken: float = 0.03,
-        kth: float = 0.1,
-        kdi: float = 0.1,
+        kth: float = 0.3,
+        kdi: float = 0.3,
     ) -> None:
         """Jet Pump Initialization
 

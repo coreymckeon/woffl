@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.integrate import cumulative_trapezoid, trapezoid
 
-# from flow import jetflow as jf # legacy
+from flow import jetflow as jf  # legacy
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
@@ -101,6 +101,8 @@ def throat_entry_graphs(ken, pte_ray, rho_ray, vel_ray, snd_ray) -> None:
     tee_ray = kse_ray + ese_ray
     psuc = pte_ray[0]
 
+    pte, rho_te, vte = jf.tee_zero(pte_ray, rho_ray, vel_ray, tee_ray)
+
     fig, axs = plt.subplots(4, sharex=True)
     fig.suptitle(f"Suction at {round(psuc,0)} psi, Mach 1 at {round(pmo,0)} psi")
 
@@ -123,6 +125,8 @@ def throat_entry_graphs(ken, pte_ray, rho_ray, vel_ray, snd_ray) -> None:
     axs[3].axhline(y=0, color="black", linestyle="--", linewidth=1)
     axs[3].axvline(x=pmo, color="black", linestyle="--", linewidth=1)
     axs[3].annotate(text="Mach 1", xy=(pmo, ycoord), rotation=90)
+    axs[3].axvline(x=pte, color="black", linestyle="--", linewidth=1)
+    axs[3].annotate(text="TEE 0", xy=(pte, ycoord), rotation=90)
     axs[3].set_ylabel("TEE, ft2/s2")
     axs[3].set_xlabel("Throat Entry Pressure, psig")
     plt.show()

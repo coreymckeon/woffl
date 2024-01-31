@@ -1,0 +1,57 @@
+from flow import jetflow as jf
+from flow import jetplot as jplt
+from flow.inflow import InFlow
+from geometry.jetpump import JetPump
+from geometry.pipe import Annulus, Pipe
+from pvt.blackoil import BlackOil
+from pvt.formgas import FormGas
+from pvt.formwat import FormWater
+from pvt.resmix import ResMix
+
+# writing a function that can be ran to easily compare current jet pump
+# performance to expected performance
+
+
+def jet_check(
+    form_temp: float,
+    jpump_tvd: float,
+    rho_pf: float,
+    ppf_surf: float,
+    jpump_well: JetPump,
+    tube: Pipe,
+    ipr_well: InFlow,
+    prop_well: ResMix,
+):
+    psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
+        tsu=form_temp, ken=jpump_well.ken, ate=jpump_well.ate, ipr_su=ipr_well, prop_su=prop_well
+    )
+    # should use the flowequation instead for this...
+    pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
+    vnz = jf.nozzle_velocity(pni, pte, jpump_well.knz, rho_pf)
+
+    qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, jpump_well.anz)
+    wc_tm = jf.throat_wc(qsu_std, prop_well.wc, qnz_bpd)
+
+    prop_tm = ResMix(wc_tm, prop_well.fgor, prop_well.oil, prop_well.wat, prop_well.gas)
+    ptm = jf.throat_discharge(
+        pte, form_temp, jpump_well.kth, vnz, jpump_well.anz, rho_pf, vte, jpump_well.ate, rho_te, prop_tm
+    )
+    vtm, pdi = jf.diffuser_discharge(ptm, form_temp, jpump_well.kdi, jpump_well.ath, tube.inn_area, qsu_std, prop_tm)
+
+    print(f"Suction Pressure: {round(psu_min, 2)} psig")
+    print(f"Oil Flow: {round(qsu_std, 2)} bopd")
+    print(f"Throat Entry Pressure: {round(pte, 2)} psig")
+    print(f"Throat Discharge Pressure: {round(ptm, 2)} psig")
+    print(f"Diffuser Discharge Pressure: {round(pdi, 2)} psig")
+    print(f"Power Fluid Rate: {round(qnz_bpd, 2)} bwpd")
+
+    # graphing some outputs for visualization
+    qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(
+        psu_min, form_temp, jpump_well.ate, ipr_well, prop_well
+    )
+    jplt.throat_entry_graphs(jpump_well.ken, pte_ray, rho_ray, vel_ray, snd_ray)
+
+    vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jplt.diffuser_arrays(
+        ptm, form_temp, jpump_well.ath, tube.inn_area, qsu_std, prop_tm
+    )
+    jplt.diffuser_graphs(vtm, jpump_well.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
