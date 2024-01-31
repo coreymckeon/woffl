@@ -284,7 +284,7 @@ def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: fl
     rho_ray = np.empty(ray_len)
     snd_ray = np.empty(ray_len)
 
-    pdi_ray = np.linspace(ptm, ptm + 1000, ray_len)  # throat entry pressures
+    pdi_ray = np.linspace(ptm, ptm + 1500, ray_len)  # throat entry pressures
 
     for i, pdi in enumerate(pdi_ray):
         prop_tm = prop_tm.condition(pdi, ttm)

@@ -135,6 +135,8 @@ def tee_zero(
         rho_te (float): Throat Entry Density, lbm/ft3
         vte (float): Throat Entry Velocity, ft/s
     """
+    # need to figure out how to only interpolate / keep points
+    # where the slope of tee vs. pte is positive
 
     pte = np.interp(0, np.flip(tee_ray), np.flip(pte_ray))
     rho_te = np.interp(0, np.flip(tee_ray), np.flip(rho_ray))
@@ -184,6 +186,7 @@ def tee_minimize(
             print("TEE Minimization did not converge")
             break
     pte, rho_te, vte = tee_zero(pte_ray, rho_ray, vte_ray, tee_ray)  # type: ignore
+    print(pte_ray, tee_ray)
     return psu_list[-1], qoil_std, pte, rho_te, vte  # type: ignore
 
 
@@ -297,9 +300,8 @@ def throat_outlet_momentum(kth: float, vtm: float, ath: float, rho_tm: float) ->
         mom_tm (float): Throat Mixting Momentum, lbm*ft/s2
         mom_fr (float): Throat Friction Momemum, lbm*ft/s2
     """
-    n = 0.5  # normally 0.5
     mom_tm = fluid_momentum(vtm, ath, rho_tm)
-    mom_fr = n * kth * mom_tm
+    mom_fr = 1 / 2 * kth * mom_tm
     return mom_tm, mom_fr
 
 
