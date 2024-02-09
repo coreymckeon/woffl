@@ -8,6 +8,8 @@ import math
 
 import numpy as np
 
+from flow import singlephase as sp
+
 
 # NFr, NLv, NGv, Nd, NRe
 # HLn, HLs_0, HLs_a
@@ -446,7 +448,7 @@ def beggs_press_static(rho_slip: float, height: float) -> float:
     Returns:
         dp_stat (float): Static Differential Pressure, psi
     """
-    dp_stat = rho_slip * height / 144  # psi, gravity cancels each other out with US Units
+    dp_stat = sp.diff_press_static(rho_slip, height)
     return dp_stat
 
 
@@ -466,8 +468,5 @@ def beggs_press_friction(fb: float, rho_ns: float, vmix: float, dhyd: float, len
     Returns:
         dp_fric (float): Frictional Differential Pressure, psi
     """
-    g = 32.174  # 1 lbf equals 32.174 lbm*ft/s2
-    dhyd = dhyd / 12  # feet
-    dp_fric = fb * rho_ns * vmix**2 * length / (2 * dhyd * g)  # lbf/ft2
-    dp_fric = dp_fric / 144  # lbf/in2
+    dp_fric = sp.diff_press_friction(fb, rho_ns, vmix, dhyd, length)
     return dp_fric

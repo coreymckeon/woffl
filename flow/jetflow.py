@@ -1,3 +1,9 @@
+"""Jet Flow Equations
+
+Functions that are used for solving the fluid dynamics inside a jet pump. The actual
+jet pump geometry is accomplished in a seperate module.
+"""
+
 import math
 
 import numpy as np
