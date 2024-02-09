@@ -1,5 +1,6 @@
 from flow import jetflow as jf
 from flow import jetplot as jplt
+from flow import singlephase as sp
 from flow.inflow import InFlow
 from geometry.jetpump import JetPump
 from geometry.pipe import Annulus, Pipe
@@ -37,7 +38,8 @@ psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
 qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(psu_min, form_temp, e42_jp.ate, e42_ipr, e42_res)
 jplt.throat_entry_graphs(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
 # pte, rho_te, vte = jf.cross_zero_tee(e42_jp.ken, pte_ray, rho_ray, vel_ray, snd_ray)
-pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
+# pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
+pni = ppf_surf + sp.diff_press_static(rho_pf, jpump_tvd)
 vnz = jf.nozzle_velocity(pni, pte, e42_jp.knz, rho_pf)
 # note, vtm from throat equation and vtm from diffuser equation will not be equal
 # this is because throat equation is run at 400 psig, diffuser is run at 1100 psig
