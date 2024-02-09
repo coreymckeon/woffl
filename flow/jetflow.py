@@ -3,6 +3,7 @@ import math
 import numpy as np
 from scipy.integrate import trapezoid
 
+from flow import singlephase as sp
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
@@ -44,6 +45,7 @@ def incremental_ee(prs_ray: np.ndarray, rho_ray: np.ndarray) -> float:
 
 
 # update code so JetPump is an input, for ate, atm and friction values
+# dete and dedi
 def tee_last(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -74,7 +76,8 @@ def tee_last(
     prop_su = prop_su.condition(psu, tsu)
     qtot = sum(prop_su.insitu_volm_flow(qoil_std))
 
-    vte = qtot / ate
+    # vte = qtot / ate
+    vte = sp.velocity(qtot, ate)
 
     pte_ray = np.array([psu])
     vte_ray = np.array([vte])
@@ -93,7 +96,8 @@ def tee_last(
         pte = pte_ray[-1] - pdec
         prop_su = prop_su.condition(pte, tsu)
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
-        vte = qtot / ate
+        # vte = qtot / ate
+        vte = sp.velocity(qtot, ate)
 
         vte_ray = np.append(vte_ray, vte)
         mach_ray = np.append(mach_ray, vte / prop_su.cmix())
@@ -203,23 +207,6 @@ def tee_minimize(
     return psu_list[-1], qoil_std, pte, rho_te, vte  # type: ignore
 
 
-def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
-    """Power Fluid Pressure at Depth
-
-    Calculate the Power Fluid Pressure at Depth.
-
-    Args:
-        fld_dens (float): Density of Fluid, lbm/ft3
-        prs_surf (float): Power Fluid Surface Pressure, psig
-        pump_tvd (float): Pump True Vertical Depth, feet
-
-    Returns:
-        prs_dpth (float): Power Fluid Depth Pressure, psig
-    """
-    prs_dpth = prs_surf + fld_dens * pump_tvd / 144
-    return prs_dpth
-
-
 def nozzle_velocity(pni: float, pte: float, knz: float, rho_nz: float) -> float:
     """Nozzle Velocity
 
@@ -252,22 +239,8 @@ def nozzle_rate(vnz: float, anz: float) -> tuple[float, float]:
         qnz_bpd (float): Nozzle Flowrate bpd
     """
     qnz_ft3s = anz * vnz
-    qnz_bpd = qnz_ft3s * (7.4801 * 60 * 60 * 24 / 42)
+    qnz_bpd = sp.ft3s_to_bpd(qnz_ft3s)
     return qnz_ft3s, qnz_bpd
-
-
-def fluid_momentum(vel: float, area: float, rho: float) -> float:
-    """Fluid Momentum
-
-    Args:
-        vel (float): Velocity of the Fluid, ft/s
-        area (float): Cross Sectional Area of the Flow, ft2
-        rho (float): Density of the Fluid, lbm/ft3
-
-    Returns:
-        mom_fld (float): Fluid Momentum, lbm*ft/s2
-    """
-    return rho * vel**2 * area
 
 
 def throat_inlet_momentum(
@@ -290,8 +263,8 @@ def throat_inlet_momentum(
         mom_nz (float): Nozzle Momentum, lbm*ft/s2
         mom_te (float): Entry Momentum, lbm*ft/s2
     """
-    mom_nz = fluid_momentum(vnz, anz, rho_nz)  # momentum of the nozzle
-    mom_te = fluid_momentum(vte, ate, rho_te)  # momentum of the throat entry
+    mom_nz = sp.momentum(rho_nz, vnz, anz)  # momentum of the nozzle
+    mom_te = sp.momentum(rho_te, vte, ate)  # momentum of the throat entry
     return mom_nz, mom_te
 
 
@@ -313,23 +286,9 @@ def throat_outlet_momentum(kth: float, vtm: float, ath: float, rho_tm: float) ->
         mom_tm (float): Throat Mixting Momentum, lbm*ft/s2
         mom_fr (float): Throat Friction Momemum, lbm*ft/s2
     """
-    mom_tm = fluid_momentum(vtm, ath, rho_tm)
+    mom_tm = sp.momentum(rho_tm, vtm, ath)
     mom_fr = 1 / 2 * kth * mom_tm
     return mom_tm, mom_fr
-
-
-def mom_to_psi(mom: float, area: float) -> float:
-    """Convert Momentum across an area to lbf/in2
-
-    Args:
-        mom (float): Fluid Momentum, lbm*ft/s2
-        area (float): Cross Sectional Area, ft2
-
-    Return:
-        p_mom (float): Equivalent Pressure of Momentum, psi
-    """
-    p_mom = mom / (area * 32.174 * 144)
-    return p_mom
 
 
 def throat_discharge(
@@ -378,7 +337,7 @@ def throat_discharge(
 
     mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
     mom_tot = mom_fr + mom_tm - mom_nz - mom_te
-    dp_tm = mom_to_psi(mom_tot, ath)  # lbf/in2
+    dp_tm = sp.mom_to_psi(mom_tot, ath)  # lbf/in2
 
     ptm = pte - dp_tm
     ptm_list = [pte, ptm]
@@ -393,7 +352,7 @@ def throat_discharge(
 
         mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
         mom_tot = mom_fr + mom_tm - mom_nz - mom_te
-        dp_tm = mom_to_psi(mom_tot, ath)  # lbf/in2
+        dp_tm = sp.mom_to_psi(mom_tot, ath)  # lbf/in2
         ptm = pte - dp_tm
         ptm_list.append(ptm)
         n = n + 1

@@ -1,5 +1,5 @@
 # import flow.flowequation as feq
-import flow.twoflow as tf
+import flow.twophase as tf
 
 # only works if the command python -m tests.flow_test is used
 # example problem in Two Phase Flow in Pipes by Beggs / Brill (1988) pg. 3-31

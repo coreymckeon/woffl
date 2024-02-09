@@ -1,9 +1,11 @@
-import math
+"""Single Phase Flow Equations
 
+Equations that are predominately used in single phase flows. These equations can
+also be adapted and used in two phase flows, but require a simplification such as
+no slip or homogenous mixing.
 """
-Python File for storing a collection of different flow equations that can be
-used in other areas.
-"""
+
+import math
 
 
 # unit conversions
@@ -21,6 +23,35 @@ def bpd_to_ft3s(q_bpd: float) -> float:
     return q_ft3s
 
 
+# unit conversions
+def ft3s_to_bpd(q_ft3s: float) -> float:
+    """Convert liquid ft3/s to BPD
+
+    Args:
+        q_ft3s (float): Volumetric Flow, ft3/s
+
+    Returns:
+        q_bpd (float): Volumetric Flow, BPD
+    """
+    # 42 gal/bbl, 7.48052 gal/ft3, 24 hr/day, 60min/hour, 60sec/min
+    q_bpd = q_ft3s * (24 * 60 * 60 * 7.48052) / 42
+    return q_bpd
+
+
+def mom_to_psi(mom: float, area: float) -> float:
+    """Convert Momentum across an area to lbf/in2
+
+    Args:
+        mom (float): Fluid Momentum, lbm*ft/s2
+        area (float): Cross Sectional Area, ft2
+
+    Return:
+        p_mom (float): Equivalent Pressure of Momentum, psi
+    """
+    p_mom = mom / (area * 32.174 * 144)
+    return p_mom
+
+
 def velocity(flow: float, area: float) -> float:
     """Velocity Single Phase
 
@@ -33,6 +64,20 @@ def velocity(flow: float, area: float) -> float:
     """
     vel = flow / area
     return vel
+
+
+def momentum(rho: float, vel: float, area: float) -> float:
+    """Fluid Momentum
+
+    Args:
+        vel (float): Velocity of the Fluid, ft/s
+        area (float): Cross Sectional Area of the Flow, ft2
+        rho (float): Density of the Fluid, lbm/ft3
+
+    Returns:
+        mom_fld (float): Fluid Momentum, lbm*ft/s2
+    """
+    return rho * vel**2 * area
 
 
 def reynolds(rho: float, vel: float, dhyd: float, visc: float) -> float:
@@ -109,6 +154,7 @@ def ffactor_darcy(reynolds: float, rel_ruff: float) -> float:
     return ff
 
 
+# dp_friction, friction_dp, fric_dp, or dp_fric
 def diff_press_friction(ff: float, rho: float, vel: float, dhyd: float, length: float) -> float:
     """Frictional Differential Pressure in Piping
 
@@ -131,6 +177,7 @@ def diff_press_friction(ff: float, rho: float, vel: float, dhyd: float, length: 
     return dp_fric
 
 
+# dp_static, static_dp, or stat_dp or dp_stat
 def diff_press_static(rho: float, height: float) -> float:
     """Static or Gravity Differential Pressure
 

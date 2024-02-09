@@ -1,5 +1,6 @@
 from flow import jetflow as jf
 from flow import jetplot as jplt
+from flow import singlephase as sp
 from flow.inflow import InFlow
 from geometry.jetpump import JetPump
 from geometry.pipe import Annulus, Pipe
@@ -8,10 +9,9 @@ from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 from pvt.resmix import ResMix
 
+
 # writing a function that can be ran to easily compare current jet pump
 # performance to expected performance
-
-
 def jet_check(
     form_temp: float,
     jpump_tvd: float,
@@ -25,8 +25,8 @@ def jet_check(
     psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
         tsu=form_temp, ken=jpump_well.ken, ate=jpump_well.ate, ipr_su=ipr_well, prop_su=prop_well
     )
-    # should use the flowequation instead for this...
-    pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
+    # pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
+    pni = ppf_surf + sp.diff_press_static(rho_pf, jpump_tvd)
     vnz = jf.nozzle_velocity(pni, pte, jpump_well.knz, rho_pf)
 
     qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, jpump_well.anz)
@@ -38,12 +38,15 @@ def jet_check(
     )
     vtm, pdi = jf.diffuser_discharge(ptm, form_temp, jpump_well.kdi, jpump_well.ath, tube.inn_area, qsu_std, prop_tm)
 
-    print(f"Suction Pressure: {round(psu_min, 2)} psig")
-    print(f"Oil Flow: {round(qsu_std, 2)} bopd")
-    print(f"Throat Entry Pressure: {round(pte, 2)} psig")
-    print(f"Throat Discharge Pressure: {round(ptm, 2)} psig")
-    print(f"Diffuser Discharge Pressure: {round(pdi, 2)} psig")
-    print(f"Power Fluid Rate: {round(qnz_bpd, 2)} bwpd")
+    print(f"Suction Pressure: {round(psu_min, 1)} psig")
+    print(f"Oil Flow: {round(qsu_std, 1)} bopd")
+    print(f"Nozzle Inlet Pressure: {round(pni, 1)} psig")
+    print(f"Throat Entry Pressure: {round(pte, 1)} psig")
+    print(f"Throat Discharge Pressure: {round(ptm, 1)} psig")
+    print(f"Diffuser Discharge Pressure: {round(pdi, 1)} psig")
+    print(f"Power Fluid Rate: {round(qnz_bpd, 1)} bwpd")
+    print(f"Nozzle Velocity: {round(vnz, 1)} ft/s")
+    print(f"Throat Entry Velocity: {round(vte, 1)} ft/s")
 
     # graphing some outputs for visualization
     qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(

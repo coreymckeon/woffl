@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-import flow.flowequation as feq
+import flow.singlephase as feq
 from geometry.pipe import Annulus
 from geometry.wellprofile import WellProfile
 from pvt.formwat import FormWater

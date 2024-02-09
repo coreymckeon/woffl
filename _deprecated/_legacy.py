@@ -217,3 +217,35 @@ def throat_dp(kth: float, vnz: float, anz: float, rho_nz: float, vte: float, ate
     # convert to lbf/in2
     dp_tm = dp_tm / (32.174 * 144)
     return dp_tm, vtm
+
+
+# this shouldn't be here, it needs to only be in singlephase...
+def pf_press_depth(fld_dens: float, prs_surf: float, pump_tvd: float) -> float:
+    """Power Fluid Pressure at Depth
+
+    Calculate the Power Fluid Pressure at Depth.
+
+    Args:
+        fld_dens (float): Density of Fluid, lbm/ft3
+        prs_surf (float): Power Fluid Surface Pressure, psig
+        pump_tvd (float): Pump True Vertical Depth, feet
+
+    Returns:
+        prs_dpth (float): Power Fluid Depth Pressure, psig
+    """
+    prs_dpth = prs_surf + fld_dens * pump_tvd / 144
+    return prs_dpth
+
+
+def fluid_momentum(vel: float, area: float, rho: float) -> float:
+    """Fluid Momentum
+
+    Args:
+        vel (float): Velocity of the Fluid, ft/s
+        area (float): Cross Sectional Area of the Flow, ft2
+        rho (float): Density of the Fluid, lbm/ft3
+
+    Returns:
+        mom_fld (float): Fluid Momentum, lbm*ft/s2
+    """
+    return rho * vel**2 * area

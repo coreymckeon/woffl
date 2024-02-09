@@ -104,6 +104,7 @@ def throat_entry_graphs(ken, pte_ray, rho_ray, vel_ray, snd_ray) -> None:
     pte, rho_te, vte = jf.tee_zero(pte_ray, rho_ray, vel_ray, tee_ray)
 
     fig, axs = plt.subplots(4, sharex=True)
+    plt.rcParams["mathtext.default"] = "regular"
     fig.suptitle(f"Suction at {round(psuc,0)} psi, Mach 1 at {round(pmo,0)} psi")
 
     axs[0].scatter(pte_ray, 1 / rho_ray)
@@ -127,7 +128,7 @@ def throat_entry_graphs(ken, pte_ray, rho_ray, vel_ray, snd_ray) -> None:
     axs[3].annotate(text="Mach 1", xy=(pmo, ycoord), rotation=90)
     axs[3].axvline(x=pte, color="black", linestyle="--", linewidth=1)
     axs[3].annotate(text="TEE 0", xy=(pte, ycoord), rotation=90)
-    axs[3].set_ylabel("TEE, ft2/s2")
+    axs[3].set_ylabel("$dE_{te}$, ft2/s2")
     axs[3].set_xlabel("Throat Entry Pressure, psig")
     plt.show()
     return None
@@ -348,6 +349,7 @@ def diffuser_graphs(vtm, kdi, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
     ptm = pdi_ray[0]
 
     fig, axs = plt.subplots(4, sharex=True)
+    plt.rcParams["mathtext.default"] = "regular"
 
     axs[0].scatter(pdi_ray, 1 / rho_ray)
     axs[0].set_ylabel("Specific Volume, ft3/lbm")
@@ -366,7 +368,7 @@ def diffuser_graphs(vtm, kdi, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
 
     axs[3].scatter(pdi_ray, dee_ray)
     axs[3].axhline(y=0, color="black", linestyle="--", linewidth=1)
-    axs[3].set_ylabel("DEE, ft2/s2")
+    axs[3].set_ylabel("$dE_{di}$, ft2/s2")
     axs[3].set_xlabel("Diffuser Outlet Pressure, psig")
 
     if max(dee_ray) >= 0 and min(dee_ray) <= 0:  # make sure a solution exists

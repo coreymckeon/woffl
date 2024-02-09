@@ -1,3 +1,9 @@
+"""Two Phase Flow Equations
+
+Equations that are predominately used in two phase flows. These are typically
+the raw functions that are built together to assess two phase flow parameters.
+"""
+
 import math
 
 import numpy as np
