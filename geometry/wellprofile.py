@@ -158,6 +158,7 @@ def segments_fit(X, Y, maxcount=18):
 
 
 # need to include the jetpump measured depth in the WellProfile
+# maybe segregate it here? Have a tubing length? Have a sand length?
 class WellProfile:
     def __init__(self, md_list: list, tvd_list: list) -> None:
         """Initialize a Well Profile
@@ -200,9 +201,9 @@ class WellProfile:
             raise ValueError(f"{md_dpth} feet is not inside survey boundary")
 
         tvd_dpth = np.interp(md_dpth, self.md_array, self.tvd_array)
-        return round(tvd_dpth, 1)
+        return float(tvd_dpth)
 
-    def md_interp(self, tvd_dpth):
+    def md_interp(self, tvd_dpth: float) -> float:
         """Measured Depth Interpolation
 
         Args:
@@ -215,7 +216,7 @@ class WellProfile:
             raise ValueError(f"{tvd_dpth} feet is not inside survey boundary")
 
         md_dpth = np.interp(tvd_dpth, self.tvd_array, self.md_array)
-        return round(md_dpth, 1)
+        return float(md_dpth)
 
     def filter(self):
         """Filter WellProfile to the Minimal Data Points

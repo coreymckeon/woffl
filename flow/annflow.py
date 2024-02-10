@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-import flow.singlephase as feq
+import flow.singlephase as sp
 from geometry.pipe import Annulus
 from geometry.wellprofile import WellProfile
 from pvt.formwat import FormWater
@@ -14,9 +14,9 @@ class AnnFlow:
         ann_rate: float,
         surf_press: float,
         surf_temp: float,
-        fluid: FormWater,
+        prop_an: FormWater,
         ann_dim: Annulus,
-        wellprofile: WellProfile,
+        wellprof: WellProfile,
     ) -> None:
         """Annular Flow
 
@@ -36,9 +36,9 @@ class AnnFlow:
         self.ann_rate = ann_rate
         self.surf_press = surf_press
         self.surf_temp = surf_temp
-        self.fluid = fluid
+        self.prop = prop_an
         self.ann_dim = ann_dim
-        self.wellprofile = wellprofile
+        self.wellprof = wellprof
 
         def __repr__(self):
             return f"{self.ann_rate} BWPD flowing inside a {self.ann_dim.out_pipe.inn_dia} annulus"
