@@ -81,8 +81,6 @@ def tee_last(
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
     prop_su = prop_su.condition(psu, tsu)
     qtot = sum(prop_su.insitu_volm_flow(qoil_std))
-
-    # vte = qtot / ate
     vte = sp.velocity(qtot, ate)
 
     pte_ray = np.array([psu])
@@ -102,7 +100,6 @@ def tee_last(
         pte = pte_ray[-1] - pdec
         prop_su = prop_su.condition(pte, tsu)
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
-        # vte = qtot / ate
         vte = sp.velocity(qtot, ate)
 
         vte_ray = np.append(vte_ray, vte)
@@ -169,6 +166,24 @@ def tee_zero(
     return pte, rho_te, vte  # type: ignore
 
 
+def psu_secant(psu1: float, psu2: float, dete1: float, dete2: float) -> float:
+    """Next Suction Pressure with Secant Method
+
+    Uses the secant method to calculate the next psu to use to find a zero dete at Ma = 1.
+
+    Args:
+        psu1 (float): Suction Pressure One, psig
+        psu2 (float): Suction Pressure Two, psig
+        dete1 (float): Differential Energy at psu1 and Ma = 1, ft2/s2
+        dete2 (float): Differential Energy at psu1 and Ma = 1, ft2/s2
+
+    Return:
+        psu3 (float): Suction Pressure Three, psig
+    """
+    psu3 = psu2 - dete2 * (psu1 - psu2) / (dete1 - dete2)
+    return psu3
+
+
 def tee_minimize(
     tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, float, float, float, float]:
@@ -200,8 +215,7 @@ def tee_minimize(
     psu_diff = 5  # criteria for when you've converged to an answer
     n = 0  # loop counter
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
-        # use secant method to calculate next guess value for psu to use
-        psu_nxt = psu_list[-1] - tee_list[-1] * (psu_list[-2] - psu_list[-1]) / (tee_list[-2] - tee_list[-1])
+        psu_nxt = psu_secant(psu_list[-2], psu_list[-1], tee_list[-2], tee_list[-1])
         tee_nxt, qoil_std, pte_ray, rho_ray, vte_ray, tee_ray = tee_last(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
         psu_list.append(psu_nxt)
         tee_list.append(tee_nxt)
@@ -333,13 +347,13 @@ def throat_discharge(
     """
     mom_nz, mom_te = throat_inlet_momentum(vnz, anz, rho_nz, vte, ate, rho_te)
 
-    mnz = vnz * anz * rho_nz  # mass flow of the nozzle
-    mte = vte * ate * rho_te  # mass flow of the throat entry
+    mnz = sp.massflow(rho_nz, vnz, anz)  # mass flow of the nozzle
+    mte = sp.massflow(rho_te, vte, ate)  # mass flow of the throat entry
     ath = anz + ate  # area of the throat
     mtm = mnz + mte  # mass flow of total mixture
 
     rho_tm = prop_tm.condition(pte, tte).pmix()  # density of total mixture
-    vtm = mtm / (ath * rho_tm)  # velocity of total mixture
+    vtm = sp.velocity(mtm / rho_tm, ath)
 
     mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
     mom_tot = mom_fr + mom_tm - mom_nz - mom_te
@@ -354,7 +368,7 @@ def throat_discharge(
         ptm = ptm_list[-1]
 
         rho_tm = prop_tm.condition(ptm, tte).pmix()  # density of total mixture
-        vtm = mtm / (ath * rho_tm)  # velocity of total mixture
+        vtm = sp.velocity(mtm / rho_tm, ath)
 
         mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
         mom_tot = mom_fr + mom_tm - mom_nz - mom_te
@@ -431,8 +445,8 @@ def diffuser_discharge(
     prop_tm = prop_tm.condition(ptm, ttm)
     qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
 
-    vtm = qtot / ath
-    vdi = qtot / adi
+    vtm = sp.velocity(qtot, ath)
+    vdi = sp.velocity(qtot, adi)
 
     pdi_ray = np.array([ptm])
     vdi_ray = np.array([vdi])
@@ -449,7 +463,7 @@ def diffuser_discharge(
         pdi = pdi_ray[-1] + pinc
         prop_tm = prop_tm.condition(pdi, ttm)
         qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
-        vdi = qtot / adi
+        vdi = sp.velocity(qtot, adi)
 
         vdi_ray = np.append(vdi_ray, vdi)
 

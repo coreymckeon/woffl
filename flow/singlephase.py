@@ -8,7 +8,7 @@ no slip or homogenous mixing.
 import math
 
 
-# unit conversions
+# unit conversion
 def bpd_to_ft3s(q_bpd: float) -> float:
     """Convert liquid BPD to ft3/s
 
@@ -23,7 +23,7 @@ def bpd_to_ft3s(q_bpd: float) -> float:
     return q_ft3s
 
 
-# unit conversions
+# unit conversion
 def ft3s_to_bpd(q_ft3s: float) -> float:
     """Convert liquid ft3/s to BPD
 
@@ -78,6 +78,20 @@ def momentum(rho: float, vel: float, area: float) -> float:
         mom_fld (float): Fluid Momentum, lbm*ft/s2
     """
     return rho * vel**2 * area
+
+
+def massflow(rho: float, vel: float, area: float) -> float:
+    """Fluid Mass Flow
+
+    Args:
+        vel (float): Velocity of the Fluid, ft/s
+        area (float): Cross Sectional Area of the Flow, ft2
+        rho (float): Density of the Fluid, lbm/ft3
+
+    Returns:
+        mflow (float): Fluid Mass Flow, lbm/s
+    """
+    return rho * vel * area
 
 
 def reynolds(rho: float, vel: float, dhyd: float, visc: float) -> float:
