@@ -414,13 +414,13 @@ def beggs_ff(fns: float, s: float) -> float:
     return fs
 
 
-def beggs_ek(p: float, rho_ns: float, vmix: float, vsg: float) -> float:
+def beggs_ek(pwb: float, rho_ns: float, vmix: float, vsg: float) -> float:
     """Beggs Dimensionless Kinetic Energy
 
     Page 69 from Al-Safran Book, Equation 4.42
 
     Args:
-        p (float): Pressure, psig
+        pwb (float): Pressure Well Bore, psig
         rho_ns (float): No Slip Mixture Density, lbm/ft3
         vmix (float): No Slip Mixture Velocity, ft/s
         vsg (float): Superficial Gas Velocity, ft/s
@@ -428,7 +428,7 @@ def beggs_ek(p: float, rho_ns: float, vmix: float, vsg: float) -> float:
     Returns:
         ek (float): Beggs Dimensionless Kinetic Energy
     """
-    p_abs = p + 14.7  # psia
+    p_abs = pwb + 14.7  # psia
     p_base = p_abs * 144 * 32.174  # lbm/(s2*ft)
     ek = vmix * vsg * rho_ns / p_base
     ek = min(ek, 0.9)  # ensure ek doesn't get bigger than 0.9

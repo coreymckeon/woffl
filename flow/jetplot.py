@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.integrate import cumulative_trapezoid, trapezoid
+from scipy.integrate import cumulative_trapezoid
 
 from flow import jetflow as jf  # legacy
 from flow.inflow import InFlow
@@ -49,7 +49,7 @@ def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
 
         vel_ray[i] = qtot / ate
-        rho_ray[i] = prop_su.pmix()
+        rho_ray[i] = prop_su.rho_mix()
         snd_ray[i] = prop_su.cmix()
 
     return qoil_std, pte_ray, rho_ray, vel_ray, snd_ray
@@ -75,7 +75,8 @@ def throat_entry_energy(ken, pte_ray, rho_ray, vel_ray):
     # convert from psi to lbm/(ft*s2)
     plbm = pte_ray * 144 * 32.174
     ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
-    ke_ray = (1 + ken) * (vel_ray**2) / 2  # ft2/s2 kinetic energy
+    # ke_ray = (1 + ken) * (vel_ray**2) / 2  # ft2/s2 kinetic energy
+    ke_ray = jf.enterance_ke(ken, vel_ray)  # ft2/s2 kinetic energy
     return ke_ray, ee_ray
 
 
@@ -296,7 +297,7 @@ def diffuser_arrays(ptm: float, ttm: float, ath: float, adi: float, qoil_std: fl
         qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
 
         vdi_ray[i] = qtot / adi
-        rho_ray[i] = prop_tm.pmix()
+        rho_ray[i] = prop_tm.rho_mix()
         snd_ray[i] = prop_tm.cmix()
         if i == 0:
             vtm = qtot / ath
@@ -324,7 +325,8 @@ def diffuser_energy(vtm, kdi, pdi_ray, rho_ray, vdi_ray):
     # convert from psi to lbm/(ft*s2)
     plbm = pdi_ray * 144 * 32.174
     ee_ray = cumulative_trapezoid(1 / rho_ray, plbm, initial=0)  # ft2/s2 expansion energy
-    ke_ray = (vdi_ray**2 - (1 - kdi) * vtm**2) / 2  # ft2/s2 kinetic energy
+    # ke_ray = (vdi_ray**2 - (1 - kdi) * vtm**2) / 2  # ft2/s2 kinetic energy
+    ke_ray = jf.diffuser_ke(kdi, vtm, vdi_ray)  # ft2/s2 kinetic energy
     return ke_ray, ee_ray
 
 

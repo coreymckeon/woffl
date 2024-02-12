@@ -85,7 +85,7 @@ def tee_last(
 
     pte_ray = np.array([psu])
     vte_ray = np.array([vte])
-    rho_ray = np.array([prop_su.pmix()])
+    rho_ray = np.array([prop_su.rho_mix()])
     mach_ray = np.array([vte / prop_su.cmix()])
 
     kse_ray = np.array([enterance_ke(ken, vte)])
@@ -106,7 +106,7 @@ def tee_last(
         mach_ray = np.append(mach_ray, vte / prop_su.cmix())
 
         pte_ray = np.append(pte_ray, pte)
-        rho_ray = np.append(rho_ray, prop_su.pmix())
+        rho_ray = np.append(rho_ray, prop_su.rho_mix())
 
         kse_ray = np.append(kse_ray, enterance_ke(ken, vte))
         ese_ray = np.append(ese_ray, ese_ray[-1] + incremental_ee(pte_ray[-2:], rho_ray[-2:]))
@@ -352,7 +352,7 @@ def throat_discharge(
     ath = anz + ate  # area of the throat
     mtm = mnz + mte  # mass flow of total mixture
 
-    rho_tm = prop_tm.condition(pte, tte).pmix()  # density of total mixture
+    rho_tm = prop_tm.condition(pte, tte).rho_mix()  # density of total mixture
     vtm = sp.velocity(mtm / rho_tm, ath)
 
     mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
@@ -367,7 +367,7 @@ def throat_discharge(
     while abs(ptm_list[-2] - ptm_list[-1]) > ptm_diff:
         ptm = ptm_list[-1]
 
-        rho_tm = prop_tm.condition(ptm, tte).pmix()  # density of total mixture
+        rho_tm = prop_tm.condition(ptm, tte).rho_mix()  # density of total mixture
         vtm = sp.velocity(mtm / rho_tm, ath)
 
         mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
@@ -450,7 +450,7 @@ def diffuser_discharge(
 
     pdi_ray = np.array([ptm])
     vdi_ray = np.array([vdi])
-    rho_ray = np.array([prop_tm.pmix()])
+    rho_ray = np.array([prop_tm.rho_mix()])
 
     kse_ray = np.array([diffuser_ke(kdi, vtm, vdi)])
     ese_ray = np.array([0])
@@ -468,7 +468,7 @@ def diffuser_discharge(
         vdi_ray = np.append(vdi_ray, vdi)
 
         pdi_ray = np.append(pdi_ray, pdi)
-        rho_ray = np.append(rho_ray, prop_tm.pmix())
+        rho_ray = np.append(rho_ray, prop_tm.rho_mix())
 
         kse_ray = np.append(kse_ray, diffuser_ke(kdi, vtm, vdi))
         ese_ray = np.append(ese_ray, ese_ray[-1] + incremental_ee(pdi_ray[-2:], rho_ray[-2:]))

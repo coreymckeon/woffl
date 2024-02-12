@@ -48,7 +48,7 @@ for prs in prs_ray:
     py_mix = py_mix.condition(prs, temp)
     py_mfac.append(py_mix.mass_fract())
     py_vfac.append(py_mix.volm_fract())
-    py_rho_mix.append(py_mix.pmix())
+    py_rho_mix.append(py_mix.rho_mix())
     py_cmix.append(py_mix.cmix())
 
 # change formating to make it more user friendly to print

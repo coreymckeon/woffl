@@ -62,7 +62,7 @@ class ResMix:
         self._tempr = self.temp + 459.67  # convert fahr to rankine
         return self
 
-    def dens_comp(self) -> tuple[float, float, float]:
+    def rho_comp(self) -> tuple[float, float, float]:
         """Density Components
 
         Return the density of the oil, water and gas from the mixture.
@@ -81,7 +81,7 @@ class ResMix:
         rho_gas = self.gas.density
         return rho_oil, rho_wat, rho_gas
 
-    def dens_two(self) -> tuple[float, float]:
+    def rho_two(self) -> tuple[float, float]:
         """Density of Two Phases, Liquid and Gas
 
         Computes the liquid mixture density. Used in multiphase equations for piping.
@@ -93,10 +93,27 @@ class ResMix:
             rho_liq (float): Density of Liquid, lbm/ft3
             rho_gas (float): Density of Gas, lbm/ft3
         """
-        rho_oil, rho_wat, rho_gas = self.dens_comp()
+        rho_oil, rho_wat, rho_gas = self.rho_comp()
         yoil, ywat, ygas = self.volm_fract()  # volume fractions
-        rho_liq = self.homogenous_liquid(yoil, ywat, rho_oil, rho_wat)
+        rho_liq = self._homogenous_liquid(yoil, ywat, rho_oil, rho_wat)
         return rho_liq, rho_gas
+
+    def rho_mix(self) -> float:
+        """Mixture Density
+
+        Return the homogenous density of the mixture.
+        Requires a pressure and temperature condition to previously be set.
+
+        Args:
+            None
+
+        Returns:
+            pmix (float): density of mixture, lbm/ft3
+        """
+        xoil, xwat, xgas = self.mass_fract()
+        rho_oil, rho_wat, rho_gas = self.rho_comp()
+        rho_mix = self._homogenous_density(xoil, xwat, xgas, rho_oil, rho_wat, rho_gas)
+        return rho_mix
 
     def visc_comp(self) -> tuple[float, float, float]:
         """Viscosity Components
@@ -131,8 +148,22 @@ class ResMix:
         """
         uoil, uwat, ugas = self.visc_comp()
         yoil, ywat, ygas = self.volm_fract()  # volume fractions
-        uliq = self.homogenous_liquid(yoil, ywat, uoil, uwat)
+        uliq = self._homogenous_liquid(yoil, ywat, uoil, uwat)
         return uliq, ugas
+
+    def visc_mix(self) -> float:
+        """Viscosity of Homogenous Mixture
+
+        Args:
+            None
+
+        Returns:
+            umix (float): Viscosity of Mixture, cP
+        """
+        yoil, ywat, ygas = self.volm_fract()
+        uoil, uwat, ugas = self.visc_comp()
+        umix = self._homogenous_mixture(yoil, ywat, ygas, uoil, uwat, ugas)
+        return umix
 
     def tension(self) -> float:
         """Surface Tension of Liquid Phase
@@ -146,7 +177,7 @@ class ResMix:
         sig_oil = self.oil.tension()
         sig_wat = self.wat.tension()
         yoil, ywat, ygas = self.volm_fract()  # volume fractions
-        sig_liq = self.homogenous_liquid(yoil, ywat, sig_oil, sig_wat)
+        sig_liq = self._homogenous_liquid(yoil, ywat, sig_oil, sig_wat)
         return sig_liq
 
     def comp_comp(self) -> tuple[float, float, float]:
@@ -190,28 +221,7 @@ class ResMix:
         xoil, xwat, xgas = self._owg_mass_fraction(
             self.wc, self.fgor, self.oil.gas_solubility(), self.rho_oil_std, self.rho_wat_std, self.rho_gas_std
         )
-        # return the mass fractions
         return xoil, xwat, xgas
-
-    def pmix(self) -> float:
-        """Mixture Density
-
-        Return the homogenous density of the mixture.
-        Requires a pressure and temperature condition to previously be set.
-
-        Args:
-            None
-
-        Returns:
-            pmix (float): density of mixture, lbm/ft3
-        """
-        xoil, xwat, xgas = self.mass_fract()
-        rho_oil, rho_wat, rho_gas = self.dens_comp()
-
-        # mixture specific volume
-        vmix = (xoil / rho_oil) + (xwat / rho_wat) + (xgas / rho_gas)
-        rho_mix = 1 / vmix
-        return rho_mix
 
     def volm_fract(self) -> tuple[float, float, float]:
         """Volume Fractions
@@ -228,11 +238,8 @@ class ResMix:
             ygas (float): volume fraction of gas in the mixture
         """
         xoil, xwat, xgas = self.mass_fract()
-        rho_oil, rho_wat, rho_gas = self.dens_comp()
-
-        # mixture specific volume
-        vmix = (xoil / rho_oil) + (xwat / rho_wat) + (xgas / rho_gas)
-        rho_mix = 1 / vmix
+        rho_oil, rho_wat, rho_gas = self.rho_comp()
+        rho_mix = self._homogenous_density(xoil, xwat, xgas, rho_oil, rho_wat, rho_gas)
 
         yoil = xoil * rho_mix / rho_oil
         ywat = xwat * rho_mix / rho_wat
@@ -250,20 +257,18 @@ class ResMix:
             None
 
         Returns:
-            cmix (float): speed of sound in the mixture, ft/s
+            snd_mix (float): speed of sound in the mixture, ft/s
 
         References:
             Sound Speed in the Mixture Water-Air D.Himr (2009)
         """
         co, cw, cg = self.comp_comp()  # isothermal compressibility
         yoil, ywat, ygas = self.volm_fract()  # volume fractions
-        ps = self.pmix()
-
-        cs = co * yoil + cw * ywat + cg * ygas  # mixture compressibility
+        rho_s = self.rho_mix()
+        cs = self._homogenous_mixture(yoil, ywat, ygas, co, cw, cg)  # mixture compressibility
         ks = 1 / cs  # mixture bulk modulus of elasticity
-
-        cmix = math.sqrt(32.174 * 144 * ks / ps)  # speed of sound, ft/s
-        return cmix
+        snd_mix = math.sqrt(32.174 * 144 * ks / rho_s)  # speed of sound, ft/s
+        return snd_mix
 
     def insitu_volm_flow(self, qoil_std: float) -> tuple[float, float, float]:
         """Insitu Volumetric Flow of Components
@@ -394,35 +399,30 @@ class ResMix:
         mfgor = (7.48 / 42) * fgor * rho_gas_std / rho_oil_std
         # mass watercut
         mwc = rho_wat_std * wc / (rho_wat_std * wc + rho_oil_std * (1 - wc))
-
         # mass formation gas to liquid ratio
         mfglr = (7.48 / 42) * fgor * rho_gas_std * (1 - wc) / (wc * rho_wat_std + (1 - wc) * rho_oil_std)
-
         # mass fraction of gas
         xgas = mfglr / (1 + mfglr)
         # mass fraction of oil
         xoil = (1 - mwc) / (1 + mfgor * (1 - mwc))
         # mass fraction of water
         xwat = 1 - xoil - xgas
-
         # correct for the gas that is inside the oil
         xrs = xoil * mrs
         # calculate new mass fraction of free gas
         xgas = xgas - xrs
         # make sure mass fraction of gas is always zero or above
         xgas = max(xgas, 0)
-
         xoil = 1 - xwat - xgas
-
         # mass fractions
         return xoil, xwat, xgas
 
     @staticmethod
-    def homogenous_liquid(yoil: float, ywat: float, prop_oil: float, prop_wat: float) -> float:
+    def _homogenous_liquid(yoil: float, ywat: float, prop_oil: float, prop_wat: float) -> float:
         """Mixture Property of Homogenous Liquid
 
         Uses common assumption of homogenous liquid for calculating properties.
-        Properties could be density, viscosity or surface tension
+        Properties could be density, viscosity or surface tension.
 
         Args:
             yoil (float): Volume fraction of oil in the mixture
@@ -439,3 +439,50 @@ class ResMix:
         fw = ywat / (yoil + ywat)  # water fraction of the liquid
         prop_liq = prop_oil * (1 - fw) + prop_wat * fw
         return prop_liq
+
+    @staticmethod
+    def _homogenous_mixture(
+        yoil: float, ywat: float, ygas: float, prop_oil: float, prop_wat: float, prop_gas: float
+    ) -> float:
+        """Property of Homogenous Mixture
+
+        Uses common assumption of homogenous mixture for calculating properties.
+        Only used for homogenous viscosity, density uses mass fractions instead.
+
+        Args:
+            yoil (float): Volume fraction of oil in the mixture
+            ywat (float): Volume fraction of water in the mixture
+            ygas (float): Volume fraction of gas in the mixture
+            prop_oil (float): Property of the Oil
+            prop_wat (float): Property of the Water
+            prop_gas (float): Property of the Gas
+
+        Return:
+            prop_mix (float): Property of the Homogenous Mixture
+        """
+        prop_mix = yoil * prop_oil + ywat * prop_wat + ygas * prop_gas
+        return prop_mix
+
+    @staticmethod
+    def _homogenous_density(
+        xoil: float, xwat: float, xgas: float, rho_oil: float, rho_wat: float, rho_gas: float
+    ) -> float:
+        """Density of Homogenous Mixture
+
+        Density uses mass fractions instead of volume fractions.
+        That will prevent a weird circular logic loop from occuring.
+
+        Args:
+            xoil (float): Mass fraction of oil in the mixture
+            xwat (float): Mass fraction of water in the mixture
+            xgas (float): Mass fraction of gas in the mixture
+            rho_oil (float): Density of the Oil
+            rho_wat (float): Density of the Water
+            rho_gas (float): Density of the Gas
+
+        Return:
+            rho_mix (float): Density of the Homogenous Mixture
+        """
+        vol_mix = (xoil / rho_oil) + (xwat / rho_wat) + (xgas / rho_gas)  # mixture specific volume
+        rho_mix = 1 / vol_mix
+        return rho_mix

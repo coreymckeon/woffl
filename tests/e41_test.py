@@ -17,7 +17,7 @@ jpump_tvd = 4065  # feet, interpolated off well profile
 rho_pf = 62.4  # lbm/ft3
 ppf_surf = 3168  # psi, power fluid surf pressure
 
-# testing the jet pump code on E-42
+# testing the jet pump code on E-41
 tube = Pipe(out_dia=4.5, thick=0.5)  # E-42 tubing
 case = Pipe(out_dia=6.875, thick=0.5)  # E-42 casing
 ann = Annulus(inn_pipe=tube, out_pipe=case)  # define the annulus

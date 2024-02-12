@@ -38,6 +38,22 @@ def ft3s_to_bpd(q_ft3s: float) -> float:
     return q_bpd
 
 
+def cross_area(dia: float) -> float:
+    """Cross Sectional Area
+
+    Calculate cross sectional area of piece of piping.
+
+    Args:
+        dia (float): Diameter, inches
+
+    Returns:
+        area (float): Area, ft2
+    """
+    dia = dia / 12  # ft
+    area = math.pi * (dia**2) / 4  # ft2
+    return area
+
+
 def mom_to_psi(mom: float, area: float) -> float:
     """Convert Momentum across an area to lbf/in2
 
@@ -173,6 +189,7 @@ def diff_press_friction(ff: float, rho: float, vel: float, dhyd: float, length: 
     """Frictional Differential Pressure in Piping
 
     Calculate the frictional pressure loss in a piping system.
+    Positive length is with flow direction, negative length is against flow.
 
     Args:
         ff (float): Darcy friction factor of the pipe, unitless
