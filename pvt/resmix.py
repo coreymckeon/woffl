@@ -99,7 +99,7 @@ class ResMix:
         return rho_liq, rho_gas
 
     def rho_mix(self) -> float:
-        """Mixture Density
+        """Homogenous Mixture Density
 
         Return the homogenous density of the mixture.
         Requires a pressure and temperature condition to previously be set.
@@ -246,6 +246,21 @@ class ResMix:
         ygas = xgas * rho_mix / rho_gas
 
         return yoil, ywat, ygas
+
+    def nslh(self) -> float:
+        """No Slip Liquid Holdup
+
+        Return the no slip liquid holdup of the mixture.
+
+        Args:
+            None
+
+        Returns:
+            nslh (float): No Slip Liquid Holdup, unitless
+        """
+        yoil, ywat, ygas = self.volm_fract()
+        nslh = self._no_slip_liquid_holdup(yoil, ywat, ygas)
+        return nslh
 
     def cmix(self) -> float:
         """Mixture Speed of Sound
@@ -486,3 +501,21 @@ class ResMix:
         vol_mix = (xoil / rho_oil) + (xwat / rho_wat) + (xgas / rho_gas)  # mixture specific volume
         rho_mix = 1 / vol_mix
         return rho_mix
+
+    @staticmethod
+    def _no_slip_liquid_holdup(yoil: float, ywat: float, ygas: float) -> float:
+        """No Slip Liquid Holdup
+
+        Use the volume fractions of the oil, water and gas.
+        Calculate the no slip liquid holdup.
+
+        Args:
+            yoil (float): Volume fraction of oil in the mixture
+            ywat (float): Volume fraction of water in the mixture
+            ygas (float): Volume fraction of gas in the mixture
+
+        Return:
+            nslh (float): No Slip Liquid Holdup
+        """
+        nslh = (yoil + ywat) / (yoil + ywat + ygas)
+        return nslh

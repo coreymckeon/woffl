@@ -11,6 +11,28 @@ import numpy as np
 from flow import singlephase as sp
 
 
+def velocities(qoil: float, qwat: float, qgas: float, area: float) -> tuple[float, float, float]:
+    """Velocities for Two Phase Flow Calcs
+
+    Superficial Liquid, Superficial Gas and Mixture Velocities.
+
+    Args:
+        qoil (float): Insitu Oil Volumetric Flow, ft3/s
+        qwat (float): Insitu Water Volumetric Flow, ft3/s
+        qgas (float): Insitu Gas Volumetric Flow, ft3/s
+        area (float): Cross Sectional Area, ft2
+
+    Returns:
+        vsl (float): Superficial Liquid Velocity, ft/s
+        vsg (float): Superficial Gas Velocity, ft/s
+        vmix (float): Mixture Velocity, ft/s
+    """
+    vsl = sp.velocity((qoil + qwat), area)
+    vsg = sp.velocity(qgas, area)
+    vmix = vsl + vsg
+    return vsl, vsg, vmix
+
+
 # NFr, NLv, NGv, Nd, NRe
 # HLn, HLs_0, HLs_a
 def sigmoid(x: float, L: float, x0: float, k: float, b: float) -> float:
@@ -435,6 +457,25 @@ def beggs_ek(pwb: float, rho_ns: float, vmix: float, vsg: float) -> float:
     return ek
 
 
+def density_slip(rho_liq: float, rho_gas: float, slh: float) -> float:
+    """Slip Mixture Density
+
+    Slip Mixture Density, this could be placed under ResMix with the no slip
+    liquid holdup as an input. It was decided against to reduce recalculating
+    the density of the liquid and the density of the gas.
+
+    Args:
+        rho_liq (float): Liquid Density, lbm/ft3
+        rho_gas (float): Gas Density, lbm/ft3
+        slh (float): Slip Liquid Holdup, unitless
+
+    Returns:
+        rho_slip (float): Slip Mixture Density, lbm/ft3
+    """
+    rho_slip = rho_liq * slh + rho_gas * (1 - slh)
+    return rho_slip
+
+
 def beggs_press_static(rho_slip: float, height: float) -> float:
     """Beggs Static Differential Pressure
 
@@ -452,7 +493,7 @@ def beggs_press_static(rho_slip: float, height: float) -> float:
     return dp_stat
 
 
-def beggs_press_friction(fb: float, rho_ns: float, vmix: float, dhyd: float, length: float) -> float:
+def beggs_press_friction(fb: float, rho_mix: float, vmix: float, dhyd: float, length: float) -> float:
     """Beggs Frictional Differential Pressure
 
     Similiar to single phase but uses beggs friction factor, and no-slip mixture
@@ -460,7 +501,7 @@ def beggs_press_friction(fb: float, rho_ns: float, vmix: float, dhyd: float, len
 
     Args:
         fb (float): Beggs friction factor of the pipe, unitless
-        rho_ns (float): No Slip Mixture Density, lbm/ft3 (why use no slip...?)
+        rho_mix (float): No Slip Mixture Density, lbm/ft3 (why use no slip...?)
         vmix (float): No Slip Mixture Velocity, ft/s
         dhyd (float): Hydraulic Diameter, inches
         length (float): Length of Pipe Segment, feet
@@ -468,5 +509,5 @@ def beggs_press_friction(fb: float, rho_ns: float, vmix: float, dhyd: float, len
     Returns:
         dp_fric (float): Frictional Differential Pressure, psi
     """
-    dp_fric = sp.diff_press_friction(fb, rho_ns, vmix, dhyd, length)
+    dp_fric = sp.diff_press_friction(fb, rho_mix, vmix, dhyd, length)
     return dp_fric
