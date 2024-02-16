@@ -109,7 +109,32 @@ def beggs_diff_press(
     return dp_stat + dp_fric, slh
 
 
-# how should I definre where the jetpump is exactly?
+def top_down_press(
+    ptop: float, ttop: float, qoil_std: float, prop: ResMix, tubing: Pipe, wellprof: WellProfile, model: str = "beggs"
+) -> list:
+    """Top Down WellBore Pressure Calculation
+
+    Uses the specificed model to calculate the pressure gradient in a wellbore, starting
+    at the top and working down to inflow / jet pump node.
+
+    Args:
+        ptop (float): Pressure at top node, deg F
+        ttop (float): Temperature at top node, deg F
+        qoil_std (float): Oil Rate, STBOPD
+        prop (ResMix): Properties of Fluid Mixture in Wellbore, ResMix
+        tubing (Pipe): Piping geometry inside the wellbore, Pipe
+        wellprof (WellProfile): survey dimensions and location of jet pump, WellProfile
+        model (str): Specify which model to use, either homo or beggs
+
+    Returns:
+        pres_list (list): Calculated pressure along wellbore, psig
+        md_list (list): Measured depth of calculated pressure
+        lh_list (list): Liquid Holdup along wellbore, unitless
+    """
+    return [1, 1]
+
+
+# how should I define where the jetpump is exactly?
 # you don't need to look past the location of the jump pump discharge
 class OutFlow:
     def __init__(

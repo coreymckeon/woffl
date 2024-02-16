@@ -3,98 +3,161 @@ import numpy as np
 from scipy import optimize
 
 
-def profileplot(hd_array, tvd_array, md_array):
-    """Create a Well Profile Plot
+# updated methods for inputs to be md, then vd, then hd...keep it same..?
+# need to include the jetpump measured depth in the WellProfile
+# maybe segregate it here? Have a tubing length? Have a sand length?
+class WellProfile:
+    def __init__(self, md_list: list, vd_list: list) -> None:
+        """Initialize a Well Profile
 
-    Args:
-        hd_array (numpy array): horizontal distance array
-        td_array (numpy array): vertical depth array
-        md_array (numpy arary): measured depth, annotated
-    """
-    plt.scatter(hd_array, tvd_array)
-    plt.gca().invert_yaxis()
-    plt.title(f"Dir Survey, Length: {max(md_array)} ft")
-    plt.xlabel("Horizontal Distance, Feet")
-    plt.ylabel("True Vertical Depth, Feet")
+        Args:
+            md_list (list): List of measured depths
+            vd_list (list): List of vertical depths
 
-    # find the position in the measured depth array closest to every 1000'
-    md_match = np.arange(1000, max(md_array), 1000)
-    idxs = np.searchsorted(md_array, md_match)
+        Returns:
+            Self
+        """
+        if len(md_list) != len(vd_list):
+            raise ValueError("Lists for Measured Depth and Vertical Depth need to be the same length")
 
-    # find the angle of the line near each point so you can put the text
-    # perpendicular to the line being graphed...do later?
+        if max(md_list) < max(vd_list):
+            raise ValueError("Measured Depth needs to extend farther than Vertical Depth")
 
-    # annotate approximately every 1000' of measured depth
-    for idx in idxs:
-        plt.annotate(text=f"{int(md_array[idx])} ft.", xy=(hd_array[idx] + 5, tvd_array[idx] - 10), rotation=30)
-    plt.show()
+        self.md_ray = np.array(md_list)
+        self.vd_ray = np.array(vd_list)
+        self.hd_ray = self._horz_dist(self.md_ray, self.vd_ray)
+
+        # here is the real question, do I even need the raw data? just filter the data
+        # at the __init__ and be done? Is the raw data just more stuff to wade through?
+        self.hd_fit, self.vd_fit, self.md_fit = self.filter()  # run the method
+
+    def __repr__(self):
+        final_md = round(self.md_ray[-1], 0)
+        final_vd = round(self.vd_ray[-1], 0)
+
+        return f"Profile is {final_md} ft. long and {final_vd} ft. deep"
+
+    def vd_interp(self, md_dpth: float) -> float:
+        """Vertical Depth Interpolation
+
+        Args:
+            md_dpth (float): Measured Depth, feet
+
+        Returns:
+            vd_dpth (float): Vertical Depth, feet
+        """
+        return self._depth_interp(md_dpth, self.md_ray, self.vd_ray)
+
+    def md_interp(self, vd_dpth: float) -> float:
+        """Measured Depth Interpolation
+
+        Args:
+            vd_dpth (float): Vertical Depth, feet
+
+        Returns:
+            md_dpth (float): Measured Depth, feet
+        """
+        return self._depth_interp(vd_dpth, self.vd_ray, self.md_ray)
+
+    def plot_raw(self) -> None:
+        """Plot the Raw Profile Data"""
+        self._profileplot(self.hd_ray, self.vd_ray, self.md_ray)
+        return None
+
+    def plot_filter(self) -> None:
+        """Plot the Filtered Data"""
+        self._profileplot(self.hd_fit, self.vd_fit, self.md_fit)
+        return None
+
+    def filter(self):
+        """Filter WellProfile to the Minimal Data Points
+
+        Feed the method the raw measured depth and raw true vertical depth data.
+        Method will assess the raw data and represent it in the smallest number of data points.
+        Method uses the segments fit function from above.
+
+        Args:
+
+        Returns:
+            md_fit (np array): Measured Depth Filtered Data
+            vd_fit (np array): Vertical Depth Filter Data
+            hd_fit (np array): Horizontal Dist Filter Data
+        """
+        # have to use md since the valve will always be increasing
+        md_fit, vd_fit = segments_fit(self.md_ray, self.vd_ray)
+        # if you want to use hd_ray and vd_ray, need a way to deal with pure vertical
+        # section of wellbore and pure horizontal section of well bore on interps
+        idx = np.searchsorted(self.md_ray, md_fit)
+        hd_fit = self.hd_ray[idx]
+        return hd_fit, vd_fit, md_fit
+
+    @staticmethod
+    def _depth_interp(in_dpth: float, in_ray: np.ndarray, out_ray: np.ndarray) -> float:
+        """Depth Interpolation
+
+        Args:
+            in_dpth (float): Known Depth, feet
+            in_ray (list): Known List of Depths, feet
+            out_ray (list): Unknown List of Depths, feet
+
+        Returns:
+            out_dpth (float): Unknown Depth, Feet
+        """
+        if (min(in_ray) < in_dpth < max(in_ray)) is False:
+            raise ValueError(f"{in_dpth} feet is not inside survey boundary")
+
+        out_dpth = np.interp(in_dpth, in_ray, out_ray)
+        return float(out_dpth)
+
+    @staticmethod
+    def _horz_dist(md_ray: np.ndarray, vd_ray: np.ndarray) -> np.ndarray:
+        """Horizontal Distance from Wellhead
+
+        Args:
+            md_ray (np array): Measured Depth array, feet
+            vd_ray (np array): Vertical Depth array, feet
+
+        Returns:
+            hd_ray (np array): Horizontal Dist array, feet
+        """
+        md_diff = np.diff(md_ray, n=1)  # difference between values in array
+        vd_diff = np.diff(vd_ray, n=1)  # difference between values in array
+        hd_diff = np.zeros(1)  # start with zero at top to make array match original size
+        hd_diff = np.append(hd_diff, np.sqrt(md_diff**2 - vd_diff**2))  # pythagorean theorem
+        hd_ray = np.cumsum(hd_diff)  # rolling sum, previous values are finite differences
+        return hd_ray
+
+    @staticmethod
+    def _profileplot(hd_ray: np.ndarray, vd_ray: np.ndarray, md_ray: np.ndarray) -> None:
+        """Create a Well Profile Plot
+
+        Annotate the graph will a label of the measured depth every 1000 feet of md.
+
+        Args:
+            hd_ray (np array): Horizontal distance, feet
+            td_ray (np array): Vertical depth, feet
+            md_ray (np arary): Measured depth, feet
+        """
+        plt.scatter(hd_ray, vd_ray)
+        plt.gca().invert_yaxis()
+        plt.title(f"Dir Survey, Length: {max(md_ray)} ft")
+        plt.xlabel("Horizontal Distance, Feet")
+        plt.ylabel("True Vertical Depth, Feet")
+
+        # find the position in the measured depth array closest to every 1000'
+        md_match = np.arange(1000, max(md_ray), 1000)
+        idxs = np.searchsorted(md_ray, md_match)
+        idxs = np.unique(idxs)  # don't repeat values, issue on filtered data
+
+        # annotate every ~1000' of measured depth
+        for idx in idxs:
+            plt.annotate(
+                text=f"{int(md_ray[idx])} ft.", xy=(hd_ray[idx] + 5, vd_ray[idx] - 10), rotation=30  # type: ignore
+            )
+        plt.show()
 
 
-def hd_array(md_array, tvd_array):
-    """Horizontal Distance Array
-
-    Calculate a horizontal distance array. Which can be graphed with the
-    vertical depth array to give an accurate visualization of the well profile.
-    The horizontal distance is how far the well bore has travelled horizontally
-    away from the wellhead.
-
-    Args:
-        md_array (numpy array): measured depth array
-        tvd_array (numpy array): true vertical depth array
-
-    Returns:
-        hd_array (numpy array): horizontal distance array
-    """
-    c1 = md_array[:-1]  # top to second to last
-    c2 = md_array[1:]  # second value down
-    c = c2 - c1
-
-    b1 = tvd_array[:-1]
-    b2 = tvd_array[1:]
-    b = b2 - b1
-
-    # add something where if the value is funky or can't be solved for
-    # you just put in a zero for the horizontal distance there.
-
-    # append a zero to the top to make the array match original sizes
-    a = np.zeros(1)
-    a = np.append(a, np.sqrt(c**2 - b**2))
-    # perform a rolling sum, since the previous values are finite differences
-    a = np.cumsum(a)
-    return a
-
-
-def vertical_angle(md_array, tvd_array):
-    """Vertical Angle, degrees
-
-    Imagine a triangle whose hypotenuse starts at (0, 0) and ends at (x1, y1).
-    The angle being calculated is between the hypotenuse and y-axis.
-
-    Args:
-        md_array (numpy array): measured depth, triangle hypotenuse
-        tvd_array (numpy array): vertical depth, triangle cozy side
-
-    Returns:
-        a_array (numpy array): angle array, same size as input arrays
-    """
-
-    md1 = md_array[:-1]  # top to second to last
-    md2 = md_array[1:]  # second value down
-
-    vd1 = tvd_array[:-1]
-    vd2 = tvd_array[1:]
-
-    x = (vd2 - vd1) / (md2 - md1)
-
-    theta = np.arccos(x)  # angle in radians
-    theta = np.degrees(theta)  # convert to degrees
-    theta = np.append(np.zeros(1), theta)  # place a zero at the top
-    theta = np.around(theta, decimals=1)  # round it out!
-
-    return theta
-
-
-def segments_fit(X, Y, maxcount=18):
+def segments_fit(X: np.ndarray, Y: np.ndarray, maxcount: int = 18) -> tuple[np.ndarray, np.ndarray]:
     """Segments Fit DankOC
 
     Feed the method the raw data. Function will assess the raw data.
@@ -155,122 +218,3 @@ def segments_fit(X, Y, maxcount=18):
             break
 
     return func(r_.x)  # type: ignore [return the last (n-1)]
-
-
-# need to include the jetpump measured depth in the WellProfile
-# maybe segregate it here? Have a tubing length? Have a sand length?
-class WellProfile:
-    def __init__(self, md_list: list, tvd_list: list) -> None:
-        """Initialize a Well Profile
-
-        Args:
-            md_list (list): List of measured depths
-            tvd_list (list): List of vertical depths
-
-        Returns:
-            Self
-        """
-        if len(md_list) != len(tvd_list):
-            raise ValueError("Lists for Measured Depth and Vertical Depth need to be the same length")
-
-        if max(md_list) < max(tvd_list):
-            raise ValueError("Measured Depth needs to extend farther than Vertical Depth")
-
-        md_array = np.array(md_list)
-        tvd_array = np.array(tvd_list)
-
-        self.md_array = md_array
-        self.tvd_array = tvd_array
-
-    def __repr__(self):
-        final_md = round(self.md_array[-1], 0)
-        final_tvd = round(self.tvd_array[-1], 0)
-
-        return f"Profile is {final_md} ft. long and {final_tvd} ft. deep"
-
-    def tvd_interp(self, md_dpth: float) -> float:
-        """True Vertical Depth Interpolation
-
-        Args:
-            md_dpth (float): Measured Depth Point, feet
-
-        Returns:
-            tvd_dpth (float): Vertical Depth Point, Feet
-        """
-        if (min(self.md_array) < md_dpth < max(self.md_array)) is False:
-            raise ValueError(f"{md_dpth} feet is not inside survey boundary")
-
-        tvd_dpth = np.interp(md_dpth, self.md_array, self.tvd_array)
-        return float(tvd_dpth)
-
-    def md_interp(self, tvd_dpth: float) -> float:
-        """Measured Depth Interpolation
-
-        Args:
-            tvd_dpth (float): Vertical Depth Point, feet
-
-        Returns:
-            md_dpth (float): Measured Depth Point, feet
-        """
-        if (min(self.tvd_array) < tvd_dpth < max(self.tvd_array)) is False:
-            raise ValueError(f"{tvd_dpth} feet is not inside survey boundary")
-
-        md_dpth = np.interp(tvd_dpth, self.tvd_array, self.md_array)
-        return float(md_dpth)
-
-    def filter(self):
-        """Filter WellProfile to the Minimal Data Points
-
-        Feed the method the raw measured depth and raw true vertical depth data.
-        Method will assess the raw data and represent it in the smallest number of data points.
-        Method uses the segments fit function from above.
-
-        Args:
-
-        Returns:
-            md_fit (np.array): Measured Depth Filtered Data
-            tvd_fit (np.array): Vertical Depth Filter Data
-
-        """
-        md_arr = self.md_array
-        tvd_arr = self.tvd_array
-
-        hd_arr = hd_array(md_arr, tvd_arr)
-
-        hd_fit, tvd_fit = segments_fit(hd_arr, tvd_arr)
-
-        # find the indicies that the returned data fit on the old array
-        # use tvd while the well is vertical
-        # use hd while the well is horizontal
-        # could use the angle to make this judgement on
-        # this judgement as well for picking what to interp on...
-        idx1 = np.searchsorted(tvd_arr, tvd_fit[:2])  # first two values should be sorted on tvd
-        idx2 = np.searchsorted(hd_arr, hd_fit[2:])  # once well is no longer vertical, use hd
-        idxs = np.append(idx1, idx2)
-        md_fit = md_arr[idxs]
-
-        self.md_fit = md_fit
-        self.tvd_fit = tvd_fit
-
-        return md_fit, tvd_fit
-
-    def vert_angle(self):
-        """Calculate vertical angle of the points
-
-        Uses the filtered data, but raw data could also be used.
-        """
-        md_fit, tvd_fit = self.filter()
-        angle = vertical_angle(md_fit, tvd_fit)
-        return angle
-
-    def plot_raw(self) -> None:
-        """Plot the Raw Profile Data"""
-        hd_arr = hd_array(self.md_array, self.tvd_array)
-        profileplot(hd_arr, self.tvd_array, self.md_array)
-        return None
-
-    def plot_filter(self) -> None:
-        """Plot the Filtered Data"""
-        md_fit, tvd_fit = self.filter()  # run the method
-        # profileplot(md_fit, tvd_fit)
-        return None

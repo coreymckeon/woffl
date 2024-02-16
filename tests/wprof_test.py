@@ -1,13 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from geometry.wellprofile import (
-    WellProfile,
-    hd_array,
-    profileplot,
-    segments_fit,
-    vertical_angle,
-)
+from geometry.wellprofile import WellProfile, segments_fit
 
 # only works if the command python -m tests.wprof_test is used
 
@@ -396,22 +390,6 @@ tvd_list = [
     4193.97265,
 ]
 
-md_arr = np.array(md_list)
-tvd_arr = np.array(tvd_list)
-hd_arr = hd_array(md_arr, tvd_arr)
-
 e42_profile = WellProfile(md_list, tvd_list)
-
-md_fit, tvd_fit = e42_profile.filter()
-
-# e42_profile.plot_raw()
-# print(vertical_angle(md_arr, tvd_arr))
-# print(vertical_angle(md_fit, tvd_fit))
-
-# hd_fit = hd_array(md_fit, tvd_fit)
-# profileplot(hd_fit, tvd_fit, md_fit)
-profileplot(hd_arr, tvd_arr, md_arr)
-
-# print(segments_fit(hd_arr, tvd_arr))
-
-# print(segments_fit(md_arr, tvd_arr))
+e42_profile.plot_raw()
+e42_profile.plot_filter()

@@ -249,3 +249,76 @@ def fluid_momentum(vel: float, area: float, rho: float) -> float:
         mom_fld (float): Fluid Momentum, lbm*ft/s2
     """
     return rho * vel**2 * area
+
+
+def hd_array(md_array: np.ndarray, tvd_array: np.ndarray) -> np.ndarray:
+    """Horizontal Distance Array
+
+    Calculate a horizontal distance array. Which can be graphed with the
+    vertical depth array to give an accurate visualization of the well profile.
+    The horizontal distance is how far the well bore has travelled horizontally
+    away from the wellhead.
+
+    Args:
+        md_array (numpy array): measured depth array
+        tvd_array (numpy array): true vertical depth array
+
+    Returns:
+        hd_array (numpy array): horizontal distance array
+    """
+    c1 = md_array[:-1]  # top to second to last
+    c2 = md_array[1:]  # second value down
+    c = c2 - c1
+
+    b1 = tvd_array[:-1]
+    b2 = tvd_array[1:]
+    b = b2 - b1
+
+    # add something where if the value is funky or can't be solved for
+    # you just put in a zero for the horizontal distance there.
+
+    # append a zero to the top to make the array match original sizes
+    a = np.zeros(1)
+    a = np.append(a, np.sqrt(c**2 - b**2))
+    # perform a rolling sum, since the previous values are finite differences
+    a = np.cumsum(a)
+    return a
+
+
+def vertical_angle(md_array: np.ndarray, tvd_array: np.ndarray) -> np.ndarray:
+    """Vertical Angle, degrees
+
+    Imagine a triangle whose hypotenuse starts at (0, 0) and ends at (x1, y1).
+    The angle being calculated is between the hypotenuse and y-axis.
+
+    Args:
+        md_array (numpy array): measured depth, triangle hypotenuse
+        tvd_array (numpy array): vertical depth, triangle cozy side
+
+    Returns:
+        theta_ray (numpy array): angle array, same size as input arrays
+    """
+
+    md1 = md_array[:-1]  # top to second to last
+    md2 = md_array[1:]  # second value down
+
+    vd1 = tvd_array[:-1]
+    vd2 = tvd_array[1:]
+
+    x = (vd2 - vd1) / (md2 - md1)
+
+    theta_ray = np.arccos(x)  # angle in radians
+    theta_ray = np.degrees(theta_ray)  # convert to degrees
+    theta_ray = np.append(np.zeros(1), theta_ray)  # place a zero at the top
+
+    return theta_ray
+
+
+def vert_angle(self) -> np.ndarray:
+    """Calculate vertical angle of the points
+
+    Uses the filtered data, but raw data could also be used.
+    """
+    md_fit, tvd_fit = self.filter()
+    angle = vertical_angle(md_fit, tvd_fit)
+    return angle
