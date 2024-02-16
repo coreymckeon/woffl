@@ -138,7 +138,10 @@ class WellProfile:
             td_ray (np array): Vertical depth, feet
             md_ray (np arary): Measured depth, feet
         """
-        plt.scatter(hd_ray, vd_ray)
+        if len(md_ray) > 20:
+            plt.scatter(hd_ray, vd_ray)
+        else:
+            plt.plot(hd_ray, vd_ray, marker="o", linestyle="--")
         plt.gca().invert_yaxis()
         plt.title(f"Dir Survey, Length: {max(md_ray)} ft")
         plt.xlabel("Horizontal Distance, Feet")
