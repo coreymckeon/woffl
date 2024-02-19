@@ -3,16 +3,18 @@ import numpy as np
 from scipy import optimize
 
 
+# make a dictionary eventually where you can input jetpump sleeves or gas lift mandrels
 # updated methods for inputs to be md, then vd, then hd...keep it same..?
 # need to include the jetpump measured depth in the WellProfile
 # maybe segregate it here? Have a tubing length? Have a sand length?
 class WellProfile:
-    def __init__(self, md_list: list, vd_list: list) -> None:
+    def __init__(self, md_list: list, vd_list: list, jetpump_md: float) -> None:
         """Initialize a Well Profile
 
         Args:
             md_list (list): List of measured depths
             vd_list (list): List of vertical depths
+            jetpump_md (float): Measured depth of Jet Pump, feet
 
         Returns:
             Self
@@ -26,6 +28,7 @@ class WellProfile:
         self.md_ray = np.array(md_list)
         self.vd_ray = np.array(vd_list)
         self.hd_ray = self._horz_dist(self.md_ray, self.vd_ray)
+        self.jp_md = jetpump_md
 
         # here is the real question, do I even need the raw data? just filter the data
         # at the __init__ and be done? Is the raw data just more stuff to wade through?
@@ -59,6 +62,7 @@ class WellProfile:
         """
         return self._depth_interp(vd_dpth, self.vd_ray, self.md_ray)
 
+    # make a plot of the filtered data on top of the raw data
     def plot_raw(self) -> None:
         """Plot the Raw Profile Data"""
         self._profileplot(self.hd_ray, self.vd_ray, self.md_ray)
@@ -85,11 +89,62 @@ class WellProfile:
         """
         # have to use md since the valve will always be increasing
         md_fit, vd_fit = segments_fit(self.md_ray, self.vd_ray)
-        # if you want to use hd_ray and vd_ray, need a way to deal with pure vertical
-        # section of wellbore and pure horizontal section of well bore on interps
+        md_fit[0], vd_fit[0] = 0, 0  # first values always need to start at zero
         idx = np.searchsorted(self.md_ray, md_fit)
         hd_fit = self.hd_ray[idx]
         return hd_fit, vd_fit, md_fit
+
+    def outflow_spacing(self, seg_len: float) -> tuple[np.ndarray, np.ndarray]:
+        """Outflow Piping Spacing
+
+        Break the outflow piping into nodes that can be fed  with piping dimension
+        flowrates and etc to calculate differential pressure across them.
+
+        Args:
+            seg_len (float): Segment Length of Outflow Piping, feet
+
+        Returns:
+            md_seg (np array): Measured depth Broken into segments
+            vd_seg (np array): Vertical depth broken into segments
+        """
+        return self._outflow_spacing(self.md_fit, self.vd_fit, self.jp_md, seg_len)
+
+    @staticmethod
+    def _outflow_spacing(
+        md_fit: np.ndarray, vd_fit: np.ndarray, outflow_md: float, seg_len: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Outflow Piping Spacing
+
+        Break the outflow piping into nodes that can be fed  with piping dimension
+        flowrates and etc to calculate differential pressure across them.
+
+        Args:
+            md_fit (np array): Filtered Measured Depth Data, feet
+            vd_fit (np array): Filtered Vertical Depth Data, feet
+            outflow_md (float): Depth the outflow node ends, feet
+            seg_len (float): Segment Length of Outflow Piping, feet
+
+        Returns:
+            md_seg (np array): Measured depth Broken into segments
+            vd_seg (np array): Vertical depth broken into segments
+        """
+        # need to break it up
+        outflow_vd = np.interp(outflow_md, md_fit, vd_fit)
+        vd_fit = vd_fit[md_fit <= outflow_md]
+        md_fit = md_fit[md_fit <= outflow_md]  # keep values less than outflow_md
+        md_fit = np.append(md_fit, outflow_md)  # add the final outflow md to end
+        vd_fit = np.append(vd_fit, outflow_vd)
+        md1 = md_fit[:-1]  # everything but the last character
+        md2 = md_fit[1:]  # everything but the first character
+        dist = md2 - md1  # distance between points
+        md_seg = np.array([])
+        for i, dis in enumerate(dist):
+            # force there to always be at least three (?) spaces?
+            dis = max(int(np.ceil(dis / seg_len)), 3)  # evenly space out the spaces
+            md_seg = np.append(md_seg, np.linspace(md1[i], md2[i], dis))  # double counting
+        md_seg = np.unique(md_seg)  # get rid of weird double counts from linspace
+        vd_seg = np.interp(md_seg, md_fit, vd_fit)
+        return md_seg, vd_seg
 
     @staticmethod
     def _depth_interp(in_dpth: float, in_ray: np.ndarray, out_ray: np.ndarray) -> float:

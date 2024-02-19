@@ -111,7 +111,7 @@ def beggs_diff_press(
 
 def top_down_press(
     ptop: float, ttop: float, qoil_std: float, prop: ResMix, tubing: Pipe, wellprof: WellProfile, model: str = "beggs"
-) -> list:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Top Down WellBore Pressure Calculation
 
     Uses the specificed model to calculate the pressure gradient in a wellbore, starting
@@ -127,11 +127,28 @@ def top_down_press(
         model (str): Specify which model to use, either homo or beggs
 
     Returns:
-        pres_list (list): Calculated pressure along wellbore, psig
-        md_list (list): Measured depth of calculated pressure
-        lh_list (list): Liquid Holdup along wellbore, unitless
+        md_seg (list): Measured depth of calculated pressure
+        prs_ray (list): Calculated pressure along wellbore, psig
+        slh_ray (list): Liquid Holdup along wellbore, unitless
     """
-    return [1, 1]
+    # mp_models = {'homo': homo_diff_press(), 'beggs': beggs_diff_press()}
+    prs_ray = np.array([ptop])
+    slh_ray = np.array([])
+    md_seg, vd_seg = wellprof.outflow_spacing(100)  # space every 100'
+    md_diff = np.diff(md_seg, n=1)  # need to think about + or - sign
+    vd_diff = np.diff(vd_seg, n=1)
+    for length, height in zip(md_diff, vd_diff):
+        dp, slh = beggs_diff_press(prs_ray[-1], ttop, tubing.inn_dia, tubing.abs_ruff, length, height, qoil_std, prop)
+        pdwn = prs_ray[-1] + dp
+        prs_ray = np.append(prs_ray, pdwn)
+        slh_ray = np.append(slh_ray, slh)
+    # the no slip array is going to be one shorter than the md_seg and prs_ray...
+    # i'm not sure if this is problem that I should "fix" later?
+    return md_seg, prs_ray, slh_ray
+
+
+def bottom_up_press():
+    pass
 
 
 # how should I define where the jetpump is exactly?

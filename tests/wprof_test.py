@@ -1,7 +1,7 @@
-import matplotlib.pyplot as plt
-import numpy as np
+# import matplotlib.pyplot as plt
+# import numpy as np
 
-from geometry.wellprofile import WellProfile, segments_fit
+from geometry.wellprofile import WellProfile
 
 # only works if the command python -m tests.wprof_test is used
 
@@ -390,6 +390,6 @@ tvd_list = [
     4193.97265,
 ]
 
-e42_profile = WellProfile(md_list, tvd_list)
+e42_profile = WellProfile(md_list, tvd_list, 7000)
 e42_profile.plot_raw()
 e42_profile.plot_filter()
