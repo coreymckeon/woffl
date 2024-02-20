@@ -8,7 +8,7 @@ from scipy import optimize
 # need to include the jetpump measured depth in the WellProfile
 # maybe segregate it here? Have a tubing length? Have a sand length?
 class WellProfile:
-    def __init__(self, md_list: list, vd_list: list, jetpump_md: float) -> None:
+    def __init__(self, md_list: list | np.ndarray, vd_list: list | np.ndarray, jetpump_md: float) -> None:
         """Initialize a Well Profile
 
         Args:

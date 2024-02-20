@@ -1,4 +1,3 @@
-# import flow.flowequation as feq
 import flow.singlephase as sp
 import flow.twophase as tp
 
@@ -13,7 +12,7 @@ book_vpat = "slug"
 calc_l1, calc_l2 = tp.ros_lp(book_Nd)
 calc_vpat = tp.ros_flow_pattern(9.29, 6.02, 41.34)
 
-print(f"Ros L1 & L2 - Book: {book_l1} {book_l2}, Calc: {round(calc_l1, 2)} {round(calc_l2, 2)}")
+print(f"Ros L1 & L2 - Book: {book_l1}, {book_l2}, Calc: {round(calc_l1, 2)}, {round(calc_l2, 2)}")
 print(f"Ros Regime - Book: {book_vpat}, Calc: {calc_vpat}")
 
 # example problem in Two Phase Flow in Pipes by Beggs / Brill (1988) pg. 3-62

@@ -135,11 +135,11 @@ def top_down_press(
     prs_ray = np.array([ptop])
     slh_ray = np.array([])
     md_seg, vd_seg = wellprof.outflow_spacing(100)  # space every 100'
-    md_diff = np.diff(md_seg, n=1)  # need to think about + or - sign
-    vd_diff = np.diff(vd_seg, n=1)
+    md_diff = np.diff(md_seg, n=1) * -1  # against flow
+    vd_diff = np.diff(vd_seg, n=1) * -1  # going down piping
     for length, height in zip(md_diff, vd_diff):
         dp, slh = beggs_diff_press(prs_ray[-1], ttop, tubing.inn_dia, tubing.abs_ruff, length, height, qoil_std, prop)
-        pdwn = prs_ray[-1] + dp
+        pdwn = prs_ray[-1] - dp  # dp is subtracted
         prs_ray = np.append(prs_ray, pdwn)
         slh_ray = np.append(slh_ray, slh)
     # the no slip array is going to be one shorter than the md_seg and prs_ray...
