@@ -21,6 +21,10 @@ class FormWater:
     def schrader_wat(cls):
         return cls(wat_sg=1.02)
 
+    @classmethod
+    def kuparuk_wat(cls):
+        return cls(wat_sg=1.02)
+
     def condition(self, press: float, temp: float):
         """Set condition of evaluation
 
