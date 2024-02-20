@@ -69,6 +69,10 @@ class FormGas:
         return cls(gas_sg=0.65)
 
     @classmethod
+    def kuparuk_gas(cls):
+        return cls(gas_sg=0.65)
+
+    @classmethod
     def methane_gas(cls):
         return cls(gas_sg=0.55)
 

@@ -34,6 +34,10 @@ class BlackOil:
         return cls(oil_api=22, bubblepoint=1750, gas_sg=0.65)
 
     @classmethod
+    def kuparuk_oil(cls):
+        return cls(oil_api=24, bubblepoint=2250, gas_sg=0.65)
+
+    @classmethod
     def test_oil(cls):
         return cls(oil_api=22, bubblepoint=1750, gas_sg=0.55)
 
