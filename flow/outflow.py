@@ -58,7 +58,7 @@ def homo_diff_press(
 
 def beggs_diff_press(
     pin: float, tin: float, inn_dia: float, abs_ruff: float, length: float, height: float, qoil_std: float, prop: ResMix
-) -> tuple[float, float]:
+) -> tuple[float, float, float]:
     """Beggs Differential Pressure
 
     Calculate Beggs Differential Pressure Across Wellbore / Pipe.
@@ -96,6 +96,8 @@ def beggs_diff_press(
     hpat, tran = tp.beggs_flow_pattern(nslh, NFr)
     incline = fm.horz_angle(length, height)
     slh = tp.beggs_holdup_inc(nslh, NFr, NLv, incline, hpat, tran)
+    slh = tp.payne_correction(slh, incline)  # 1979 correction
+    slh = min(slh, 1)  # ensure liquid holdup never goes above one
     rho_slip = tp.density_slip(rho_liq, rho_gas, slh)
     dp_stat = tp.beggs_press_static(rho_slip, height)
 
@@ -106,7 +108,7 @@ def beggs_diff_press(
     sb = tp.beggs_sf(yb)
     fb = tp.beggs_ff(ff, sb)
     dp_fric = tp.beggs_press_friction(fb, rho_mix, vmix, inn_dia, length)
-    return dp_stat + dp_fric, slh
+    return dp_stat, dp_fric, slh, hpat  # type: ignore
 
 
 def top_down_press(
@@ -137,11 +139,15 @@ def top_down_press(
     md_seg, vd_seg = wellprof.outflow_spacing(100)  # space every 100'
     md_diff = np.diff(md_seg, n=1) * -1  # against flow
     vd_diff = np.diff(vd_seg, n=1) * -1  # going down piping
+    n = 0
     for length, height in zip(md_diff, vd_diff):
-        dp, slh = beggs_diff_press(prs_ray[-1], ttop, tubing.inn_dia, tubing.abs_ruff, length, height, qoil_std, prop)
-        pdwn = prs_ray[-1] - dp  # dp is subtracted
+        dp_stat, dp_fric, slh, hpat = beggs_diff_press(
+            prs_ray[-1], ttop, tubing.inn_dia, tubing.abs_ruff, length, height, qoil_std, prop
+        )
+        pdwn = prs_ray[-1] - dp_stat - dp_fric  # dp is subtracted
         prs_ray = np.append(prs_ray, pdwn)
         slh_ray = np.append(slh_ray, slh)
+        n = n + 1
     # the no slip array is going to be one shorter than the md_seg and prs_ray...
     # i'm not sure if this is problem that I should "fix" later?
     return md_seg, prs_ray, slh_ray
