@@ -76,7 +76,8 @@ def beggs_diff_press(
         prop (ResMix): Properties of Fluid Mixture in Wellbore, ResMix
 
     Returns:
-        dp (float): Differential Pressure, psid
+        dp_stat (float): Static Differential Pressure, psid
+        dp_fric (float): Friction Differntial Pressure, psid
         slh (float): Slip Liquid Holdup, unitless
     """
     prop = prop.condition(pin, tin)
@@ -96,8 +97,8 @@ def beggs_diff_press(
     hpat, tran = tp.beggs_flow_pattern(nslh, NFr)
     incline = fm.horz_angle(length, height)
     slh = tp.beggs_holdup_inc(nslh, NFr, NLv, incline, hpat, tran)
+    slh = min(slh, 1)  # liquid holdup never above one (before or after payne?)
     slh = tp.payne_correction(slh, incline)  # 1979 correction
-    slh = min(slh, 1)  # ensure liquid holdup never goes above one
     rho_slip = tp.density_slip(rho_liq, rho_gas, slh)
     dp_stat = tp.beggs_press_static(rho_slip, height)
 
@@ -108,7 +109,7 @@ def beggs_diff_press(
     sb = tp.beggs_sf(yb)
     fb = tp.beggs_ff(ff, sb)
     dp_fric = tp.beggs_press_friction(fb, rho_mix, vmix, inn_dia, length)
-    return dp_stat, dp_fric, slh, hpat  # type: ignore
+    return dp_stat, dp_fric, slh
 
 
 def top_down_press(
@@ -141,7 +142,7 @@ def top_down_press(
     vd_diff = np.diff(vd_seg, n=1) * -1  # going down piping
     n = 0
     for length, height in zip(md_diff, vd_diff):
-        dp_stat, dp_fric, slh, hpat = beggs_diff_press(
+        dp_stat, dp_fric, slh = beggs_diff_press(
             prs_ray[-1], ttop, tubing.inn_dia, tubing.abs_ruff, length, height, qoil_std, prop
         )
         pdwn = prs_ray[-1] - dp_stat - dp_fric  # dp is subtracted

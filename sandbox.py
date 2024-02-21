@@ -425,13 +425,13 @@ mpu_wat = FormWater.schrader_wat()
 mpu_gas = FormGas.schrader_gas()
 form_gor = 600  # scf/stb
 form_wc = 0.9
-qoil_std = 100  # stbopd
+qoil_std = 500  # stbopd
 
 test_prop = ResMix(form_wc, form_gor, mpu_oil, mpu_wat, mpu_gas)
 wellprof = WellProfile(md_list, vd_list, 6000)
 tubing = Pipe(out_dia=4.5, thick=0.237)
 
-ptop = 400  # psig
+ptop = 378  # psig
 ttop = 100  # deg f
 
 md_seg, prs_ray, slh_ray = of.top_down_press(ptop, ttop, qoil_std, test_prop, tubing, wellprof)
