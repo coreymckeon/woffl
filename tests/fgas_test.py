@@ -58,3 +58,12 @@ axs[3].legend()
 
 fig.suptitle(f"Pure Methane Properties at {temp} deg F")
 plt.show()
+
+# blasingame 1988 PDF
+blasing_zf = 0.9117
+blasing_ppr = 2.958
+blasing_tpr = 1.867
+
+calc_zf = FormGas._zfactor_dak(blasing_ppr, blasing_tpr)
+grad_zf = FormGas._zfactor_grad_school(blasing_ppr, blasing_tpr)
+print(f"Z-Factor BG: {round(blasing_zf, 4)} DAK: {round(calc_zf, 4)} GS: {round(grad_zf, 4)}")

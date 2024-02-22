@@ -50,10 +50,8 @@ class FormGas:
 
         # define a lot of properties just on the gas' specific gravity
         self.gas_sg = gas_sg
-
-        self._pcrit, self._tcrit = self._sutton_pseudo_crit(gas_sg)
-
-        self.mw = 28.96443 * gas_sg
+        self.ppc, self.tpc = self._sutton_pseudo_crit(gas_sg)
+        self.mw = 28.96443 * gas_sg  # molecular weight
 
     def __repr__(self):
         return f"Gas: {self.gas_sg} SG and {self.mw} Mol Weight"
@@ -84,12 +82,12 @@ class FormGas:
         self.press = press
         self.temp = temp
 
-        self._pressa = press + 14.7  # convert psig to psia
-        self._tempr = temp + 459.67  # convert fahr to rankine
+        self.pabs = press + 14.7  # convert psig to psia
+        self.tabs = temp + 459.67  # convert fahr to rankine
 
         # not adjusted for non-hydrocarbon gas such as H2S or CO2
-        self._ppr = self._pressa / self._pcrit  # unitless, pressure pseudo reduced
-        self._tpr = self._tempr / self._tcrit  # unitless, temperature pseudo reduced
+        self.ppr = self.pabs / self.ppc  # unitless, pressure pseudo reduced
+        self.tpr = self.tabs / self.tpc  # unitless, temperature pseudo reduced
         return self
 
     def zfactor(self) -> float:
@@ -100,12 +98,9 @@ class FormGas:
 
         Returns:
             zfactor(float): gas zfactor, no units
-
-        References:
-            Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 16
-            Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
         """
-        zfactor = self._zfactor_grad_school(self._ppr, self._tpr)
+        zfactor = self._zfactor_grad_school(self.ppr, self.tpr)
+        # zfactor = self._zfactor_dak(self.ppr, self.tpr)
         return zfactor
 
     @property
@@ -125,7 +120,7 @@ class FormGas:
             Applied Multiphase Flow in Pipes..., Al-Safran and Brill (2017) Page 305
         """
         zval = self.zfactor()  # call method if it hasn't been already?
-        dgas = self._pressa * self.mw / (zval * FormGas._R * self._tempr)
+        dgas = self.pabs * self.mw / (zval * FormGas._R * self.tabs)
         return dgas
 
     def viscosity(self) -> float:
@@ -139,7 +134,7 @@ class FormGas:
         Returns:
             ugas (float): gas viscosity, cP
         """
-        ug = self._viscosity_lee(self._tempr, self.mw, self.density)
+        ug = self._viscosity_lee(self.tabs, self.mw, self.density)
         return ug
 
     def compress(self) -> float:
@@ -234,7 +229,8 @@ class FormGas:
     def _zfactor_grad_school(ppr: float, tpr: float) -> float:
         """Z Factor Grad School Method
 
-        A method that was on on graduate school excel file that I borrowed
+        A method that was on on graduate school excel file that I borrowed.
+        Much faster than the Dranchuk Abu Kassem method, unknown accuracy.
 
         Args:
             ppr (float): Pseudo Reduced Pressure, unitless
@@ -252,7 +248,7 @@ class FormGas:
     def _zfactor_dak(ppr: float, tpr: float) -> float:
         """Z Factor Dranchuk and Abu-Kassem
 
-        Look at Blasingame for a good write up
+        Blasingame (1988) PVT Appendix has good description.
         Doesn't work currently, not converging.
 
         Args:
@@ -267,10 +263,9 @@ class FormGas:
         c1 = FormGas._dak_c1(tpr, a1, a2, a3, a4, a5)
         c2 = FormGas._dak_c2(tpr, a6, a7, a8)
         c3 = FormGas._dak_c3(tpr, a7, a8, a9)
-        rawr = abs(z_ray[-2] - z_ray[-1])
 
         # need to loop this section for z-factor convergence
-        while rawr > 0.001:
+        while abs(z_ray[-2] - z_ray[-1]) > 0.001:
             rho_pr = FormGas._dak_rho_pr(z_ray[-1], ppr, tpr)
             c4 = FormGas._dak_c4(rho_pr, tpr, a10, a11)
             zfun = FormGas._dak_zfun(z_ray[-1], rho_pr, c1, c2, c3, c4)
@@ -278,7 +273,6 @@ class FormGas:
             zder = FormGas._dak_zderv(z_ray[-1], rho_pr, c1, c2, c3, c5)
             znew = z_ray[-1] - zfun / zder  # newtons method
             z_ray.append(znew)
-            rawr = abs(z_ray[-2] - z_ray[-1])
 
         return z_ray[-1]
 
@@ -398,7 +392,7 @@ class FormGas:
         Return:
             zres (float): Residual of the Input zfactor vs calculated
         """
-        zres = zf - 1 + c1 * rho_pr + c2 * rho_pr**2 - c3 * rho_pr**5 + c4
+        zres = zf - (1 + c1 * rho_pr + c2 * rho_pr**2 - c3 * rho_pr**5 + c4)
         return zres
 
     @staticmethod
