@@ -121,7 +121,7 @@ def top_down_press(
     at the top and working down to inflow / jet pump node.
 
     Args:
-        ptop (float): Pressure at top node, deg F
+        ptop (float): Pressure at top node, psig
         ttop (float): Temperature at top node, deg F
         qoil_std (float): Oil Rate, STBOPD
         prop (ResMix): Properties of Fluid Mixture in Wellbore, ResMix
@@ -154,7 +154,46 @@ def top_down_press(
     return md_seg, prs_ray, slh_ray
 
 
-def bottom_up_press():
+def bottom_up_press(
+    pbot: float, tbot: float, qoil_std: float, prop: ResMix, tubing: Pipe, wellprof: WellProfile, model: str = "beggs"
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Bottom Up WellBore Pressure Calculation
+
+    Uses the specificed model to calculate the pressure gradient in a wellbore, starting
+    at the bottom inflow / jet pump node and working up to ther surface. Need to verify.
+
+    Args:
+        pbot (float): Pressure at bottom node, psig
+        tbot (float): Temperature at bottom node, deg F
+        qoil_std (float): Oil Rate, STBOPD
+        prop (ResMix): Properties of Fluid Mixture in Wellbore, ResMix
+        tubing (Pipe): Piping geometry inside the wellbore, Pipe
+        wellprof (WellProfile): survey dimensions and location of jet pump, WellProfile
+        model (str): Specify which model to use, either homo or beggs
+
+    Returns:
+        md_seg (list): Measured depth of calculated pressure
+        prs_ray (list): Calculated pressure along wellbore, psig
+        slh_ray (list): Liquid Holdup along wellbore, unitless
+    """
+    # mp_models = {'homo': homo_diff_press(), 'beggs': beggs_diff_press()}
+    prs_ray = np.array([pbot])
+    slh_ray = np.array([])
+    md_seg, vd_seg = wellprof.outflow_spacing(100)  # space every 100'
+    md_diff = np.diff(md_seg, n=1) * -1  # against flow
+    vd_diff = np.diff(vd_seg, n=1) * -1  # going down piping
+    n = 0
+    for length, height in zip(md_diff, vd_diff):
+        dp_stat, dp_fric, slh = beggs_diff_press(
+            prs_ray[-1], tbot, tubing.inn_dia, tubing.abs_ruff, length, height, qoil_std, prop
+        )
+        pdwn = prs_ray[-1] - dp_stat - dp_fric  # dp is subtracted
+        prs_ray = np.append(prs_ray, pdwn)
+        slh_ray = np.append(slh_ray, slh)
+        n = n + 1
+    # the no slip array is going to be one shorter than the md_seg and prs_ray...
+    # i'm not sure if this is problem that I should "fix" later?
+    return md_seg, prs_ray, slh_ray
     pass
 
 

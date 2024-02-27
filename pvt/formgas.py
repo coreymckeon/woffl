@@ -249,7 +249,6 @@ class FormGas:
         """Z Factor Dranchuk and Abu-Kassem
 
         Blasingame (1988) PVT Appendix has good description.
-        Doesn't work currently, not converging.
 
         Args:
             ppr (float): Pseudo Reduced Pressure, unitless
@@ -397,7 +396,7 @@ class FormGas:
 
     @staticmethod
     def _dak_c5(zf: float, rho_pr: float, tpr: float, a10: float, a11: float) -> float:
-        """Calculated Z Factor with Dranchuk and Abu-Kassem Calculation
+        """Dranchuk and Abu-Kassem C4
 
         Used to compare to the guess value to create a residual to minimize.
         Add in the zf, which is the guess value, get the residual?
