@@ -4,8 +4,6 @@ Performs the calculations that occur inside a vertical, inclined or horizontal w
 Predominate equations are two phase flow correlations. The most common being Beggs and Brill
 """
 
-import math
-
 import numpy as np
 
 from flow import singlephase as sp
@@ -118,7 +116,8 @@ def top_down_press(
     """Top Down WellBore Pressure Calculation
 
     Uses the specificed model to calculate the pressure gradient in a wellbore, starting
-    at the top and working down to inflow / jet pump node.
+    at the top and working down to inflow / jet pump node. This is the preferred method
+    of calculation, as a negative pressure cannot be created during calculations.
 
     Args:
         ptop (float): Pressure at top node, psig
@@ -157,10 +156,11 @@ def top_down_press(
 def bottom_up_press(
     pbot: float, tbot: float, qoil_std: float, prop: ResMix, tubing: Pipe, wellprof: WellProfile, model: str = "beggs"
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Bottom Up WellBore Pressure Calculation
+    """NOT TESTED: Bottom Up WellBore Pressure Calculation
 
     Uses the specificed model to calculate the pressure gradient in a wellbore, starting
-    at the bottom inflow / jet pump node and working up to ther surface. Need to verify.
+    at the bottom inflow / jet pump node and working up to ther surface. Problem with this
+    method is that a negative pressure can be calculated, causing an error.
 
     Args:
         pbot (float): Pressure at bottom node, psig
@@ -180,10 +180,10 @@ def bottom_up_press(
     prs_ray = np.array([pbot])
     slh_ray = np.array([])
     md_seg, vd_seg = wellprof.outflow_spacing(100)  # space every 100'
-    md_diff = np.diff(md_seg, n=1) * -1  # against flow
-    vd_diff = np.diff(vd_seg, n=1) * -1  # going down piping
+    md_diff = np.diff(md_seg, n=1)  # with the flow
+    vd_diff = np.diff(vd_seg, n=1)  # going up piping
     n = 0
-    for length, height in zip(md_diff, vd_diff):
+    for length, height in zip(np.flip(md_diff), np.flip(vd_diff)):  # start at bottom
         dp_stat, dp_fric, slh = beggs_diff_press(
             prs_ray[-1], tbot, tubing.inn_dia, tubing.abs_ruff, length, height, qoil_std, prop
         )
@@ -194,43 +194,3 @@ def bottom_up_press(
     # the no slip array is going to be one shorter than the md_seg and prs_ray...
     # i'm not sure if this is problem that I should "fix" later?
     return md_seg, prs_ray, slh_ray
-    pass
-
-
-# how should I define where the jetpump is exactly?
-# you don't need to look past the location of the jump pump discharge
-class OutFlow:
-    def __init__(
-        self, oil_rate: float, surf_press: float, surf_temp: float, prop_wb: ResMix, tubing: Pipe, wellprof: WellProfile
-    ) -> None:
-        """Out Flow from JetPump to Surface
-
-        Calculations for the upward flow through the tubing.
-
-        Args:
-            oil_rate (float): Oil Rate, BOPD
-            surf_press (float): Production Pressure at Wellhead, PSIG
-            surf_temp (float): Production Temperature at Wellhead, deg F
-            prop_wb (FormWater): Wellbore fluid to pull properties from
-            tubing (Pipe): Tubing dimensions that the flow is inside
-            wellprofile (WellProfile): survey dimensions and location of jet pump
-
-        Returns:
-            Self
-        """
-        self.oil_rate = oil_rate
-        self.surf_press = surf_press
-        self.surf_temp = surf_temp
-        self.prop = prop_wb
-        self.tubing = tubing
-        self.wellprof = wellprof
-
-    def __repr__(self):
-        return f"{self.oil_rate} BOPD flowing inside a {self.tubing.inn_dia} inch pipe"
-
-
-# I even really need a class here? Should I just make a segment and then piece those segments
-# together?
-
-# start with filtered wellbore and homogenous flow parameters
-# the following function takes a pre-broken wellbore segment and calcs out the
