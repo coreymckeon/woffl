@@ -94,6 +94,14 @@ def jet_check_two(
 
     md_seg, prs_ray, slh_ray = of.top_down_press(surf_pres, form_temp, qsu_std, prop_tm, tube, wellprof)
 
+    outflow_pdi = prs_ray[-1]
+    diff_pdi = pdi - outflow_pdi
+
+    if diff_pdi >= 0:
+        pdi_str = f"Well will flow, discharge pressure is {round(diff_pdi, 0)} psig greater than required"
+    else:
+        pdi_str = f"Well will NOT flow, discharge pressure is {round(diff_pdi, 0)} psig below the required"
+
     print(f"Suction Pressure: {round(psu_min, 1)} psig")
     print(f"Oil Flow: {round(qsu_std, 1)} bopd")
     print(f"Nozzle Inlet Pressure: {round(pni, 1)} psig")
@@ -101,6 +109,7 @@ def jet_check_two(
     print(f"Throat Discharge Pressure: {round(ptm, 1)} psig")
     print(f"Required Diffuser Discharge Pressure: {round(prs_ray[-1], 1)} psig")
     print(f"Supplied Diffuser Discharge Pressure: {round(pdi, 1)} psig")
+    print(pdi_str)
     print(f"Power Fluid Rate: {round(qnz_bpd, 1)} bwpd")
     print(f"Nozzle Velocity: {round(vnz, 1)} ft/s")
     print(f"Throat Entry Velocity: {round(vte, 1)} ft/s")
