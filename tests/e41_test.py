@@ -5,6 +5,7 @@ from flow import jetflow as jf
 from flow.inflow import InFlow
 from geometry.jetpump import JetPump
 from geometry.pipe import Annulus, Pipe
+from geometry.wellprofile import WellProfile
 from pvt.blackoil import BlackOil
 from pvt.formgas import FormGas
 from pvt.formwat import FormWater
@@ -13,6 +14,7 @@ from pvt.resmix import ResMix
 # data from MPU E-41 Well Test on 11/27/2023
 # only works if the command python -m tests.e41_test is used
 
+surf_pres = 210
 jpump_tvd = 4065  # feet, interpolated off well profile
 rho_pf = 62.4  # lbm/ft3
 ppf_surf = 3168  # psi, power fluid surf pressure
@@ -35,9 +37,7 @@ form_gor = 600  # formation gor
 form_temp = 111
 e41_res = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_gas)
 
-jc.jet_check(form_temp, jpump_tvd, rho_pf, ppf_surf, e41_jp, tube, e41_ipr, e41_res)
+e42_profile = WellProfile.schrader()
 
-# psu = 838
-# vnz = jf.nozzle_velocity(4889, psu, e41_jp.knz, rho_pf)
-# qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, e41_jp.anz)
-# print(f"Using suction pressure {psu} psig, power fluid rate is {round(qnz_bpd, 1)} bwpd")
+jc.jet_check_two(surf_pres, form_temp, rho_pf, ppf_surf, e41_jp, tube, e42_profile, e41_ipr, e41_res)
+# jc.jet_check(form_temp, jpump_tvd, rho_pf, ppf_surf, e41_jp, tube, e41_ipr, e41_res)
