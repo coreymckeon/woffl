@@ -16,7 +16,7 @@ from pvt.resmix import ResMix
 
 def homo_diff_press(
     pin: float, tin: float, inn_dia: float, abs_ruff: float, length: float, height: float, qoil_std: float, prop: ResMix
-) -> tuple[float, float]:
+) -> tuple[float, float, float]:
     """Homogenous Differential Pressure
 
     Calculate Homogenous Differential Pressure Across Wellbore / Pipe.
@@ -51,7 +51,7 @@ def homo_diff_press(
 
     dp_fric = sp.diff_press_friction(ff, rho_mix, vmix, inn_dia, length)
     dp_stat = sp.diff_press_static(rho_mix, height)
-    return dp_fric + dp_stat, nslh
+    return dp_stat, dp_fric, nslh
 
 
 def beggs_diff_press(

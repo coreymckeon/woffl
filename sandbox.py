@@ -52,3 +52,19 @@ ax2.legend(lines1 + lines2, labels1 + labels2, loc=0)
 plt.show()
 
 print(f"Bottom Pressure: {round(prs_ray[-1], 2)} psi")
+
+# grad school work
+one_gas = FormGas(gas_sg=0.67922)
+two_gas = FormGas(gas_sg=0.70606)
+
+one_gas = one_gas.condition(3045.8 - 14.7, 161.6)
+two_gas = two_gas.condition(2900.7 - 14.7, 161.6)
+
+print(f"First Gas Z-Factor is {round(one_gas.zfactor(), 4)}")
+print(f"Second Gas Z-Factor is {round(two_gas.zfactor(), 4)}")
+
+three_gas = FormGas(gas_sg=0.759)
+three_gas = three_gas.condition(5000 - 14.7, 180)
+
+print(f"Three Gas Z-Factor is {round(three_gas.zfactor(), 4)}")
+print(f"Three Gas Density is {round(three_gas.density, 2)} lbm/ft3")

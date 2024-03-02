@@ -114,6 +114,8 @@ def jet_check_two(
     print(f"Nozzle Velocity: {round(vnz, 1)} ft/s")
     print(f"Throat Entry Velocity: {round(vte, 1)} ft/s")
 
+    # add the outflow, with the liquid holdup and pressure
+
     # graphing some outputs for visualization
     qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(
         psu_min, form_temp, jpump_well.ate, ipr_well, prop_well
@@ -124,3 +126,58 @@ def jet_check_two(
         ptm, form_temp, jpump_well.ath, tube.inn_area, qsu_std, prop_tm
     )
     jplt.diffuser_graphs(vtm, jpump_well.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
+
+
+def jetpump_solver(
+    pwh: float,
+    tsu: float,
+    rho_pf: float,
+    ppf_surf: float,
+    jpump: JetPump,
+    wellbore: Pipe,
+    wellprof: WellProfile,
+    ipr: InFlow,
+    prop: ResMix,
+) -> None:
+    """JetPump Solver
+
+    Find a solution for the jetpump system that factors in the wellhead pressure and reservoir conditions.
+    The solver will move along the psu and dEte curves until a solution is found that satisfies the outflow
+    tubing and pump conditions.
+
+    Args:
+        pwh (float): Pressure Wellhead, psig
+        tsu (float): Temperature Suction, deg F
+        rho_pf (float): Density of the power fluid, lbm/ft3
+        ppf_surf (float): Pressure Power Fluid Surface, psig
+        jpump (JetPump): Jet Pump Class
+        wellbore (Pipe): Pipe Class of the Wellbore
+        wellprof (WellProfile): Well Profile Class
+        ipr (InFlow): Inflow Performance Class
+        prop (ResMix): Reservoir Mixture Conditions
+
+    Returns:
+        psu (float): Suction Pressure, psig
+        qsu_std (float): Oil Flow, bopd
+        what do I want to store?
+
+    """
+    psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
+        tsu=form_temp, ken=jpump_well.ken, ate=jpump_well.ate, ipr_su=ipr_well, prop_su=prop_well
+    )
+    pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)
+    vnz = jf.nozzle_velocity(pni, pte, jpump_well.knz, rho_pf)
+
+    qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, jpump_well.anz)
+    wc_tm = jf.throat_wc(qsu_std, prop_well.wc, qnz_bpd)
+
+    prop_tm = ResMix(wc_tm, prop_well.fgor, prop_well.oil, prop_well.wat, prop_well.gas)
+    ptm = jf.throat_discharge(
+        pte, form_temp, jpump_well.kth, vnz, jpump_well.anz, rho_pf, vte, jpump_well.ate, rho_te, prop_tm
+    )
+    vtm, pdi = jf.diffuser_discharge(ptm, form_temp, jpump_well.kdi, jpump_well.ath, tube.inn_area, qsu_std, prop_tm)
+
+    md_seg, prs_ray, slh_ray = of.top_down_press(surf_pres, form_temp, qsu_std, prop_tm, tube, wellprof)
+
+    outflow_pdi = prs_ray[-1]
+    diff_pdi = pdi - outflow_pdi
