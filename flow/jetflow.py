@@ -9,6 +9,7 @@ import math
 import numpy as np
 from scipy.integrate import trapezoid
 
+from flow import jetplot as jp
 from flow import singlephase as sp
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
@@ -51,7 +52,144 @@ def incremental_ee(prs_ray: np.ndarray, rho_ray: np.ndarray) -> float:
 
 
 # update code so JetPump is an input, for ate, atm and friction values
-# dete and dedi
+# dete and dedi, dete_machone, I do all this extra tracking when all that
+# is really needed is just tee_fin,
+
+
+def dete_rays_create(pte: float, tte: float, ken: float, ate: float, qoil_std: float, prop_su: ResMix):
+    """Create Differential Energy Throat Entry Arrays
+
+    Args:
+        pte (float): Pressure Throat Entry, psig
+        tte (float): Temp Throat Entry, deg F
+        ken (float): Throat Entry Friction, unitless
+        ate (float): Throat Entry Area, ft2
+        qoil_std (float): Oil Rate, STBOPD
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        pte_ray (np array): Pressure Throat Entry, psig
+        vte_ray (np array): Velocity Throat Entry, ft/s
+        rho_ray (np array): Density Array, lbm/ft3
+        mach_ray (np array): Mach Array, unitless
+        kse_ray (np array): Kinetic Differential Energy, ft2/s2
+        ese_ray (np array): Expansion Differntial Energy, ft2/s2
+        dete_ray (np array): Differential Energy Throat Entry, ft2/s2
+    """
+    prop_su = prop_su.condition(pte, tte)
+    qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+    vte = sp.velocity(qtot, ate)
+
+    pte_ray = np.array([pte])
+    vte_ray = np.array([vte])
+    rho_ray = np.array([prop_su.rho_mix()])
+    mach_ray = np.array([vte / prop_su.cmix()])
+
+    kse_ray = np.array([enterance_ke(ken, vte)])
+    ese_ray = np.array([0])  # initial pe is zero
+    dete_ray = np.array([kse_ray + ese_ray])
+
+    return pte_ray, vte_ray, rho_ray, mach_ray, kse_ray, ese_ray, dete_ray
+
+
+def dete_rays_append():
+    """Append Differential Energy Throat Entry Arrays"""
+    pass
+
+
+def dete_zero(
+    psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+) -> tuple[float, float, float, float]:
+    """Diff. Energy Throat Entry Zero
+
+    Find the pte, rho_te and vte that correspond to a zero value of dete.
+    Use IPR to find the expected well production rate at the specific psu.
+
+    Args:
+        psu (float): Suction Pressure, psig
+        tsu (float): Suction Temp, deg F
+        ken (float): Throat Entry Friction, unitless
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        qoil_std (float): Oil Rate, STBOPD
+        pte (float): Throat Entry Pressure, psig
+        rho_te (float): Throat Entry Density, lbm/ft3
+        vte (float): Throat Entry Velocity, ft/s
+    """
+    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+
+    pte_ray, vte_ray, rho_ray, mach_ray, kse_ray, ese_ray, dete_ray = dete_rays_create(
+        psu, tsu, ken, ate, qoil_std, prop_su
+    )
+
+    return 1, 1, 1, 1
+
+
+def dete_grad_zero(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+    """dEte Gradient Zero
+
+    Find the numerical value of the dEte (differential energy throat entry) equation
+    when the gradient (slope?) is a zero value. The physical meaning of the when the slope
+    is zero is when the transistion from subsonic (mach < 1) to sonic (mach > 1) flow. A
+    detailed derivation that shows the difference relationship to dEte and Ma value can
+    be produced by Kaelin Ellis upon request
+
+    Args:
+        psu (float): Suction Pressure, psig
+        tsu (float): Suction Temp, deg F
+        ken (float): Enterance Friction Factor, unitless
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        dete_fin (float): dEte value at the zero gradient, ft2/s2
+    """
+    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+    prop_su = prop_su.condition(psu, tsu)
+    qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+    vte = sp.velocity(qtot, ate)
+
+    pte_ray = np.array([psu])
+    vte_ray = np.array([vte])
+    rho_ray = np.array([prop_su.rho_mix()])
+    mach_ray = np.array([vte / prop_su.cmix()])
+
+    kse_ray = np.array([enterance_ke(ken, vte)])
+    ese_ray = np.array([0])  # initial pe is zero
+    tee_ray = np.array([kse_ray + ese_ray])
+
+    pdec = 50  # pressure decrease
+
+    while (
+        mach_ray[-1] <= 1 and pte_ray[-1] > pdec
+    ):  # keep mach under one, and pte above pdec, so it doesn't go negative
+        pte = pte_ray[-1] - pdec
+        prop_su = prop_su.condition(pte, tsu)
+        qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+        vte = sp.velocity(qtot, ate)
+
+        vte_ray = np.append(vte_ray, vte)
+        mach_ray = np.append(mach_ray, vte / prop_su.cmix())
+
+        pte_ray = np.append(pte_ray, pte)
+        rho_ray = np.append(rho_ray, prop_su.rho_mix())
+
+        kse_ray = np.append(kse_ray, enterance_ke(ken, vte))
+        ese_ray = np.append(ese_ray, ese_ray[-1] + incremental_ee(pte_ray[-2:], rho_ray[-2:]))
+        tee_ray = np.append(tee_ray, kse_ray[-1] + ese_ray[-1])
+
+    if mach_ray[-1] >= 1:
+        dete_fin = np.interp(1, mach_ray, tee_ray)  # find tee where mach = 1
+    else:
+        dete_fin = tee_ray[-1]
+
+    return dete_fin  # type: ignore
+
+
 def tee_last(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -169,7 +307,7 @@ def tee_zero(
 def psu_secant(psu1: float, psu2: float, dete1: float, dete2: float) -> float:
     """Next Suction Pressure with Secant Method
 
-    Uses the secant method to calculate the next psu to use to find a zero dete at Ma = 1.
+    Uses the secant method to calculate the next psu to use to find a zero dEte at Ma = 1.
 
     Args:
         psu1 (float): Suction Pressure One, psig
@@ -184,13 +322,15 @@ def psu_secant(psu1: float, psu2: float, dete1: float, dete2: float) -> float:
     return psu3
 
 
+# really be called psu minimizer, because that is truely what is trying to be done
+# cut this down so it just finds the minimum psu required?
 def tee_minimize(
     tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, float, float, float, float]:
     """Minimize Throat Entry Equation at pmo
 
     Find that psu that minimizes the throat entry equation for where Mach = 1 (pmo).
-    Secant method for iteration, starting point is Res Pres minus 300 and 400 psig.
+    Secant method for iteration, starting point is Reservoir Pressure minus 300 and 400 psig.
 
     Args:
         tsu (float): Suction Temp, deg F

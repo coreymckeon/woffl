@@ -352,3 +352,104 @@ class OutFlow:
 
     def __repr__(self):
         return f"{self.oil_rate} BOPD flowing inside a {self.tubing.inn_dia} inch pipe"
+
+
+class ThroatEnteranceBook:
+    """What is in this bad boy?"""
+
+    def __init__(self, psu: float, tsu: float, ken: float, ate: float, qoil_std: float, prop_su: ResMix):
+        """Throat Enterance Book
+
+        The only difference between the throat entry and the diffuser is that the diffuser
+        needs to take into account two different velocity terms, while entry has one. The
+        one benefit to the diffuser is that enterance velocity is static. Same with the throat
+        entry equation, but the static velocity is assumed to basically be zero, or negligible.
+
+        Args:
+            psu (float): Suction Pressure, psig
+            tsu (float): Suction Temp, deg F
+            ken (float): Throat Entry Friction, unitless
+            ate (float): Throat Entry Area, ft2
+            qoil_std (float): IPR of Reservoir
+            prop_su (ResMix): Properties of Suction Fluid
+        """
+        self.psu = psu
+        self.tsu = tsu
+        self.ken = ken
+        self.ate = ate
+        self.qoil_std = qoil_std
+        self.prop_su = prop_su
+
+        prs_ray, vel_ray, rho_ray, snd_ray, kde_ray, ede_ray, tde_ray = self._create_throat_enterance_book(
+            psu, tsu, ken, ate, qoil_std, prop_su
+        )
+
+        self.prs_ray = prs_ray
+        self.vel_ray = vel_ray
+        self.rho_ray = rho_ray
+        self.snd_ray = snd_ray
+        self.kde_ray = kde_ray
+        self.ede_ray = ede_ray
+        self.tde_ray = tde_ray
+
+    def __repr__(self):
+        return "Book for storing Throat Entry Calculation Results"
+
+    @staticmethod
+    def _create_throat_enterance_book(
+        psu: float, tsu: float, ken: float, ate: float, qoil_std: float, prop_su: ResMix
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Create arrays to store throat enterance data
+
+        Args:
+            psu (float): Pressure Suction, psig
+            tsu (float): Temp Suction, deg F
+            ken (float): Throat Entry Friction, unitless
+            ate (float): Throat Entry Area, ft2
+            qoil_std (float): Oil Rate, STBOPD
+            prop_su (ResMix): Properties of Suction Fluid
+
+        Returns:
+            prs_ray (np array): Pressure Throat Entry, psig
+            vel_ray (np array): Velocity Throat Entry, ft/s
+            rho_ray (np array): Density Array, lbm/ft3
+            snd_ray (np array): Speed of Sound, ft/s
+            kse_ray (np array): Kinetic Differential Energy, ft2/s2
+            ese_ray (np array): Expansion Differntial Energy, ft2/s2
+            dete_ray (np array): Differential Energy Throat Entry, ft2/s2
+        """
+        prop_su = prop_su.condition(psu, tsu)
+        qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+        vte = sp.velocity(qtot, ate)
+
+        prs_ray = np.array([psu])
+        vel_ray = np.array([vte])
+        rho_ray = np.array([prop_su.rho_mix()])
+        snd_ray = np.array([prop_su.cmix()])
+
+        kde_ray = np.array([jf.enterance_ke(ken, vte)])
+        ede_ray = np.array([0])  # initial pe is zero
+        tde_ray = np.array([kde_ray + ede_ray])
+
+        return prs_ray, vel_ray, rho_ray, snd_ray, kde_ray, ede_ray, tde_ray
+
+    @staticmethod
+    def _calc_static_throat_enterance(
+        pte: float, tte: float, ken: float, ate: float, qoil_std: float, prop_su: ResMix
+    ) -> tuple[float, float, float, float]:
+        """Calculate Static Values
+
+        Args:
+            pte (float): Pressure Throat Entry, psig
+            tte (float): Temp Throat Entry, deg F
+            ken (float): Throat Entry Friction, unitless
+            ate (float): Throat Entry Area, ft2
+            qoil_std (float): Oil Rate, STBOPD
+            prop_su (ResMix): Properties of Suction Fluid
+
+        Returns:
+            vte (float): Velocity Throat Enterance, ft/s
+            rho_te (float): Density Throat Enterance, lbm/ft3
+            snd_te (float): Speed Sound Throat Enterance, ft/s
+            kde_te (float): Kinetic Differential Energy Throat Energy, ft2/s2
+        """

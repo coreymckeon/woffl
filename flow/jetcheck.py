@@ -163,21 +163,19 @@ def jetpump_solver(
 
     """
     psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
-        tsu=form_temp, ken=jpump_well.ken, ate=jpump_well.ate, ipr_su=ipr_well, prop_su=prop_well
+        tsu=tsu, ken=jpump.ken, ate=jpump.ate, ipr_su=ipr, prop_su=prop
     )
     pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)
-    vnz = jf.nozzle_velocity(pni, pte, jpump_well.knz, rho_pf)
+    vnz = jf.nozzle_velocity(pni, pte, jpump.knz, rho_pf)
 
-    qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, jpump_well.anz)
-    wc_tm = jf.throat_wc(qsu_std, prop_well.wc, qnz_bpd)
+    qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, jpump.anz)
+    wc_tm = jf.throat_wc(qsu_std, prop.wc, qnz_bpd)
 
-    prop_tm = ResMix(wc_tm, prop_well.fgor, prop_well.oil, prop_well.wat, prop_well.gas)
-    ptm = jf.throat_discharge(
-        pte, form_temp, jpump_well.kth, vnz, jpump_well.anz, rho_pf, vte, jpump_well.ate, rho_te, prop_tm
-    )
-    vtm, pdi = jf.diffuser_discharge(ptm, form_temp, jpump_well.kdi, jpump_well.ath, tube.inn_area, qsu_std, prop_tm)
+    prop_tm = ResMix(wc_tm, prop.fgor, prop.oil, prop.wat, prop.gas)
+    ptm = jf.throat_discharge(pte, tsu, jpump.kth, vnz, jpump.anz, rho_pf, vte, jpump.ate, rho_te, prop_tm)
+    vtm, pdi_jp = jf.diffuser_discharge(ptm, tsu, jpump.kdi, jpump.ath, wellbore.inn_area, qsu_std, prop_tm)
 
-    md_seg, prs_ray, slh_ray = of.top_down_press(surf_pres, form_temp, qsu_std, prop_tm, tube, wellprof)
+    md_seg, prs_ray, slh_ray = of.top_down_press(pwh, tsu, qsu_std, prop_tm, wellbore, wellprof)
 
-    outflow_pdi = prs_ray[-1]
-    diff_pdi = pdi - outflow_pdi
+    pdi_of = prs_ray[-1]  # discharge pressure outflow
+    pdi_diff = pdi_jp - pdi_of  # need to find the psu where pdi_diff equals zero

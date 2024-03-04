@@ -5,10 +5,138 @@ from matplotlib import pyplot as plt
 from scipy.integrate import cumulative_trapezoid
 
 from flow import jetflow as jf  # legacy
+from flow import singlephase as sp
 from flow.inflow import InFlow
 from pvt.resmix import ResMix
 
+
 # functions that are built predominately for visualizations
+# EntData EntFile DataBook PumpBook CompBook ResultBook
+# DifData DifFile DifBook DifLib NozzBook DetailBook PumpDetail
+# add psu, tsu, qoil_std, vel_in??? Needed for diffuser results?
+class ThroatEnteranceBook:
+    """Throat Enterance and Diffuser Storage
+
+    Arrays for visualizing results.
+
+    Returns:
+        prs_ray (np array): Pressure Array, psig
+        vel_ray (np array): Velocity Array, ft/s
+        rho_ray (np array): Density Array, lbm/ft3
+        snd_ray (np array): Speed of Sound Array, ft/s
+        kde_ray (np array): Kinetic Differential Energy, ft2/s2
+        ede_ray (np array): Expansion Differential Energy, ft2/s2
+        tde_ray (np array): Total Differntial Energy, ft2/s2
+    """
+
+    def __init__(self, prs: float, vel: float, rho: float, snd: float, kde: float):
+        """Throat Enterance Book
+
+        Create a throat enterance book for storing throat entry values to be used
+        later for graphing and other analysis.
+
+        Args:
+            prs (float): Pressure, psig
+            vel (float): Velocity, ft/s
+            rho (float): Density, lbm/ft3
+            snd (float): Speed of Sound, ft/s
+            kde (float): Kinetic Differential Energy, ft2/s2
+        """
+        self.prs_ray = np.array([prs])
+        self.vel_ray = np.array([vel])
+        self.rho_ray = np.array([rho])
+        self.snd_ray = np.array([snd])
+        self.kde_ray = np.array([kde])
+
+        ede = 0
+        tde = kde + ede
+
+        self.ede_ray = np.array([ede])  # expansion energy array
+        self.tde_ray = np.array([tde])  # total differential energy
+
+    def __repr__(self):
+        return "Book for storing Throat Entry Calculation Results"
+
+    def append(self, prs: float, vel: float, rho: float, snd: float, kde: float):
+        """Append Values onto the Throat Entry Book
+
+        Appended values are added onto the existing throat entry arrays.
+
+        Args:
+            prs (float): Pressure, psig
+            vel (float): Velocity, ft/s
+            rho (float): Density, lbm/ft3
+            snd (float): Speed of Sound, ft/s
+            kde (float): Kinetic Differential Energy, ft2/s2
+        """
+        self.prs_ray = np.append(self.prs_ray, prs)
+        self.vel_ray = np.append(self.vel_ray, vel)
+        self.rho_ray = np.append(self.rho_ray, rho)
+        self.snd_ray = np.append(self.snd_ray, snd)
+        self.kde_ray = np.append(self.kde_ray, kde)
+
+        ede = self.ede_ray[-1] + jf.incremental_ee(self.prs_ray[-2:], self.rho_ray[-2:])
+        tde = kde + ede
+
+        self.ede_ray = np.append(self.ede_ray, ede)
+        self.tde_ray = np.append(self.tde_ray, tde)
+
+    def plot(self, kind: str = "ThroatEnterance") -> None:
+        """Throat Entry Plots
+
+        Create a series of graphs to use for visualization
+        """
+        self._throat_entry_graphs(
+            self.prs_ray, self.vel_ray, self.rho_ray, self.snd_ray, self.kde_ray, self.ede_ray, self.tde_ray
+        )
+        return None
+
+    @staticmethod
+    def _throat_entry_graphs(
+        prs_ray: np.ndarray,
+        vel_ray: np.ndarray,
+        rho_ray: np.ndarray,
+        snd_ray: np.ndarray,
+        kde_ray: np.ndarray,
+        ede_ray: np.ndarray,
+        tde_ray: np.ndarray,
+    ) -> None:
+
+        mach_ray = vel_ray / snd_ray
+        psu = prs_ray[0]
+        pmo = float(np.interp(1, mach_ray, prs_ray))  # interpolate for pressure at mach 1, pmo
+        pte, rho_te, vte = jf.tee_zero(prs_ray, rho_ray, vel_ray, tde_ray)
+
+        fig, axs = plt.subplots(4, sharex=True)
+        plt.rcParams["mathtext.default"] = "regular"
+        fig.suptitle(f"Suction at {round(psu,0)} psi, Mach 1 at {round(pmo,0)} psi")
+
+        axs[0].scatter(prs_ray, 1 / rho_ray)
+        axs[0].set_ylabel("Specific Volume, ft3/lbm")
+
+        axs[1].scatter(prs_ray, vel_ray, label="Mixture Velocity")
+        axs[1].scatter(prs_ray, snd_ray, label="Speed of Sound")
+        axs[1].set_ylabel("Velocity, ft/s")
+        axs[1].legend()
+
+        axs[2].scatter(prs_ray, ede_ray, label="Expansion")
+        axs[2].scatter(prs_ray, kde_ray, label="Kinetic")
+        axs[2].axhline(y=0, color="black", linestyle="--", linewidth=1)
+        axs[2].set_ylabel("Specific Energy, ft2/s2")
+        axs[2].legend()
+
+        ycoord = (max(tde_ray) + min(tde_ray)) / 2
+        axs[3].scatter(prs_ray, tde_ray)
+        axs[3].axhline(y=0, color="black", linestyle="--", linewidth=1)
+        axs[3].axvline(x=pmo, color="black", linestyle="--", linewidth=1)
+        axs[3].annotate(text="Mach 1", xy=(pmo, ycoord), rotation=90)
+        axs[3].axvline(x=pte, color="black", linestyle="--", linewidth=1)
+        axs[3].annotate(text="TEE 0", xy=(pte, ycoord), rotation=90)
+        axs[3].set_ylabel("$dE_{te}$, ft2/s2")
+        axs[3].set_xlabel("Throat Entry Pressure, psig")
+
+        plt.show()
+        return None
 
 
 def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
