@@ -51,58 +51,16 @@ def incremental_ee(prs_ray: np.ndarray, rho_ray: np.ndarray) -> float:
     return ee_inc
 
 
-# update code so JetPump is an input, for ate, atm and friction values
 # dete and dedi, dete_machone, I do all this extra tracking when all that
 # is really needed is just tee_fin,
-
-
-def dete_rays_create(pte: float, tte: float, ken: float, ate: float, qoil_std: float, prop_su: ResMix):
-    """Create Differential Energy Throat Entry Arrays
-
-    Args:
-        pte (float): Pressure Throat Entry, psig
-        tte (float): Temp Throat Entry, deg F
-        ken (float): Throat Entry Friction, unitless
-        ate (float): Throat Entry Area, ft2
-        qoil_std (float): Oil Rate, STBOPD
-        prop_su (ResMix): Properties of Suction Fluid
-
-    Returns:
-        pte_ray (np array): Pressure Throat Entry, psig
-        vte_ray (np array): Velocity Throat Entry, ft/s
-        rho_ray (np array): Density Array, lbm/ft3
-        mach_ray (np array): Mach Array, unitless
-        kse_ray (np array): Kinetic Differential Energy, ft2/s2
-        ese_ray (np array): Expansion Differntial Energy, ft2/s2
-        dete_ray (np array): Differential Energy Throat Entry, ft2/s2
-    """
-    prop_su = prop_su.condition(pte, tte)
-    qtot = sum(prop_su.insitu_volm_flow(qoil_std))
-    vte = sp.velocity(qtot, ate)
-
-    pte_ray = np.array([pte])
-    vte_ray = np.array([vte])
-    rho_ray = np.array([prop_su.rho_mix()])
-    mach_ray = np.array([vte / prop_su.cmix()])
-
-    kse_ray = np.array([enterance_ke(ken, vte)])
-    ese_ray = np.array([0])  # initial pe is zero
-    dete_ray = np.array([kse_ray + ese_ray])
-
-    return pte_ray, vte_ray, rho_ray, mach_ray, kse_ray, ese_ray, dete_ray
-
-
-def dete_rays_append():
-    """Append Differential Energy Throat Entry Arrays"""
-    pass
 
 
 def dete_zero(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, float, float, float]:
-    """Diff. Energy Throat Entry Zero
+    """Throat Entry Differential Energy at Zero
 
-    Find the pte, rho_te and vte that correspond to a zero value of dete.
+    Find the pte, rho_te and vte that correspond to a zero value of tde.
     Use IPR to find the expected well production rate at the specific psu.
 
     Args:
@@ -121,14 +79,34 @@ def dete_zero(
     """
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
 
-    pte_ray, vte_ray, rho_ray, mach_ray, kse_ray, ese_ray, dete_ray = dete_rays_create(
-        psu, tsu, ken, ate, qoil_std, prop_su
-    )
+    prop_su = prop_su.condition(psu, tsu)
+    qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+    vte = sp.velocity(qtot, ate)
 
-    return 1, 1, 1, 1
+    te_book = jp.ThroatEnteranceBook(psu, vte, prop_su.rho_mix(), prop_su.cmix(), enterance_ke(ken, vte))
+
+    pdec = 50  # pressure decrease
+
+    # runs the risk that you never cross the tde, then you need a smaller psu...?
+    # this can be mitigated by finding the lowest psu and never going below that?
+    # keep lowering pte until tde is under zero.
+    while (te_book.tde_ray[-1] > 1) and (te_book.prs_ray[-1] > pdec):
+        pte = te_book.prs_ray[-1] - pdec
+
+        prop_su = prop_su.condition(pte, tsu)
+        qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+        vte = sp.velocity(qtot, ate)
+
+        te_book.append(pte, vte, prop_su.rho_mix(), prop_su.cmix(), enterance_ke(ken, vte))
+
+    pte, vte, rho_te = te_book.dete_zero()
+
+    return qoil_std, pte, rho_te, vte
 
 
-def dete_grad_zero(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:
+def dete_grad_zero(
+    psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+) -> tuple[float, float, jp.ThroatEnteranceBook]:
     """dEte Gradient Zero
 
     Find the numerical value of the dEte (differential energy throat entry) equation
@@ -146,48 +124,34 @@ def dete_grad_zero(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlo
         prop_su (ResMix): Properties of Suction Fluid
 
     Returns:
-        dete_fin (float): dEte value at the zero gradient, ft2/s2
+        tde_fin (float): Total Differential Energy at Mach 1, ft2/s2
     """
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+
     prop_su = prop_su.condition(psu, tsu)
     qtot = sum(prop_su.insitu_volm_flow(qoil_std))
     vte = sp.velocity(qtot, ate)
 
-    pte_ray = np.array([psu])
-    vte_ray = np.array([vte])
-    rho_ray = np.array([prop_su.rho_mix()])
-    mach_ray = np.array([vte / prop_su.cmix()])
-
-    kse_ray = np.array([enterance_ke(ken, vte)])
-    ese_ray = np.array([0])  # initial pe is zero
-    tee_ray = np.array([kse_ray + ese_ray])
+    te_book = jp.ThroatEnteranceBook(psu, vte, prop_su.rho_mix(), prop_su.cmix(), enterance_ke(ken, vte))
 
     pdec = 50  # pressure decrease
 
-    while (
-        mach_ray[-1] <= 1 and pte_ray[-1] > pdec
-    ):  # keep mach under one, and pte above pdec, so it doesn't go negative
-        pte = pte_ray[-1] - pdec
+    # keep mach under one, and pte above pdec, so it doesn't go negative
+    while (te_book.mach_ray[-1] <= 1) and (te_book.prs_ray[-1] > pdec):
+
+        pte = te_book.prs_ray[-1] - pdec
         prop_su = prop_su.condition(pte, tsu)
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
         vte = sp.velocity(qtot, ate)
 
-        vte_ray = np.append(vte_ray, vte)
-        mach_ray = np.append(mach_ray, vte / prop_su.cmix())
+        te_book.append(pte, vte, prop_su.rho_mix(), prop_su.cmix(), enterance_ke(ken, vte))
 
-        pte_ray = np.append(pte_ray, pte)
-        rho_ray = np.append(rho_ray, prop_su.rho_mix())
-
-        kse_ray = np.append(kse_ray, enterance_ke(ken, vte))
-        ese_ray = np.append(ese_ray, ese_ray[-1] + incremental_ee(pte_ray[-2:], rho_ray[-2:]))
-        tee_ray = np.append(tee_ray, kse_ray[-1] + ese_ray[-1])
-
-    if mach_ray[-1] >= 1:
-        dete_fin = np.interp(1, mach_ray, tee_ray)  # find tee where mach = 1
+    if te_book.mach_ray[-1] >= 1:
+        tde_fin = np.interp(1, te_book.mach_ray, te_book.tde_ray)  # find tee where mach = 1
     else:
-        dete_fin = tee_ray[-1]
+        tde_fin = te_book.tde_ray[-1]
 
-    return dete_fin  # type: ignore
+    return tde_fin, qoil_std, te_book  # type: ignore
 
 
 def tee_last(

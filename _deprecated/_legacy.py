@@ -453,3 +453,38 @@ class ThroatEnteranceBook:
             snd_te (float): Speed Sound Throat Enterance, ft/s
             kde_te (float): Kinetic Differential Energy Throat Energy, ft2/s2
         """
+    
+    def dete_rays_create(pte: float, tte: float, ken: float, ate: float, qoil_std: float, prop_su: ResMix):
+    """Create Differential Energy Throat Entry Arrays
+
+    Args:
+        pte (float): Pressure Throat Entry, psig
+        tte (float): Temp Throat Entry, deg F
+        ken (float): Throat Entry Friction, unitless
+        ate (float): Throat Entry Area, ft2
+        qoil_std (float): Oil Rate, STBOPD
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        pte_ray (np array): Pressure Throat Entry, psig
+        vte_ray (np array): Velocity Throat Entry, ft/s
+        rho_ray (np array): Density Array, lbm/ft3
+        mach_ray (np array): Mach Array, unitless
+        kse_ray (np array): Kinetic Differential Energy, ft2/s2
+        ese_ray (np array): Expansion Differntial Energy, ft2/s2
+        dete_ray (np array): Differential Energy Throat Entry, ft2/s2
+    """
+    prop_su = prop_su.condition(pte, tte)
+    qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+    vte = sp.velocity(qtot, ate)
+
+    pte_ray = np.array([pte])
+    vte_ray = np.array([vte])
+    rho_ray = np.array([prop_su.rho_mix()])
+    mach_ray = np.array([vte / prop_su.cmix()])
+
+    kse_ray = np.array([enterance_ke(ken, vte)])
+    ese_ray = np.array([0])  # initial pe is zero
+    dete_ray = np.array([kse_ray + ese_ray])
+
+    return pte_ray, vte_ray, rho_ray, mach_ray, kse_ray, ese_ray, dete_ray

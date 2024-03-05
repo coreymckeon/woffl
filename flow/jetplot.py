@@ -24,6 +24,7 @@ class ThroatEnteranceBook:
         vel_ray (np array): Velocity Array, ft/s
         rho_ray (np array): Density Array, lbm/ft3
         snd_ray (np array): Speed of Sound Array, ft/s
+        mach_ray (np array): Mach Number, unitless
         kde_ray (np array): Kinetic Differential Energy, ft2/s2
         ede_ray (np array): Expansion Differential Energy, ft2/s2
         tde_ray (np array): Total Differntial Energy, ft2/s2
@@ -46,6 +47,7 @@ class ThroatEnteranceBook:
         self.vel_ray = np.array([vel])
         self.rho_ray = np.array([rho])
         self.snd_ray = np.array([snd])
+
         self.kde_ray = np.array([kde])
 
         ede = 0
@@ -53,6 +55,7 @@ class ThroatEnteranceBook:
 
         self.ede_ray = np.array([ede])  # expansion energy array
         self.tde_ray = np.array([tde])  # total differential energy
+        self.mach_ray = np.array([vel / snd])  # mach number
 
     def __repr__(self):
         return "Book for storing Throat Entry Calculation Results"
@@ -80,6 +83,7 @@ class ThroatEnteranceBook:
 
         self.ede_ray = np.append(self.ede_ray, ede)
         self.tde_ray = np.append(self.tde_ray, tde)
+        self.mach_ray = np.append(self.mach_ray, vel / snd)  # mach number
 
     def plot(self, kind: str = "ThroatEnterance") -> None:
         """Throat Entry Plots
@@ -90,6 +94,47 @@ class ThroatEnteranceBook:
             self.prs_ray, self.vel_ray, self.rho_ray, self.snd_ray, self.kde_ray, self.ede_ray, self.tde_ray
         )
         return None
+
+    def dete_zero(self) -> tuple[float, float, float]:
+        """Throat Entry Parameters at Zero Total Differential Energy
+
+        Args:
+            None
+
+        Return:
+            pte (float): Throat Entry Pressure, psig
+            vte (float): Throat Entry Velocity, ft/s
+            rho_te (float): Throat Entry Density, lbm/ft3
+        """
+        return self._dete_zero(self.prs_ray, self.vel_ray, self.rho_ray, self.tde_ray)
+
+    @staticmethod
+    def _dete_zero(
+        prs_ray: np.ndarray, vel_ray: np.ndarray, rho_ray: np.ndarray, tde_ray: np.ndarray
+    ) -> tuple[float, float, float]:
+        """Throat Entry Parameters at Zero Total Differential Energy
+
+        Calculate the throat entry pressure, density, and velocity where dEte is zero
+
+        Args:
+            prs_ray (np array): Pressure Array, psig
+            vel_ray (np array): Velocity Array, ft/s
+            rho_ray (np array): Density Array, lbm/ft3
+            tde_ray (np array): Total Differential Energy, ft2/s2
+
+        Return:
+            pte (float): Throat Entry Pressure, psig
+            vte (float): Throat Entry Velocity, ft/s
+            rho_te (float): Throat Entry Density, lbm/ft3
+        """
+        dtdp = np.gradient(tde_ray, prs_ray)  # uses central limit thm, so same size
+        mask = dtdp >= 0  # only points where slope is greater than or equal to zero
+
+        pte = np.interp(0, np.flip(tde_ray[mask]), np.flip(prs_ray[mask]))
+        vte = np.interp(0, np.flip(tde_ray[mask]), np.flip(vel_ray[mask]))
+        rho_te = np.interp(0, np.flip(tde_ray[mask]), np.flip(rho_ray[mask]))
+
+        return pte, vte, rho_te  # type: ignore
 
     @staticmethod
     def _throat_entry_graphs(
@@ -137,6 +182,50 @@ class ThroatEnteranceBook:
 
         plt.show()
         return None
+
+
+# might be better to make psu a prs_ray entry...?
+def throat_entry_book(
+    psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+) -> tuple[float, ThroatEnteranceBook]:
+    """Throat Entry Book
+
+    Create a Book of Throat Entry Values that can be used for visualization.
+    Shows what is occuring inside the throat entry while pressure is dropped.
+    Keeps all the values, even when pte velocity is greater than Mach 1.
+
+    Args:
+        psu (float): Suction Pressure, psig
+        tsu (float): Suction Temp, deg F
+        ken (float): Enterance Friction Factor, unitless
+        ate (float): Throat Entry Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        te_book (ThroatEnteranceBook): Book of values of what is occuring inside throat entry
+    """
+    qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
+
+    prop_su = prop_su.condition(psu, tsu)
+    qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+    vte = sp.velocity(qtot, ate)
+
+    te_book = ThroatEnteranceBook(psu, vte, prop_su.rho_mix(), prop_su.cmix(), jf.enterance_ke(ken, vte))
+
+    ray_len = 30  # number of elements in the array
+    pte_ray = np.linspace(200, psu, ray_len)  # throat entry pressures
+    pte_ray = np.flip(pte_ray, axis=0)  # start with high pressure and go low
+
+    for pte in pte_ray:
+
+        prop_su = prop_su.condition(pte, tsu)
+        qtot = sum(prop_su.insitu_volm_flow(qoil_std))
+        vte = sp.velocity(qtot, ate)
+
+        te_book.append(pte, vte, prop_su.rho_mix(), prop_su.cmix(), jf.enterance_ke(ken, vte))
+
+    return qoil_std, te_book
 
 
 def throat_entry_arrays(psu: float, tsu: float, ate: float, ipr_su: InFlow, prop_su: ResMix):
