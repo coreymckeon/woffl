@@ -135,6 +135,7 @@ def jet_check_two(
     print(te_book)
     vtm, di_book = jplt.diffuser_book(ptm, form_temp, jpump_well.ath, jpump_well.kdi, tube.inn_area, qsu_std, prop_tm)
     di_book.plot_di()
+    print(di_book)
     # te_book.plot()
 
 

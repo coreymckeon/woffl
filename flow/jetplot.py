@@ -30,7 +30,7 @@ from pvt.resmix import ResMix
 
 class JetBook:
     def __init__(self, prs: float, vel: float, rho: float, snd: float, kde: float):
-        """Book for storing Jet Pump Enterance / Diffuser Results
+        """Book for storing Jet Pump Enterance / Diffuser Calculations
 
         Create a book for storing results values from the throat enterance and diffuser.
         Can be used later for graphing and other analysis.
@@ -365,7 +365,7 @@ def diffuser_book(
 
     for pdi in pdi_ray[1:]:  # start with 2nd value, ptm already used previously
 
-        prop_tm = prop_tm.condition(ptm, ttm)
+        prop_tm = prop_tm.condition(pdi, ttm)
         qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
         vdi = sp.velocity(qtot, adi)
 
