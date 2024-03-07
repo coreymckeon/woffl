@@ -1,3 +1,5 @@
+import numpy as np
+
 from flow import jetflow as jf
 from flow import jetplot as jplt
 from flow import outflow as of
@@ -21,7 +23,7 @@ def jet_check(
     ipr_well: InFlow,
     prop_well: ResMix,
 ) -> None:
-    psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
+    psu_min, qsu_std, pte, rho_te, vte = jf.psu_minimize(
         tsu=form_temp, ken=jpump_well.ken, ate=jpump_well.ate, ipr_su=ipr_well, prop_su=prop_well
     )
     # pni = jf.pf_press_depth(rho_pf, ppf_surf, jpump_tvd)
@@ -48,15 +50,11 @@ def jet_check(
     print(f"Throat Entry Velocity: {round(vte, 1)} ft/s")
 
     # graphing some outputs for visualization
-    qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(
-        psu_min, form_temp, jpump_well.ate, ipr_well, prop_well
-    )
-    jplt.throat_entry_graphs(jpump_well.ken, pte_ray, rho_ray, vel_ray, snd_ray)
+    qsu_std, te_book = jplt.throat_entry_book(psu_min, form_temp, jpump_well.ken, jpump_well.ate, ipr_well, prop_well)
+    te_book.plot_te()
 
-    vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jplt.diffuser_arrays(
-        ptm, form_temp, jpump_well.ath, tube.inn_area, qsu_std, prop_tm
-    )
-    jplt.diffuser_graphs(vtm, jpump_well.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
+    vtm, di_book = jplt.diffuser_book(ptm, form_temp, jpump_well.ath, jpump_well.kdi, tube.inn_area, qsu_std, prop_tm)
+    di_book.plot_di()
 
 
 # writing a function that can be ran to easily compare current jet pump
@@ -77,7 +75,7 @@ def jet_check_two(
     Brings in the outflow node of the jet pump system, looking at the required discharge pressure
     at the wells flowrate vs what the pump can actually supply.
     """
-    psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
+    psu_min, qsu_std, pte, rho_te, vte = jf.psu_minimize(
         tsu=form_temp, ken=jpump_well.ken, ate=jpump_well.ate, ipr_su=ipr_well, prop_su=prop_well
     )
     pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)
@@ -117,15 +115,27 @@ def jet_check_two(
     # add the outflow, with the liquid holdup and pressure
 
     # graphing some outputs for visualization
+    """
     qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(
         psu_min, form_temp, jpump_well.ate, ipr_well, prop_well
     )
+    kde_ray, ede_ray = jplt.throat_entry_energy(jpump_well.ken, pte_ray, rho_ray, vel_ray)
+    tde_ray = kde_ray + ede_ray
+    print(pte_ray, tde_ray)
+    print(np.gradient(pte_ray, tde_ray))
     jplt.throat_entry_graphs(jpump_well.ken, pte_ray, rho_ray, vel_ray, snd_ray)
 
     vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jplt.diffuser_arrays(
         ptm, form_temp, jpump_well.ath, tube.inn_area, qsu_std, prop_tm
     )
-    jplt.diffuser_graphs(vtm, jpump_well.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)
+    jplt.diffuser_graphs(vtm, jpump_well.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)"""
+
+    qsu_std, te_book = jplt.throat_entry_book(psu_min, form_temp, jpump_well.ken, jpump_well.ate, ipr_well, prop_well)
+    # te_book.plot_te()
+    print(te_book)
+    vtm, di_book = jplt.diffuser_book(ptm, form_temp, jpump_well.ath, jpump_well.kdi, tube.inn_area, qsu_std, prop_tm)
+    di_book.plot_di()
+    # te_book.plot()
 
 
 def jetpump_solver(
@@ -162,7 +172,7 @@ def jetpump_solver(
         what do I want to store?
 
     """
-    psu_min, qsu_std, pte, rho_te, vte = jf.tee_minimize(
+    psu_min, qsu_std, pte, rho_te, vte = jf.psu_minimize(
         tsu=tsu, ken=jpump.ken, ate=jpump.ate, ipr_su=ipr, prop_su=prop
     )
     pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)
