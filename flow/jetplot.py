@@ -17,10 +17,9 @@ Returns:
         grad_ray (np array): Gradient of tde/dp Array, ft2/(s2*psig)
 """
 
-from dataclasses import dataclass
-
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.axes._axes import Axes
 
 from flow import jetflow as jf  # legacy
 from flow import singlephase as sp
@@ -374,59 +373,16 @@ def diffuser_book(
     return vtm, di_book
 
 
-@dataclass
-class throat_entry_result:
-    """Class for storing throat entry equation results, to be graphed later.
-
-    Args:
-        psu (float): Suction Pressure, psig
-        qsu (float): Suction Oil Flow, bopd
-        pmo (float): Mach One Pressure, psig
-        pte_ray (np.ndarray): Throat Entry Array, psig
-        tee_ray (np.ndarray): Throat Entry Eqn Array, ft2/s2
-    """
-
-    psu: float
-    qsu: float
-    pmo: float
-    pte_ray: np.ndarray
-    tee_ray: np.ndarray
-
-
-def throat_entry_mach_one(pte_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray) -> float:
-    """Throat Entry Mach One
-
-    Calculates the pressure where the throat entry flow hits sonic velocity, mach = 1
-
-    Args:
-        pte_ray (np array): Press Throat Entry Array, psig
-        vel_ray (np array): Velocity Throat Entry Array, ft/s
-        snd_ray (np array): Speed of Sound Array, ft/s
-
-    Returns:
-        pmo (float): Pressure Mach One, psig
-    """
-    mach_ray = vel_ray / snd_ray
-    # check that the mach array has values that span one for proper interpolation
-    if np.max(mach_ray) <= 1:  # type: ignore
-        raise ValueError("Max value in Mach array is less than one, increase pte")
-    if np.min(mach_ray) >= 1:  # type: ignore
-        raise ValueError("Min value in Mach array is greater than one, decrease pte")
-    pmo = np.interp(1, mach_ray, pte_ray)
-    return pmo  # type: ignore
-
-
-def multi_throat_entry_arrays(
-    psu_min: float, psu_max: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
-) -> list:
+def multi_throat_entry_books(
+    psu_list: list | np.ndarray, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+) -> tuple[list, list]:
     """Multiple Throat Entry Arrays
 
     Calculate throat entry arrays at different suction pressures. Used to
     graph later. Similiar to Figure 5 from Robert Merrill Paper.
 
     Args:
-        psu_min (float): Suction Pressure Min, psig
-        psu_max (float): Suction Pressure Max, psig, less than reservoir pressure
+        psu_list (list): List or Array of Suction Pressures, psig
         tsu (float): Suction Temp, deg F
         ken (float): Throat Entry Friction, unitless
         ate (float): Throat Entry Area, ft2
@@ -434,62 +390,75 @@ def multi_throat_entry_arrays(
         prop_su (ResMix): Properties of Suction Fluid
 
     Returns:
-        res_list (list): List of throat_entry_result class at various suction pressures
+        qoil_list (list): List of Oil Rates
+        book_list (list): List of Jet Book Results
     """
-    if psu_max >= ipr_su.pres:
+    if max(psu_list) >= ipr_su.pres:
         raise ValueError("Max suction pressure must be less than reservoir pressure")
     # 200 is arbitary and has been hard coded into the throat entry array calcs
-    if psu_min <= 200:
+    if min(psu_list) <= 200:
         raise ValueError("Min suction pressure must be greater than 200 psig")
 
-    ray_len = 5  # number of elements in the array
-    res_lis = list()  # create empty list to fill up with results
-    psu_ray = np.linspace(psu_min, psu_max, ray_len)
+    book_list = list()  # create empty list to fill up with results
+    qoil_list = list()
 
-    for psu in psu_ray:
-        qoil_std, te_book = throat_entry_book(psu, tsu, ate, ken, ipr_su, prop_su)
-        pmo = throat_entry_mach_one(te_book.prs_ray, te_book.vel_ray, te_book.snd_ray)
+    for psu in psu_list:
+        qoil_std, te_book = throat_entry_book(psu, tsu, ken, ate, ipr_su, prop_su)
 
-        # story the results as a class
-        res_lis.append(
-            throat_entry_result(
-                psu=psu,
-                qsu=qoil_std,
-                pmo=pmo,
-                pte_ray=te_book.prs_ray,  # drop suction pressure
-                tee_ray=te_book.tde_ray,
-            )
-        )
-    return res_lis
+        qoil_list.append(qoil_std)
+        book_list.append(te_book)
+
+    return qoil_list, book_list
 
 
-def multi_suction_graphs(res_lis: list) -> None:
+def te_tde_subsonic_plot(qoil_std: float, te_book: JetBook, color: str) -> Axes:
+    """Throat Entry (TE) Total Differential Energy (TDE) for Subsonic Values Plot
+
+    Args:
+        qoil_std (float): Oil Rate, BOPD
+        te_book (JetBook): Throat Entry Results Book
+        color (string): Matplotlib Recognized Color Description
+
+    Return:
+        ax (Axis): Matplotlib Axis to be used later
+    """
+    psu = te_book.prs_ray[0]
+    pmo = np.interp(1, te_book.mach_ray, te_book.prs_ray)
+    tde_pmo = np.interp(pmo, np.flip(te_book.prs_ray), np.flip(te_book.tde_ray))
+
+    pte_ray = te_book.prs_ray[te_book.prs_ray >= pmo]
+    tee_ray = te_book.tde_ray[te_book.prs_ray >= pmo]
+
+    ax = plt.gca()
+    ax.scatter(pte_ray, tee_ray, color=color, label=f"{int(qoil_std)} bopd, {int(psu)} psi")
+    ax.scatter(pmo, tde_pmo, marker="v", color=color)  # type: ignore
+
+    return ax
+
+
+def multi_suction_graphs(qoil_list: list, book_list: list) -> None:
     """Throat Entry Graphs for Multiple Suction Pressures
 
     Create a graph that shows throat entry equation solutions for multiple suction pressures
 
     Args:
-        res_lis (list): List of throat_entry_result class at various suction pressures
+        qoil_list (list): List of Oil Rates at different suction pressures
+        book_list (list): List of throat entry books at various suction pressures
 
     Returns:
         Graphs
     """
-    # ax = plt.gca() # old matplotlib code
-    for res in res_lis:
-        tee_pmo = np.interp(res.pmo, np.flip(res.pte_ray), np.flip(res.tee_ray))
-        # color = next(ax._get_lines.prop_cycler)["color"] # old matplotlib code
-        prop_cycle = plt.rcParams["axes.prop_cycle"]  # new color method
-        color = next(prop_cycle.by_key()["color"])  # new color method
-        # only graph values where the mach number is under one
-        pte_ray = res.pte_ray[res.pte_ray >= res.pmo]
-        tee_ray = res.tee_ray[res.pte_ray >= res.pmo]
-        plt.scatter(pte_ray, tee_ray, color=color, label=f"{int(res.qsu)} bopd, {int(res.psu)} psi")
-        plt.scatter(res.pmo, tee_pmo, marker="v", color=color)  # type: ignore
+    prop_cycle = plt.rcParams["axes.prop_cycle"]()  # convert to iterator
+    fig, ax = plt.subplots(figsize=(8, 6))
 
-    plt.xlabel("Throat Entry Pressure, psig")
-    plt.ylabel("Throat Entry Equation, ft2/s2")
-    plt.axhline(y=0, color="black", linestyle="--", linewidth=1)
-    plt.title("Figure 5 of SPE-202928-MS, Mach 1 at \u25BC")
-    plt.legend()
+    for qoil_std, te_book in zip(qoil_list, book_list):
+        color = next(prop_cycle)["color"]  # new color method
+        te_tde_subsonic_plot(qoil_std, te_book, color)  # need parent and children classes
+
+    ax.set_xlabel("Throat Entry Pressure, psig")
+    ax.set_ylabel("Throat Entry Equation, ft2/s2")
+    ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
+    ax.set_title("Figure 5 of SPE-202928-MS, Mach 1 at \u25BC")
+    ax.legend()
+
     plt.show()
-    return None

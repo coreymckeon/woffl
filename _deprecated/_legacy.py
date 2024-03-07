@@ -730,6 +730,61 @@ def diffuser_graphs(vtm, kdi, pdi_ray, rho_ray, vdi_ray, snd_ray) -> None:
         fig.suptitle(f"Diffuser Inlet at {round(ptm,0)} psi")
     plt.show()
 
+    @staticmethod
+    def _specific_volume_graph(prs_ray: np.ndarray, rho_ray: np.ndarray) -> Axes:
+        """Specific Volume Graph
+
+        Args:
+            prs_ray (np array):
+            rho_ray (np array):
+
+        Returns:
+            ax (Axes):
+        """
+        ax = plt.gca()
+        ax.scatter(prs_ray, 1 / rho_ray)
+        ax.set_ylabel("Specific Volume, ft3/lbm")
+        return ax
+
+    @staticmethod
+    def _velocity_sound_graph(prs_ray: np.ndarray, vel_ray: np.ndarray, snd_ray: np.ndarray) -> Axes:
+        """Velocity and Speed of Sound Graph
+
+        Args:
+            prs_ray (np array):
+            vel_ray (np array):
+            snd_ray (np array):
+
+        Returns:
+            ax (Axes):
+        """
+        ax = plt.gca()
+        ax.scatter(prs_ray, vel_ray, label="Mixture Velocity")
+        ax.scatter(prs_ray, snd_ray, label="Speed of Sound")
+        ax.set_ylabel("Velocity, ft/s")
+        ax.legend()
+        return ax
+
+    @staticmethod
+    def _kin_exp_energy_graph(prs_ray: np.ndarray, kde_ray: np.ndarray, ede_ray: np.ndarray) -> Axes:
+        """Kinetic and Expansion Differential Energy Graphs
+
+        Args:
+            prs_ray (np array):
+            kde_ray (np array):
+            ede_ray (np array):
+
+        Returns:
+            ax (Axes):
+        """
+        ax = plt.gca()
+        ax.scatter(prs_ray, ede_ray, label="Expansion")
+        ax.scatter(prs_ray, kde_ray, label="Kinetic")
+        ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
+        ax.set_ylabel("Specific Energy, ft2/s2")
+        ax.legend()
+        return ax
+
 class OutFlow:
     def __init__(
         self, oil_rate: float, surf_press: float, surf_temp: float, prop_wb: ResMix, tubing: Pipe, wellprof: WellProfile

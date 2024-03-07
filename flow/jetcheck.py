@@ -131,11 +131,11 @@ def jet_check_two(
     jplt.diffuser_graphs(vtm, jpump_well.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)"""
 
     qsu_std, te_book = jplt.throat_entry_book(psu_min, form_temp, jpump_well.ken, jpump_well.ate, ipr_well, prop_well)
-    # te_book.plot_te()
-    print(te_book)
+    te_book.plot_te()
+    # print(te_book)
     vtm, di_book = jplt.diffuser_book(ptm, form_temp, jpump_well.ath, jpump_well.kdi, tube.inn_area, qsu_std, prop_tm)
     di_book.plot_di()
-    print(di_book)
+    # print(di_book)
     # te_book.plot()
 
 
