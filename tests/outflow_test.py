@@ -14,7 +14,7 @@ from pvt.resmix import ResMix
 md_list = np.linspace(0, 6000, 100)
 vd_list = np.linspace(0, 4000, 100)
 
-# well with 600 fgor, 90% wc, 200 bopd
+# well with 600 fgor, 90% wc, 100 bopd
 mpu_oil = BlackOil.schrader_oil()
 mpu_wat = FormWater.schrader_wat()
 mpu_gas = FormGas.schrader_gas()

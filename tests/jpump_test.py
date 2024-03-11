@@ -14,6 +14,9 @@ from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 from pvt.resmix import ResMix
 
+# data from MPU E-41 Well Test on 11/27/2023
+# only works if the command python -m tests.jpump_test is used
+
 pwh = 210
 rho_pf = 62.4  # lbm/ft3
 ppf_surf = 3168  # psi, power fluid surf pressure

@@ -93,9 +93,10 @@ def dete_zero(
 
         te_book.append(pte, vte, prop_su.rho_mix(), prop_su.cmix(), enterance_ke(ken, vte))
 
+        # re-evaluate criteria for this...
         # ensures crossing zero tde while below mach limit
-        if (te_book.mach_ray[-1] >= 1) and (te_book.tde_ray[-1] > 0):
-            raise ValueError(f"Suction Pressure of {psu} psig is too low. Select higher Psu.")
+        # if (te_book.mach_ray[-1] > 1) and (te_book.tde_ray[-2] > 100):
+        # raise ValueError(f"Suction Pressure of {psu} psig is too low. Select higher Psu.")
 
     pte, vte, rho_te = te_book.dete_zero()
     return qoil_std, pte, rho_te, vte
@@ -159,7 +160,7 @@ def psu_minimize(
 ) -> tuple[float, float, float, float, float]:
     """Minimize psu
 
-    Find the smallest psu possible where the throat is still not choked. (Ma = 1)
+    Find the smallest psu possible where the throat is choked. (Ma = 1)
     This psu is the theoretically smallest psu possible for a set jetpump and ipr combo.
     Even with an infinite amount of power fluid, you could not get below this psu.
 
@@ -171,7 +172,7 @@ def psu_minimize(
         prop_su (ResMix): Properties of Suction Fluid
 
     Returns:
-        psu (float): Suction Pressure, psig
+        psu_min (float): Suction Pressure Minimized, psig
         qoil_std (float): Oil Rate, STBOPD
         pte (float): Throat Entry Pressure, psig
         rho_te (float): Throat Entry Density, lbm/ft3

@@ -132,9 +132,9 @@ def jetpump_solver(
     jpump: JetPump,
     wellbore: Pipe,
     wellprof: WellProfile,
-    ipr: InFlow,
-    prop: ResMix,
-) -> None:
+    ipr_su: InFlow,
+    prop_su: ResMix,
+) -> tuple[float, bool]:
     """JetPump Solver
 
     Find a solution for the jetpump system that factors in the wellhead pressure and reservoir conditions.
@@ -149,29 +149,47 @@ def jetpump_solver(
         jpump (JetPump): Jet Pump Class
         wellbore (Pipe): Pipe Class of the Wellbore
         wellprof (WellProfile): Well Profile Class
-        ipr (InFlow): Inflow Performance Class
-        prop (ResMix): Reservoir Mixture Conditions
+        ipr_su (InFlow): Inflow Performance Class
+        prop_su (ResMix): Reservoir Mixture Conditions
 
     Returns:
         psu (float): Suction Pressure, psig
-        qsu_std (float): Oil Flow, bopd
-        what do I want to store?
-
+        flow_status (boolean): If the Well will flow
     """
-    # start here, and record psu_min as the starting point
     psu_min, qsu_std, pte, rho_te, vte = jf.psu_minimize(
-        tsu=tsu, ken=jpump.ken, ate=jpump.ate, ipr_su=ipr, prop_su=prop
+        tsu=tsu, ken=jpump.ken, ate=jpump.ate, ipr_su=ipr_su, prop_su=prop_su
     )
+    res_min = system_residual(psu_min, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
 
-    residual = system_residual(psu_min, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr, prop)
+    # if the jetpump (available) discharge is above than the outflow (required) discharge at lowest suction
+    # the well will flow, but at its critical limit
+    if res_min > 0:
+        flow_status = True
+        return psu_min, flow_status
 
-    if residual >= 0:
-        status_te = "Choked"
-        status_of = "Flows"
-    else:
-        rawr = 1
+    psu_max = ipr_su.pres - 10  # max suction pressure that can be used
+    res_max = system_residual(psu_max, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
 
-    pass
+    # if the jetpump (available) discharge is less than the outflow (required) discharge at highest suction
+    # the well will not flow, need to pick different parameters
+    if res_max < 0:
+        flow_status = False  # add code that if the flow is no, return np.NaN
+        return psu_max, flow_status
+
+    # start secant hunting for the answer, in between the two points
+    psu_list = [psu_min, psu_max]
+    res_list = [
+        system_residual(psu_min, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su),
+        system_residual(psu_max, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su),
+    ]
+
+    psu_nxt = jf.psu_secant(psu_list[0], psu_list[1], res_list[0], res_list[1])
+    res_nxt = system_residual(psu_nxt, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
+
+    psu_list.append(psu_nxt)
+    res_list.append(res_nxt)
+
+    return psu_list[-1], True
 
 
 def system_residual(
@@ -206,6 +224,7 @@ def system_residual(
     Returns:
         residual (float): Jet Pump Discharge minus Out Flow Discharge, psid
     """
+    # also pump out the mach value at the throat entry?
     pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)  # static
 
     # jet pump section
