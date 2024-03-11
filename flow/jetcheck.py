@@ -115,21 +115,6 @@ def jet_check_two(
     # add the outflow, with the liquid holdup and pressure
 
     # graphing some outputs for visualization
-    """
-    qsu_std, pte_ray, rho_ray, vel_ray, snd_ray = jplt.throat_entry_arrays(
-        psu_min, form_temp, jpump_well.ate, ipr_well, prop_well
-    )
-    kde_ray, ede_ray = jplt.throat_entry_energy(jpump_well.ken, pte_ray, rho_ray, vel_ray)
-    tde_ray = kde_ray + ede_ray
-    print(pte_ray, tde_ray)
-    print(np.gradient(pte_ray, tde_ray))
-    jplt.throat_entry_graphs(jpump_well.ken, pte_ray, rho_ray, vel_ray, snd_ray)
-
-    vtm, pdi_ray, rho_ray, vdi_ray, snd_ray = jplt.diffuser_arrays(
-        ptm, form_temp, jpump_well.ath, tube.inn_area, qsu_std, prop_tm
-    )
-    jplt.diffuser_graphs(vtm, jpump_well.kdi, pdi_ray, rho_ray, vdi_ray, snd_ray)"""
-
     qsu_std, te_book = jplt.throat_entry_book(psu_min, form_temp, jpump_well.ken, jpump_well.ate, ipr_well, prop_well)
     te_book.plot_te()
     # print(te_book)
@@ -173,20 +158,75 @@ def jetpump_solver(
         what do I want to store?
 
     """
+    # start here, and record psu_min as the starting point
     psu_min, qsu_std, pte, rho_te, vte = jf.psu_minimize(
         tsu=tsu, ken=jpump.ken, ate=jpump.ate, ipr_su=ipr, prop_su=prop
     )
-    pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)
-    vnz = jf.nozzle_velocity(pni, pte, jpump.knz, rho_pf)
 
-    qnz_ft3s, qnz_bpd = jf.nozzle_rate(vnz, jpump.anz)
-    wc_tm = jf.throat_wc(qsu_std, prop.wc, qnz_bpd)
+    residual = system_residual(psu_min, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr, prop)
 
-    prop_tm = ResMix(wc_tm, prop.fgor, prop.oil, prop.wat, prop.gas)
-    ptm = jf.throat_discharge(pte, tsu, jpump.kth, vnz, jpump.anz, rho_pf, vte, jpump.ate, rho_te, prop_tm)
-    vtm, pdi_jp = jf.diffuser_discharge(ptm, tsu, jpump.kdi, jpump.ath, wellbore.inn_area, qsu_std, prop_tm)
+    if residual >= 0:
+        status_te = "Choked"
+        status_of = "Flows"
+    else:
+        rawr = 1
 
-    md_seg, prs_ray, slh_ray = of.top_down_press(pwh, tsu, qsu_std, prop_tm, wellbore, wellprof)
+    pass
+
+
+def system_residual(
+    psu: float,
+    pwh: float,
+    tsu: float,
+    rho_pf: float,
+    ppf_surf: float,
+    jpump: JetPump,
+    wellbore: Pipe,
+    wellprof: WellProfile,
+    ipr_su: InFlow,
+    prop_su: ResMix,
+) -> float:
+    """System Residual
+
+    Solve for the jet pump system residual, which is the difference between discharge pressure
+    calculated by the jetpump and the discharge pressure from the outflow.
+
+    Args:
+        psu (float): Pressure Suction, psig
+        pwh (float): Pressure Wellhead, psig
+        tsu (float): Temperature Suction, deg F
+        rho_pf (float): Density of the power fluid, lbm/ft3
+        ppf_surf (float): Pressure Power Fluid Surface, psig
+        jpump (JetPump): Jet Pump Class
+        wellbore (Pipe): Pipe Class of the Wellbore
+        wellprof (WellProfile): Well Profile Class
+        ipr_su (InFlow): Inflow Performance Class
+        prop_su (ResMix): Reservoir Mixture Conditions
+
+    Returns:
+        residual (float): Jet Pump Discharge minus Out Flow Discharge, psid
+    """
+    pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)  # static
+
+    # jet pump section
+    pte, ptm, pdi_jp, qoil_std, prop_tm = jf.jetpump_overall(
+        psu,
+        tsu,
+        pni,
+        rho_pf,
+        jpump.ken,
+        jpump.knz,
+        jpump.kth,
+        jpump.kdi,
+        jpump.ath,
+        jpump.anz,
+        wellbore.inn_area,
+        ipr_su,
+        prop_su,
+    )
+
+    # out flow section
+    md_seg, prs_ray, slh_ray = of.top_down_press(pwh, tsu, qoil_std, prop_tm, wellbore, wellprof)
 
     pdi_of = prs_ray[-1]  # discharge pressure outflow
-    pdi_diff = pdi_jp - pdi_of  # need to find the psu where pdi_diff equals zero
+    return pdi_jp - pdi_of  # what the jetpump puts out vs what is required

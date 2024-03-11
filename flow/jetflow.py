@@ -84,10 +84,6 @@ def dete_zero(
     pdec = 25  # pressure decrease
     pmin = 50
 
-    # runs the risk that you never cross the tde, then you need a smaller psu...?
-    # this can be mitigated by finding the lowest psu and never going below that?
-    # need either a gradient or mach watchman...?
-    # keep lowering pte until tde is under zero.
     while (te_book.tde_ray[-1] > 0) and (te_book.prs_ray[-1] > pmin):
         pte = te_book.prs_ray[-1] - pdec
 
@@ -96,6 +92,10 @@ def dete_zero(
         vte = sp.velocity(qtot, ate)
 
         te_book.append(pte, vte, prop_su.rho_mix(), prop_su.cmix(), enterance_ke(ken, vte))
+
+        # ensures crossing zero tde while below mach limit
+        if (te_book.mach_ray[-1] >= 1) and (te_book.tde_ray[-1] > 0):
+            raise ValueError(f"Suction Pressure of {psu} psig is too low. Select higher Psu.")
 
     pte, vte, rho_te = te_book.dete_zero()
     return qoil_std, pte, rho_te, vte
@@ -138,8 +138,8 @@ def dete_mach_one(
 
     # keep mach under one, and pte above pmin, so it doesn't go negative
     while (te_book.mach_ray[-1] <= 1) and (te_book.prs_ray[-1] > pmin):
-
         pte = te_book.prs_ray[-1] - pdec
+
         prop_su = prop_su.condition(pte, tsu)
         qtot = sum(prop_su.insitu_volm_flow(qoil_std))
         vte = sp.velocity(qtot, ate)
@@ -364,11 +364,9 @@ def throat_discharge(
         dp_tm = sp.mom_to_psi(mom_tot, ath)  # lbf/in2
         ptm = pte - dp_tm
         ptm_list.append(ptm)
-        n = n + 1
+        n += 1
         if n == 10:
-            print("Throat Mixture did not converge")
-            break
-    # print(f"Throat took {n} loops to find solution")
+            raise ValueError("Throat Mixture did not converge")
     return ptm_list[-1]
 
 
@@ -433,8 +431,8 @@ def diffuser_discharge(
     """
     prop_tm = prop_tm.condition(ptm, ttm)
     qtot = sum(prop_tm.insitu_volm_flow(qoil_std))
-    vtm = sp.velocity(qtot, ath)
     vdi = sp.velocity(qtot, adi)
+    vtm = sp.velocity(qtot, ath)
 
     di_book = jp.JetBook(ptm, vdi, prop_tm.rho_mix(), prop_tm.cmix(), diffuser_ke(kdi, vtm, vdi))
 
@@ -451,3 +449,58 @@ def diffuser_discharge(
 
     pdi = di_book.dedi_zero()
     return vtm, pdi  # type: ignore
+
+
+def jetpump_overall(
+    psu: float,
+    tsu: float,
+    pni: float,
+    rho_ni: float,
+    ken: float,
+    knz: float,
+    kth: float,
+    kdi: float,
+    ath: float,
+    anz: float,
+    adi: float,
+    ipr_su: InFlow,
+    prop_su: ResMix,
+) -> tuple[float, float, float, float, ResMix]:
+    """Jet Pump Overall Equations
+
+    Solve the jetpump equations, calculating out the expected discharge conditions.
+    Function dete_zero() will raise a ValueError if the selected psu is too low.
+
+    Args:
+        psu (float): Suction Pressure, psig
+        tsu (float): Suction Temp, deg F
+        pni (float): Nozzle Inlet Pressure, psig
+        rho_ni (float): Nozzle Inlet Density, lbm/ft3
+        ken (float): Enterance Friction Factor, unitless
+        knz (float): Nozzle Friction Factor, unitless
+        kth (float): Throat Friction Factor, unitless
+        kdi (float): Diffuser Friction Factor, unitless
+        ath (float): Throat Area, ft2
+        anz (float): Nozzle Area, ft2
+        adi (float): Diffuser Area, ft2
+        ipr_su (InFlow): IPR of Reservoir
+        prop_su (ResMix): Properties of Suction Fluid
+
+    Returns:
+        pte (float): Throat Entry Pressure, psig
+        ptm (float): Throat Mixture Pressure, psig
+        pdi (float): Diffuser Discharge Pressure, psig
+        qoil_std (float): Oil Rate, STBOPD
+        prop_tm (ResMix): Properties of Discharge Fluid
+    """
+    ate = ath - anz
+    qoil_std, pte, rho_te, vte = dete_zero(psu=psu, tsu=tsu, ken=ken, ate=ate, ipr_su=ipr_su, prop_su=prop_su)
+    vnz = nozzle_velocity(pni, pte, knz, rho_ni)
+
+    qnz_ft3s, qnz_bpd = nozzle_rate(vnz, anz)
+    wc_tm = throat_wc(qoil_std, prop_su.wc, qnz_bpd)
+
+    prop_tm = ResMix(wc_tm, prop_su.fgor, prop_su.oil, prop_su.wat, prop_su.gas)
+    ptm = throat_discharge(pte, tsu, kth, vnz, anz, rho_ni, vte, ate, rho_te, prop_tm)
+    vtm, pdi = diffuser_discharge(ptm, tsu, kdi, ath, adi, qoil_std, prop_tm)
+    return pte, ptm, pdi, qoil_std, prop_tm

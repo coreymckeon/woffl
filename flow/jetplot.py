@@ -217,7 +217,7 @@ class JetBook:
         axs[2].scatter(prs_ray, ede_ray, label="Expansion")
         axs[2].scatter(prs_ray, kde_ray, label="Kinetic")
         axs[2].axhline(y=0, color="black", linestyle="--", linewidth=1)
-        axs[2].set_ylabel("Specific Energy, ft2/s2")
+        axs[2].set_ylabel("Energy, ft2/s2")
         axs[2].legend()
 
         ycoord = (max(tde_ray) + min(tde_ray)) / 2
@@ -263,7 +263,7 @@ class JetBook:
         axs[2].scatter(prs_ray, ede_ray, label="Expansion")
         axs[2].scatter(prs_ray, kde_ray, label="Kinetic")
         axs[2].axhline(y=0, color="black", linestyle="--", linewidth=1)
-        axs[2].set_ylabel("Specific Energy, ft2/s2")
+        axs[2].set_ylabel("Energy, ft2/s2")
         axs[2].legend()
 
         axs[3].scatter(prs_ray, tde_ray)
@@ -374,7 +374,7 @@ def diffuser_book(
 
 
 def multi_throat_entry_books(
-    psu_list: list | np.ndarray, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
+    psu_ray: list | np.ndarray, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[list, list]:
     """Multiple Throat Entry Arrays
 
@@ -382,7 +382,7 @@ def multi_throat_entry_books(
     graph later. Similiar to Figure 5 from Robert Merrill Paper.
 
     Args:
-        psu_list (list): List or Array of Suction Pressures, psig
+        psu_ray (list): List or Array of Suction Pressures, psig
         tsu (float): Suction Temp, deg F
         ken (float): Throat Entry Friction, unitless
         ate (float): Throat Entry Area, ft2
@@ -393,16 +393,16 @@ def multi_throat_entry_books(
         qoil_list (list): List of Oil Rates
         book_list (list): List of Jet Book Results
     """
-    if max(psu_list) >= ipr_su.pres:
+    if max(psu_ray) >= ipr_su.pres:
         raise ValueError("Max suction pressure must be less than reservoir pressure")
     # 200 is arbitary and has been hard coded into the throat entry array calcs
-    if min(psu_list) <= 200:
+    if min(psu_ray) <= 200:
         raise ValueError("Min suction pressure must be greater than 200 psig")
 
     book_list = list()  # create empty list to fill up with results
     qoil_list = list()
 
-    for psu in psu_list:
+    for psu in psu_ray:
         qoil_std, te_book = throat_entry_book(psu, tsu, ken, ate, ipr_su, prop_su)
 
         qoil_list.append(qoil_std)
@@ -432,7 +432,6 @@ def te_tde_subsonic_plot(qoil_std: float, te_book: JetBook, color: str) -> Axes:
     ax = plt.gca()
     ax.scatter(pte_ray, tee_ray, color=color, label=f"{int(qoil_std)} bopd, {int(psu)} psi")
     ax.scatter(pmo, tde_pmo, marker="v", color=color)  # type: ignore
-
     return ax
 
 
@@ -448,6 +447,7 @@ def multi_suction_graphs(qoil_list: list, book_list: list) -> None:
     Returns:
         Graphs
     """
+    plt.rcParams["mathtext.default"] = "regular"
     prop_cycle = plt.rcParams["axes.prop_cycle"]()  # convert to iterator
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -456,7 +456,7 @@ def multi_suction_graphs(qoil_list: list, book_list: list) -> None:
         te_tde_subsonic_plot(qoil_std, te_book, color)  # need parent and children classes
 
     ax.set_xlabel("Throat Entry Pressure, psig")
-    ax.set_ylabel("Throat Entry Equation, ft2/s2")
+    ax.set_ylabel("$dE_{te}$, ft2/s2")
     ax.axhline(y=0, color="black", linestyle="--", linewidth=1)
     ax.set_title("Figure 5 of SPE-202928-MS, Mach 1 at \u25BC")
     ax.legend()
