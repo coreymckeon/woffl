@@ -18,7 +18,7 @@ from pvt.resmix import ResMix
 surf_pres = 210
 jpump_tvd = 4065  # feet, interpolated off well profile
 rho_pf = 62.4  # lbm/ft3
-ppf_surf = 3168  # psi, power fluid surf pressure
+ppf_surf = 3168  # psi, power fluid surf pressure 3168
 
 # testing the jet pump code on E-41
 tube = Pipe(out_dia=4.5, thick=0.5)  # E-42 tubing

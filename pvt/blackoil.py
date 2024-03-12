@@ -284,8 +284,10 @@ class BlackOil:
             c1, c2, c3, c4 = [0.05958, 0.7972, 1.0014, 13.1405]
         else:  # oilAPI greater than 30API
             c1, c2, c3, c4 = [0.0315, 0.7587, 1.0937, 11.289]
-        pa = press + 14.7  # absolute pressure
-        rs = c1 * gas_sg**c2 * pa**c3 * 10 ** (c4 * oil_api / (temp + 460))
+        pabs = press + 14.7  # absolute pressure
+        # print(pabs)
+        rs = c1 * gas_sg**c2 * pabs**c3 * 10 ** (c4 * oil_api / (temp + 460))
+        # print(rs)
         return rs
 
     @staticmethod
@@ -311,8 +313,8 @@ class BlackOil:
             c1, c2, c3 = [0.0362, 1.0937, 25.7240]
         else:  # if oilAPI is greater than 30API
             c1, c2, c3 = [0.0178, 1.187, 23.9310]
-        pa = press + 14.7  # absolute pressure
-        rs = c1 * gas_sg * pa**c2 * math.exp(c3 * oil_api / (temp + 460))
+        pabs = press + 14.7  # absolute pressure
+        rs = c1 * gas_sg * pabs**c2 * math.exp(c3 * oil_api / (temp + 460))
         return rs
 
     @staticmethod
@@ -336,8 +338,8 @@ class BlackOil:
             - Fundamental Principles of Reservoir Engineering, B.Towler (2002) Page 22
             - Correlations for Fluid Physical Property... Vasquez and Beggs (1980)
         """
-        pa = press + 14.7
-        co = (5 * rs + 17.2 * temp - 1180 * gas_sg + 12.61 * oil_api - 1433) / (pa * 10**5)
+        pabs = press + 14.7
+        co = (5 * rs + 17.2 * temp - 1180 * gas_sg + 12.61 * oil_api - 1433) / (pabs * 10**5)
         return co
 
     @staticmethod

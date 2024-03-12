@@ -57,7 +57,7 @@ qoil_list = []
 pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)  # static
 
 for psu in psu_list:
-    pte, ptm, pdi, qoil_std, prop_tm = jf.jetpump_overall(
+    pte, ptm, pdi, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, prop_tm = jf.jetpump_overall(
         psu,
         form_temp,
         pni,
