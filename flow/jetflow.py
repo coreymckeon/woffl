@@ -184,6 +184,7 @@ def psu_minimize(
         dete_mach_one(psu_list[0], tsu, ken, ate, ipr_su, prop_su)[0],
         dete_mach_one(psu_list[1], tsu, ken, ate, ipr_su, prop_su)[0],
     ]
+
     psu_diff = 5  # criteria for when you've converged to an answer
     n = 0  # loop counter
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
@@ -193,8 +194,7 @@ def psu_minimize(
         tee_list.append(tee_nxt)
         n = n + 1
         if n == 10:
-            print("TEE Minimization did not converge")
-            break
+            raise ValueError("Suction Pressure for Minimization did not converge")
     pte, vte, rho_te = te_book.dete_zero()
     return psu_list[-1], qoil_std, pte, rho_te, vte  # type: ignore
 

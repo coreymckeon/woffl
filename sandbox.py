@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import flow.outflow as of
+from flow import jetcheck as jc
 from flow import jetflow as jf
 from flow import jetplot as jplt
 from flow import singlephase as sp
@@ -16,7 +17,7 @@ from pvt.resmix import ResMix
 
 pwh = 210
 rho_pf = 62.4  # lbm/ft3
-ppf_surf = 3168  # psi, power fluid surf pressure
+ppf_surf = 3168  # 3168 psi, power fluid surf pressure
 
 # testing the jet pump code on E-41
 tube = Pipe(out_dia=4.5, thick=0.5)  # E-42 tubing
@@ -38,48 +39,7 @@ prop_su = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_ga
 
 wellprof = WellProfile.schrader()
 
-# find the minimum psu, then find maximum, calculate pdi and compare?
-# also calculate pdi_of for each case / residual?
+psu_solv, flow_status = jc.jetpump_solver(pwh, form_temp, rho_pf, ppf_surf, e41_jp, tube, wellprof, ipr_su, prop_su)
 
-psu_min, qoil_std, pte, rho_te, vte = jf.psu_minimize(form_temp, e41_jp.ken, e41_jp.ate, ipr_su, prop_su)
-psu_max = ipr_su.pres - 10
-
-psu_list = np.linspace(psu_min, psu_max, 10)
-
-pte_list = []
-ptm_list = []
-pdi_list = []
-qoil_list = []
-
-pni = ppf_surf + sp.diff_press_static(rho_pf, wellprof.jetpump_vd)  # static
-
-for psu in psu_list:
-    pte, ptm, pdi, qoil_std, prop_tm = jf.jetpump_overall(
-        psu,
-        form_temp,
-        pni,
-        rho_pf,
-        e41_jp.ken,
-        e41_jp.knz,
-        e41_jp.kth,
-        e41_jp.kdi,
-        e41_jp.ath,
-        e41_jp.anz,
-        tube.inn_area,
-        ipr_su,
-        prop_su,
-    )
-
-    pte_list.append(pte)
-    ptm_list.append(ptm)
-    pdi_list.append(pdi)
-    qoil_list.append(qoil_std)
-
-plt.scatter(psu_list, pdi_list, label="Discharge")
-plt.scatter(psu_list, ptm_list, label="Throat Mix")
-plt.scatter(psu_list, pte_list, label="Throat Entry")
-plt.xlabel("Suction Pressure, psig")
-plt.ylabel("Pressure, psig")
-plt.title("Comparison of Jet Pump Pressures Against Suction")
-plt.legend()
-plt.show()
+print(psu_solv, flow_status)
+# create a graph that shows how psu changes as the power fluid pressure is changed

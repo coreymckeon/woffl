@@ -154,14 +154,14 @@ def jetpump_solver(
 
     Returns:
         psu (float): Suction Pressure, psig
-        flow_status (boolean): If the Well will flow
+        flow_status (boolean): Will the Well flow?
     """
     psu_min, qsu_std, pte, rho_te, vte = jf.psu_minimize(
         tsu=tsu, ken=jpump.ken, ate=jpump.ate, ipr_su=ipr_su, prop_su=prop_su
     )
     res_min = system_residual(psu_min, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
 
-    # if the jetpump (available) discharge is above than the outflow (required) discharge at lowest suction
+    # if the jetpump (available) discharge is above the outflow (required) discharge at lowest suction
     # the well will flow, but at its critical limit
     if res_min > 0:
         flow_status = True
@@ -170,7 +170,7 @@ def jetpump_solver(
     psu_max = ipr_su.pres - 10  # max suction pressure that can be used
     res_max = system_residual(psu_max, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
 
-    # if the jetpump (available) discharge is less than the outflow (required) discharge at highest suction
+    # if the jetpump (available) discharge is below the outflow (required) discharge at highest suction
     # the well will not flow, need to pick different parameters
     if res_max < 0:
         flow_status = False  # add code that if the flow is no, return np.NaN
@@ -178,17 +178,19 @@ def jetpump_solver(
 
     # start secant hunting for the answer, in between the two points
     psu_list = [psu_min, psu_max]
-    res_list = [
-        system_residual(psu_min, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su),
-        system_residual(psu_max, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su),
-    ]
+    res_list = [res_min, res_max]
 
-    psu_nxt = jf.psu_secant(psu_list[0], psu_list[1], res_list[0], res_list[1])
-    res_nxt = system_residual(psu_nxt, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
+    psu_diff = 5  # criteria for when you've converged to an answer
+    n = 0  # loop counter
 
-    psu_list.append(psu_nxt)
-    res_list.append(res_nxt)
-
+    while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
+        psu_nxt = jf.psu_secant(psu_list[0], psu_list[1], res_list[0], res_list[1])
+        res_nxt = system_residual(psu_nxt, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
+        psu_list.append(psu_nxt)
+        res_list.append(res_nxt)
+        n += 1
+        if n == 10:
+            raise ValueError("Suction Pressure for Overall System did not converge")
     return psu_list[-1], True
 
 
