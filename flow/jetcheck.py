@@ -156,7 +156,7 @@ def jetpump_solver(
 
     Returns:
         psu (float): Suction Pressure, psig
-        flow_status (boolean): Will the Well flow?
+        sonic_status (boolean): Is the throat entry at sonic velocity?
         qoil_std (float): Oil Rate, STBOPD
         fwat_bwpd (float): Formation Water Rate, BWPD
         qnz_bwpd (float): Power Fluid Rate, BWPD
@@ -170,8 +170,8 @@ def jetpump_solver(
     # if the jetpump (available) discharge is above the outflow (required) discharge at lowest suction
     # the well will flow, but at its critical limit
     if res_min > 0:
-        flow_status = True
-        return psu_min, flow_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te
+        sonic_status = True
+        return psu_min, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te
 
     psu_max = ipr_su.pres - 10  # max suction pressure that can be used
     res_max, *etc = discharge_residual(psu_max, pwh, tsu, rho_pf, ppf_surf, jpump, wellbore, wellprof, ipr_su, prop_su)
@@ -179,8 +179,8 @@ def jetpump_solver(
     # if the jetpump (available) discharge is below the outflow (required) discharge at highest suction
     # the well will not flow, need to pick different parameters
     if res_max < 0:
-        flow_status = False  # add code that if the flow is no, return np.NaN
-        return np.nan, flow_status, np.nan, np.nan, np.nan, np.nan
+        sonic_status = False  # add code that if the flow is no, return np.NaN
+        return np.nan, sonic_status, np.nan, np.nan, np.nan, np.nan
 
     # start secant hunting for the answer, in between the two points
     psu_list = [psu_min, psu_max]
@@ -199,7 +199,7 @@ def jetpump_solver(
         n += 1
         if n == 10:
             raise ValueError("Suction Pressure for Overall System did not converge")
-    return psu_list[-1], True, qoil_std, fwat_bwpd, qnz_bwpd, mach_te
+    return psu_list[-1], False, qoil_std, fwat_bwpd, qnz_bwpd, mach_te
 
 
 def discharge_residual(
