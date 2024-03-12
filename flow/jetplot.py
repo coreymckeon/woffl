@@ -131,7 +131,7 @@ class JetBook:
         )
         return None
 
-    def dete_zero(self) -> tuple[float, float, float]:
+    def dete_zero(self) -> tuple[float, float, float, float]:
         """Throat Entry Parameters at Zero Total Differential Energy
 
         Args:
@@ -141,8 +141,9 @@ class JetBook:
             pte (float): Throat Entry Pressure, psig
             vte (float): Throat Entry Velocity, ft/s
             rho_te (float): Throat Entry Density, lbm/ft3
+            mach_te (float): Mach Throat Entry, unitless
         """
-        return self._dete_zero(self.prs_ray, self.vel_ray, self.rho_ray, self.tde_ray)
+        return self._dete_zero(self.prs_ray, self.vel_ray, self.rho_ray, self.tde_ray, self.mach_ray)
 
     def dedi_zero(self) -> float:
         """Diffuser Discharge Pressure at Zero Total Differential Energy
@@ -157,8 +158,12 @@ class JetBook:
 
     @staticmethod
     def _dete_zero(
-        prs_ray: np.ndarray, vel_ray: np.ndarray, rho_ray: np.ndarray, tde_ray: np.ndarray
-    ) -> tuple[float, float, float]:
+        prs_ray: np.ndarray,
+        vel_ray: np.ndarray,
+        rho_ray: np.ndarray,
+        tde_ray: np.ndarray,
+        mach_ray: np.ndarray,
+    ) -> tuple[float, float, float, float]:
         """Throat Entry Parameters at Zero Total Differential Energy
 
         Calculate the throat entry pressure, density, and velocity where dEte is zero
@@ -173,15 +178,19 @@ class JetBook:
             pte (float): Throat Entry Pressure, psig
             vte (float): Throat Entry Velocity, ft/s
             rho_te (float): Throat Entry Density, lbm/ft3
+            mach_te (float): Mach Throat Entry, unitless
         """
         dtdp = np.gradient(tde_ray, prs_ray)  # uses central limit thm, so same size
         mask = dtdp >= 0  # only points where slope is greater than or equal to zero
 
-        pte = np.interp(0, np.flip(tde_ray[mask]), np.flip(prs_ray[mask]))
-        vte = np.interp(0, np.flip(tde_ray[mask]), np.flip(vel_ray[mask]))
-        rho_te = np.interp(0, np.flip(tde_ray[mask]), np.flip(rho_ray[mask]))
+        tde_flipped = np.flip(tde_ray[mask])
 
-        return pte, vte, rho_te  # type: ignore
+        pte = np.interp(0, tde_flipped, np.flip(prs_ray[mask]))
+        vte = np.interp(0, tde_flipped, np.flip(vel_ray[mask]))
+        rho_te = np.interp(0, tde_flipped, np.flip(rho_ray[mask]))
+        mach_te = np.interp(0, tde_flipped, np.flip(mach_ray[mask]))
+
+        return pte, vte, rho_te, mach_te  # type: ignore
 
     @staticmethod
     def _throat_entry_graphs(
@@ -200,7 +209,7 @@ class JetBook:
         psu = prs_ray[0]
         pmo = float(np.interp(1, mach_ray, prs_ray))  # interpolate for pressure at mach 1, pmo
         pgo = float(np.interp(0, np.flip(grad_ray), np.flip(prs_ray)))  # find point where gradient is zero
-        pte, vte, rho_te = JetBook._dete_zero(prs_ray, vel_ray, rho_ray, tde_ray)
+        pte, vte, rho_te, mach_te = JetBook._dete_zero(prs_ray, vel_ray, rho_ray, tde_ray, mach_ray)
 
         fig, axs = plt.subplots(4, sharex=True)
         plt.rcParams["mathtext.default"] = "regular"
@@ -287,6 +296,7 @@ class JetBook:
         plt.show()
 
 
+# this goes all the way down to 200 psig
 def throat_entry_book(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, JetBook]:
@@ -306,7 +316,7 @@ def throat_entry_book(
 
     Returns:
         qoil_std (float): Oil Rate, STBOPD
-        te_book (JetBook): Book of values of what is occuring inside throat entry
+        te_book (JetBook): Book of values for inside the throat entry
     """
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
 

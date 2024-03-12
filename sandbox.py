@@ -39,7 +39,9 @@ prop_su = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_ga
 
 wellprof = WellProfile.schrader()
 
-psu_solv, flow_status = jc.jetpump_solver(pwh, form_temp, rho_pf, ppf_surf, e41_jp, tube, wellprof, ipr_su, prop_su)
+psu_solv, flow_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te = jc.jetpump_solver(
+    pwh, form_temp, rho_pf, ppf_surf, e41_jp, tube, wellprof, ipr_su, prop_su
+)
 
-print(psu_solv, flow_status)
+print(psu_solv, flow_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te)
 # create a graph that shows how psu changes as the power fluid pressure is changed

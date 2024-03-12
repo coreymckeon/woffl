@@ -44,7 +44,7 @@ wellprof = WellProfile.schrader()
 # find the minimum psu, then find maximum, calculate pdi and compare?
 # also calculate pdi_of for each case / residual?
 
-psu_min, qoil_std, pte, rho_te, vte = jf.psu_minimize(form_temp, e41_jp.ken, e41_jp.ate, ipr_su, prop_su)
+psu_min, qoil_std, te_book = jf.psu_minimize(form_temp, e41_jp.ken, e41_jp.ate, ipr_su, prop_su)
 psu_max = ipr_su.pres - 10
 
 psu_list = np.linspace(psu_min, psu_max, 10)

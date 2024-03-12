@@ -51,12 +51,15 @@ def incremental_ee(prs_ray: np.ndarray, rho_ray: np.ndarray) -> float:
     return ee_inc
 
 
-def dete_zero(
+# change this to a function that just creates the book?
+# this only goes past crossing the zero tde line
+def throat_entry_zero_tde(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
-) -> tuple[float, float, float, float]:
+) -> tuple[float, jp.JetBook]:
     """Throat Entry Differential Energy at Zero
 
-    Find the pte, rho_te and vte that correspond to a zero value of tde.
+    Create a throat entry book where the differential energy crosses zero.
+    Throat entry book can
     Use IPR to find the expected well production rate at the specific psu.
 
     Args:
@@ -69,9 +72,7 @@ def dete_zero(
 
     Returns:
         qoil_std (float): Oil Rate, STBOPD
-        pte (float): Throat Entry Pressure, psig
-        rho_te (float): Throat Entry Density, lbm/ft3
-        vte (float): Throat Entry Velocity, ft/s
+        te_book (JetBook): Book of values for inside the throat entry
     """
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
 
@@ -98,11 +99,12 @@ def dete_zero(
         # if (te_book.mach_ray[-1] > 1) and (te_book.tde_ray[-2] > 100):
         # raise ValueError(f"Suction Pressure of {psu} psig is too low. Select higher Psu.")
 
-    pte, vte, rho_te = te_book.dete_zero()
-    return qoil_std, pte, rho_te, vte
+    # pte, vte, rho_te, mach_te = te_book.dete_zero()
+    return qoil_std, te_book
 
 
-def dete_mach_one(
+# this goes until the mach number equals one
+def throat_entry_mach_one(
     psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
 ) -> tuple[float, float, jp.JetBook]:
     """Throat Entry Differential Energy at Mach One
@@ -124,7 +126,7 @@ def dete_mach_one(
     Returns:
         tde_fin (float): Total Differential Energy at Mach 1, ft2/s2
         qoil_std (float): Oil Produced at psu with set IPR, bopd
-        te_book (ThroatEnteranceBook): Analysis Recording
+        te_book (JetBook): Book of values for inside the throat entry
     """
     qoil_std = ipr_su.oil_flow(psu, method="pidx")  # oil standard flow, bopd
 
@@ -157,7 +159,7 @@ def dete_mach_one(
 
 def psu_minimize(
     tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix
-) -> tuple[float, float, float, float, float]:
+) -> tuple[float, float, jp.JetBook]:
     """Minimize psu
 
     Find the smallest psu possible where the throat is choked. (Ma = 1)
@@ -181,22 +183,22 @@ def psu_minimize(
     psu_list = [ipr_su.pres - 300, ipr_su.pres - 400]
     # store values of tee near mach=1 pressure
     tee_list = [
-        dete_mach_one(psu_list[0], tsu, ken, ate, ipr_su, prop_su)[0],
-        dete_mach_one(psu_list[1], tsu, ken, ate, ipr_su, prop_su)[0],
+        throat_entry_mach_one(psu_list[0], tsu, ken, ate, ipr_su, prop_su)[0],
+        throat_entry_mach_one(psu_list[1], tsu, ken, ate, ipr_su, prop_su)[0],
     ]
 
     psu_diff = 5  # criteria for when you've converged to an answer
     n = 0  # loop counter
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
         psu_nxt = psu_secant(psu_list[-2], psu_list[-1], tee_list[-2], tee_list[-1])
-        tee_nxt, qoil_std, te_book = dete_mach_one(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
+        tee_nxt, qoil_std, te_book = throat_entry_mach_one(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
         psu_list.append(psu_nxt)
         tee_list.append(tee_nxt)
         n = n + 1
         if n == 10:
             raise ValueError("Suction Pressure for Minimization did not converge")
-    pte, vte, rho_te = te_book.dete_zero()
-    return psu_list[-1], qoil_std, pte, rho_te, vte  # type: ignore
+    # pte, vte, rho_te, mach_te = te_book.dete_zero()
+    return psu_list[-1], qoil_std, te_book
 
 
 def psu_secant(psu1: float, psu2: float, dete1: float, dete2: float) -> float:
@@ -371,11 +373,11 @@ def throat_discharge(
     return ptm_list[-1]
 
 
-def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
-    """Throat Watercut
+def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> tuple[float, float]:
+    """Throat Watercut and Formation Water Rate
 
-    Calculate watercut inside jet pump throat. This is the new watercut
-    after the power fluid and reservoir fluid have mixed together
+    Calculate watercut and formation water rate into the jet pump throat.
+    New watercut after the power fluid and reservoir fluid have mixed together.
 
     Args:
         qoil_std (float): Oil Rate, STD BOPD
@@ -383,12 +385,13 @@ def throat_wc(qoil_std: float, wc_su: float, qwat_nz: float) -> float:
         qwat_nz (float): Powerfluid Flowrate, BWPD
 
     Returns:
-        wc_tm (float): Watercut at throat, decimal"""
+        wc_tm (float): Watercut at throat, decimal
+        qwat_su (float): Formation Water at Suction, bwpd"""
 
     qwat_su = qoil_std * wc_su / (1 - wc_su)
     qwat_tot = qwat_nz + qwat_su
     wc_tm = qwat_tot / (qwat_tot + qoil_std)
-    return wc_tm
+    return wc_tm, qwat_su
 
 
 def diffuser_ke(kdi: float, vtm: float, vdi: float) -> float:
@@ -466,7 +469,7 @@ def jetpump_overall(
     adi: float,
     ipr_su: InFlow,
     prop_su: ResMix,
-) -> tuple[float, float, float, float, ResMix]:
+) -> tuple[float, float, float, float, float, float, float, ResMix]:
     """Jet Pump Overall Equations
 
     Solve the jetpump equations, calculating out the expected discharge conditions.
@@ -492,16 +495,21 @@ def jetpump_overall(
         ptm (float): Throat Mixture Pressure, psig
         pdi (float): Diffuser Discharge Pressure, psig
         qoil_std (float): Oil Rate, STBOPD
+        fwat_bpd (float): Formation Water Rate, BWPD
+        qnz_bpd (float): Power Fluid Rate, BWPD
+        mach_te (float): Throat Entry Mach, unitless
         prop_tm (ResMix): Properties of Discharge Fluid
     """
     ate = ath - anz
-    qoil_std, pte, rho_te, vte = dete_zero(psu=psu, tsu=tsu, ken=ken, ate=ate, ipr_su=ipr_su, prop_su=prop_su)
+    qoil_std, te_book = throat_entry_zero_tde(psu=psu, tsu=tsu, ken=ken, ate=ate, ipr_su=ipr_su, prop_su=prop_su)
+    pte, vte, rho_te, mach_te = te_book.dete_zero()
+
     vnz = nozzle_velocity(pni, pte, knz, rho_ni)
 
-    qnz_ft3s, qnz_bpd = nozzle_rate(vnz, anz)
-    wc_tm = throat_wc(qoil_std, prop_su.wc, qnz_bpd)
+    qnz_ft3s, qnz_bwpd = nozzle_rate(vnz, anz)
+    wc_tm, fwat_bwpd = throat_wc(qoil_std, prop_su.wc, qnz_bwpd)
 
     prop_tm = ResMix(wc_tm, prop_su.fgor, prop_su.oil, prop_su.wat, prop_su.gas)
     ptm = throat_discharge(pte, tsu, kth, vnz, anz, rho_ni, vte, ate, rho_te, prop_tm)
     vtm, pdi = diffuser_discharge(ptm, tsu, kdi, ath, adi, qoil_std, prop_tm)
-    return pte, ptm, pdi, qoil_std, prop_tm
+    return pte, ptm, pdi, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, prop_tm
