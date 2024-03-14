@@ -8,8 +8,14 @@ from scipy import optimize
 # need to include the jetpump measured depth in the WellProfile
 # maybe segregate it here? Have a tubing length? Have a sand length?
 class WellProfile:
+    """Well Profile Class
+
+    Create a wellprofile, which is the subsurface geometry of the measured depth versus vertical depth.
+    Can be used to interpolate values for understanding how measured depth relates to vertical depth.
+    """
+
     def __init__(self, md_list: list | np.ndarray, vd_list: list | np.ndarray, jetpump_md: float) -> None:
-        """Initialize a Well Profile
+        """Create a Well Profile
 
         Args:
             md_list (list): List of measured depths
@@ -223,7 +229,15 @@ class WellProfile:
 
     @classmethod
     def schrader(cls):
-        """Generic well profile geometry based on MPE-42"""
+        """Schrader Bluff Well Profile generic well profile geometry based on MPE-42
+
+        Generic Schrader Bluff well profile based on MPE-42 geometry.
+
+        Args:
+            md_list (list): MPE-42 Measured Depth
+            vd_list (list): MPE-42 Vertical Depth
+            jetpump_md (float): 6693 MD, feet
+        """
         e42_md = [
             0.0,
             100.0,

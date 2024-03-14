@@ -2,16 +2,21 @@ import math
 
 
 class BlackOil:
+    """Black Oil Stream
+
+    Set a condition and calculate density, viscosity or compressibility
+    """
+
     def __init__(self, oil_api: float, bubblepoint: float, gas_sg: float) -> None:
         """Initialize a Black Oil Stream
 
         Args:
-                oil_api (float): Oil API, 10 to 40
-                bubblepoint (float): Bubble Point Pressure, PSIG
-                gas_sg (float): In-Situ Gas Specific Gravity
+            oil_api (float): Oil API, 10 to 40
+            bubblepoint (float): Bubble Point Pressure, PSIG
+            gas_sg (float): In-Situ Gas Specific Gravity
 
         Returns:
-                Self
+            Self
         """
         if (10 < oil_api < 40) is False:
             raise ValueError(f"Oil API {oil_api} Outside Range")
@@ -31,10 +36,28 @@ class BlackOil:
 
     @classmethod
     def schrader_oil(cls):
+        """Schrader Bluff Black Oil
+
+        Generic Schrader Bluff black oil with preset properties
+
+        Args:
+            oil_api (float): 22 API
+            bubblepoint (float): 1750 psig
+            gas_sg (float): 0.65
+        """
         return cls(oil_api=22, bubblepoint=1750, gas_sg=0.65)
 
     @classmethod
     def kuparuk_oil(cls):
+        """Kuparuk Black Oil
+
+        Generic Kuparuk black oil with preset properties
+
+        Args:
+            oil_api (float): 24 API
+            bubblepoint (float): 2250 psig
+            gas_sg (float): 0.65
+        """
         return cls(oil_api=24, bubblepoint=2250, gas_sg=0.65)
 
     @classmethod

@@ -50,8 +50,7 @@ class ResMix:
         Returns:
             Self
         """
-        # define the condition, where are you at?
-        # what is the pressure and what is the temperature?
+        # add code that prevents pressure from going negative?
         self.press = press
         self.temp = temp
 

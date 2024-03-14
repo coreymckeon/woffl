@@ -21,8 +21,8 @@ ppf_surf = 3168  # 3168 psi, power fluid surf pressure
 
 # testing the jet pump code on E-41
 tube = Pipe(out_dia=4.5, thick=0.5)  # E-42 tubing
-case = Pipe(out_dia=6.875, thick=0.5)  # E-42 casing
-ann = Annulus(inn_pipe=tube, out_pipe=case)  # define the annulus
+# case = Pipe(out_dia=6.875, thick=0.5)  # E-42 casing
+# ann = Annulus(inn_pipe=tube, out_pipe=case)  # define the annulus
 
 ipr_su = InFlow(qwf=246, pwf=1049, pres=1400)  # define an ipr
 
