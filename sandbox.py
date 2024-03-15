@@ -15,7 +15,7 @@ from pvt.formgas import FormGas
 from pvt.formwat import FormWater
 from pvt.resmix import ResMix
 
-pwh = 220  # 210 psi
+pwh = 210  # 210 psi
 rho_pf = 62.4  # lbm/ft3
 ppf_surf = 3168  # 3168 psi, power fluid surf pressure
 
