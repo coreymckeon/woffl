@@ -285,8 +285,6 @@ def throat_outlet_momentum(kth: float, vtm: float, ath: float, rho_tm: float) ->
 
     Calculate the outlet momentum of the throat in lbm/(s2*ft). The units
     are actually pressure, but referred to as momentum to help differentiate.
-    Writing the equation this way exposes the somewhat arbitrary feeling of the 0.5 assigned to the friction.
-    It is being considered whether to drop the 0.5 or keep it.
 
     Args:
         kth (float): Throat Friction Factor, unitless

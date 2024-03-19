@@ -393,3 +393,7 @@ tvd_list = [
 e42_profile = WellProfile(md_list, tvd_list, 7000)
 e42_profile.plot_raw()
 e42_profile.plot_filter()
+
+kup_profile = WellProfile.kuparuk()
+kup_profile.plot_raw()
+kup_profile.plot_filter()
