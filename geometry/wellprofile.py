@@ -226,6 +226,7 @@ class WellProfile:
             plt.annotate(
                 text=f"{int(md_ray[idx])} ft.", xy=(hd_ray[idx] + 5, vd_ray[idx] - 10), rotation=30  # type: ignore
             )
+        plt.axis("equal")
         plt.show()
 
     @classmethod
