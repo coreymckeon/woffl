@@ -1,8 +1,8 @@
 """Jet Plotting and Storage
 
 A series of functions that are predominately built for variable storage and plotting.
-Classes that store values and results are referred to as Books. The two current storage
-devices are a throat entry book and a diffuser book (not yet built). The books possess
+Classes that store values and results are referred to as Books. A single book class is
+built that stores calculations for the throat entry book and a diffuser. The books possess
 the following.
 
 Returns:
