@@ -6,7 +6,7 @@ from pvt.formwat import FormWater
 
 
 class ResMix:
-    def __init__(self, wc: float, fgor: int, oil: BlackOil, wat: FormWater, gas: FormGas) -> None:
+    def __init__(self, wc: float, fgor: float, oil: BlackOil, wat: FormWater, gas: FormGas) -> None:
         """Reservoir Mixture
 
         Mixture of oil, water and natural gas. Define the watercut, fgor and classes
