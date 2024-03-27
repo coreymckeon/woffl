@@ -1,6 +1,7 @@
-import flow.outflow as of
 import matplotlib.pyplot as plt
 import numpy as np
+
+import flow.outflow as of
 from flow import jetcheck as jc
 from flow import jetflow as jf
 from flow import jetplot as jplt
@@ -77,8 +78,7 @@ def model_pump(
     total_water = qnz_bwpd + fwat_bwpd
     total_wc = (qnz_bwpd + fwat_bwpd) / (qnz_bwpd + fwat_bwpd + qoil_std)
 
-    print("")
-    print(f"Results for well: {wellname} ")
+    print(f"\nResults for well: {wellname} ")
     print(f"JP Size: {nozzle_no} {throat}")
     print(f"Suction pressure: {psu_solv:.0f}")
     print(f"Sonic Status: {sonic_status}")
@@ -86,8 +86,7 @@ def model_pump(
     print(f"Water Rate: {fwat_bwpd:.0f}")
     print(f"PF Rate: {qnz_bwpd:.0f}")
     print(f"Mach TE: {mach_te:.2f}")
-    print(f"Total WC: {total_wc:.2f}")
-    print("")
+    print(f"Total WC: {total_wc:.2f}\n")
 
     return psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, total_wc, total_water, wellname
 
