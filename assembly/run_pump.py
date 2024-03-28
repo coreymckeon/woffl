@@ -34,21 +34,36 @@ def model_pump(
     wellname: str,
 ):
     """
-    is_sch: TRUE/FALSE is the well schrader? to determine PVT and well geometry,
-    pwh: wellhead pressure psi,
-    rho_pf: power fluid density lbm/ft3,
-    ppf_surf: PF pressure at surface, psi,
-    out_dia: tubing OD inches,
-    thick: tubing wall thickness inches,
-    qwf: Oil rate BOPD,
-    pwf: FBHP psi,
-    res_pres: reservoir pressure,
-    nozzle_no: nozzle size ,
-    throat: throat ratio,
-    form_wc: formation watercut,
-    form_gor: formation gor,
-    form_temp: formation temp,
-    wellname: name of well being modeled,
+    Wrapper function to run jetpump_solver with all the associated classes without having to call every class.
+    
+    Args:
+        is_sch (bool): TRUE/FALSE is the well schrader? to determine PVT and well geometry,
+        pwh (float): wellhead pressure psi,
+        rho_pf (float): power fluid density lbm/ft3,
+        ppf_surf (float): PF pressure at surface, psi,
+        out_dia (float): tubing OD inches,
+        thick (float): tubing wall thickness inches,
+        qwf (float): Oil rate BOPD,
+        pwf (float): FBHP psi,
+        res_pres (float): reservoir pressure,
+        nozzle_no (str): nozzle size ,
+        throat (str): throat ratio,
+        form_wc(float): formation watercut,
+        form_gor (float): formation gor,
+        form_temp (float): formation temp,
+        wellname (str): name of well being modeled,
+
+    Returns:
+        psu_solv (float): suction pressure
+        sonic_status (bool): Choked or not
+        qoil_std (float): oil rate
+        fwat_bwpd (float): water rate
+        qnz_bwpd (float): PF rate
+        mach_te(float): Mach number
+        total_wc (float): watercut
+        total_water (float): Total water PF + formation
+        wellname (str): Wellname
+        
     """
     if is_sch:
         mpu_oil = BlackOil.schrader_oil()  # class method
@@ -90,21 +105,3 @@ def model_pump(
 
     return psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, total_wc, total_water, wellname
 
-
-psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, total_wc, total_water, wellname = model_pump(
-    True,  # isSchrader?
-    pwh=210,  # WHP
-    rho_pf=62.4,  # PF density
-    ppf_surf=3168,  # PF pres
-    out_dia=4.5,  # Tubing OD
-    thick=0.5,  # tubing thickness
-    qwf=246,  # Oil rate
-    pwf=1049,  # FBHP
-    res_pres=1400,  # res pressure
-    form_wc=0.894,  # watercut
-    form_gor=600,  # gor
-    form_temp=111,  # form temp
-    nozzle_no="13",  # nozzle size
-    throat="A",  # nozzel area ratio with throat
-    wellname="MPB-28",
-)
