@@ -1,14 +1,7 @@
-import matplotlib.pyplot as plt
-import numpy as np
-
-import flow.outflow as of
 from flow import jetcheck as jc
-from flow import jetflow as jf
-from flow import jetplot as jplt
-from flow import singlephase as sp
 from flow.inflow import InFlow
 from geometry.jetpump import JetPump
-from geometry.pipe import Annulus, Pipe
+from geometry.pipe import Pipe
 from geometry.wellprofile import WellProfile
 from pvt.blackoil import BlackOil
 from pvt.formgas import FormGas
@@ -35,7 +28,7 @@ def model_pump(
 ):
     """Pump Model Wrapper
 
-    Wrapper function to run jetpump_solver with the associated classes.
+    Wrapper function for running jetpump_solver.
     Eliminates the need to separately create each class.
 
     Args:
@@ -65,7 +58,6 @@ def model_pump(
         total_wc (float): Total Water Cut (PF + Form), fraction
         total_water (float): Total Water Rate (PF + Form), BWPD
         wellname (str): Wellname
-
     """
     if is_sch:
         mpu_oil = BlackOil.schrader_oil()  # class method
