@@ -33,37 +33,39 @@ def model_pump(
     form_temp: float,
     wellname: str,
 ):
-    """
-    Wrapper function to run jetpump_solver with all the associated classes without having to call every class.
-    
+    """Pump Model Wrapper
+
+    Wrapper function to run jetpump_solver with the associated classes.
+    Eliminates the need to separately create each class.
+
     Args:
-        is_sch (bool): TRUE/FALSE is the well schrader? to determine PVT and well geometry,
-        pwh (float): wellhead pressure psi,
-        rho_pf (float): power fluid density lbm/ft3,
-        ppf_surf (float): PF pressure at surface, psi,
-        out_dia (float): tubing OD inches,
-        thick (float): tubing wall thickness inches,
-        qwf (float): Oil rate BOPD,
-        pwf (float): FBHP psi,
-        res_pres (float): reservoir pressure,
-        nozzle_no (str): nozzle size ,
-        throat (str): throat ratio,
-        form_wc(float): formation watercut,
-        form_gor (float): formation gor,
-        form_temp (float): formation temp,
-        wellname (str): name of well being modeled,
+        is_sch (boolean): Is the Well Schrader?
+        pwh (float): Wellhead Pressure, psi
+        rho_pf (float): Power fluid density, lbm/ft3
+        ppf_surf (float): Power Fluid pressure at surface, psi
+        out_dia (float): Tubing OD, inches
+        thick (float): Tubing Wall thickness, inches
+        qwf (float): Oil Rate at Flowing Bottom Hole Pressure, STBOPD
+        pwf (float): Flowing Bottom Hole Pressure, psi
+        res_pres (float): Reservoir Pressure, psig
+        nozzle_no (str): Nozzle Size
+        throat (str): Throat Ratio
+        form_wc(float): Formation Water Cut, fraction
+        form_gor (float): Formation Gas Oil Ratio, SCF/STB
+        form_temp (float): Formation Temperature, deg F
+        wellname (str): Name of Modeled Well
 
     Returns:
-        psu_solv (float): suction pressure
-        sonic_status (bool): Choked or not
-        qoil_std (float): oil rate
-        fwat_bwpd (float): water rate
-        qnz_bwpd (float): PF rate
-        mach_te(float): Mach number
-        total_wc (float): watercut
-        total_water (float): Total water PF + formation
+        psu_solv (float): Suction Pressure, psig
+        sonic_status (boolean): Choked or not
+        qoil_std (float): Oil Rate at Predicted Suction Pressure, STBOPD
+        fwat_bwpd (float): Formation Water Rate, BWPD
+        qnz_bwpd (float): Power Fluid Rate, BWPD
+        mach_te(float): Mach Number Throat Entry, unitless
+        total_wc (float): Total Water Cut (PF + Form), fraction
+        total_water (float): Total Water Rate (PF + Form), BWPD
         wellname (str): Wellname
-        
+
     """
     if is_sch:
         mpu_oil = BlackOil.schrader_oil()  # class method
@@ -104,4 +106,3 @@ def model_pump(
     print(f"Total WC: {total_wc:.2f}\n")
 
     return psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, total_wc, total_water, wellname
-
