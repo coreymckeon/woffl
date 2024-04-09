@@ -1,4 +1,5 @@
 import pandas as pd
+
 from assembly.run_pump import model_pump
 
 """
@@ -56,5 +57,5 @@ for nozzle in nozzles:
 
 df_results = pd.DataFrame(results)
 df_sorted = df_results.sort_values(by="psu_solv", ascending=True)
-df_sorted.to_csv("modelrun_output B-35.csv")
+# df_sorted.to_csv("modelrun_output B-35.csv")
 print(df_sorted)

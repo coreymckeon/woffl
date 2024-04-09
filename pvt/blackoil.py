@@ -18,14 +18,20 @@ class BlackOil:
         Returns:
             Self
         """
-        if (10 < oil_api < 40) is False:
-            raise ValueError(f"Oil API {oil_api} Outside Range")
+        api_min = 10
+        api_max = 40
+        if (api_min < oil_api < api_max) is False:
+            raise ValueError(f"Oil API {oil_api} Outside Range of {api_min} to {api_max}")
 
-        if (1000 < bubblepoint < 3000) is False:
-            raise ValueError(f"Bubblepoint {bubblepoint} Outside Range")
+        bub_min = 1000
+        bub_max = 3000
+        if (bub_min < bubblepoint < bub_max) is False:
+            raise ValueError(f"Bubblepoint {bubblepoint} Outside Range of {bub_min} to {bub_max}")
 
-        if (0.5 < gas_sg < 1.2) is False:
-            raise ValueError(f"Gas SG {gas_sg} Outside Range")
+        sg_min = 0.5
+        sg_max = 1.2
+        if (sg_min < gas_sg < sg_max) is False:
+            raise ValueError(f"Gas SG {gas_sg} Outside Range of {sg_min} to {sg_max}")
 
         self.oil_api = oil_api
         self.pbp = bubblepoint
