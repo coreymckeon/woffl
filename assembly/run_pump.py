@@ -1,3 +1,4 @@
+from assembly import sysops as so
 from flow import jetcheck as jc
 from flow.inflow import InFlow
 from geometry.jetpump import JetPump
@@ -81,7 +82,7 @@ def model_pump(
 
     jp = JetPump(nozzle_no, throat, ken=0.03, kth=0.3, kdi=0.4)
 
-    psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te = jc.jetpump_solver(
+    psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te = so.jetpump_solver(
         pwh, form_temp, rho_pf, ppf_surf, jp, tube, wellprof, ipr_su, prop_su
     )
     total_water = qnz_bwpd + fwat_bwpd
