@@ -35,15 +35,11 @@ class FormWater:
         Returns:
             self
         """
-        # define the condition, where are you at?
-        # what is the pressure and what is the temperature?
-        self.press = press
-        self.temp = temp
+        self.press = press  # psig
+        self.temp = temp  # deg fahr
 
-        # input press in psig
-        # input temp in deg F
-        self._pressa = self.press + 14.7  # convert psig to psia
-        self._tempr = self.temp + 459.67  # convert fahr to rankine
+        self.pabs = self.press + 14.7  # convert psig to psia
+        self.tabs = self.temp + 459.67  # convert fahr to rankine
         return self
 
     @property
@@ -118,3 +114,37 @@ class FormWater:
         sigw_cgs = 72.8  # dyne /cm
         sigw = sigw_cgs * 0.0000685  # lbf/ft
         return sigw
+
+    def gas_solubility(self) -> float:
+        """Gas Solubility in the Water
+
+        WOFFL assumes the formation water has no gas solubility as a
+        simplifying assumption. This code is here to support other calcs.
+
+        Args:
+            None
+
+        Returns:
+            rsw (float): Gas Solubility in the water, scf/stb
+        """
+        return self.solubility_hawkins(self.pabs, self.temp)
+
+    @staticmethod
+    def solubility_hawkins(pabs: float, teval: float) -> float:
+        """Craft and Hawkins Gas Solubility in Water
+
+        Follows the Craft and Hawkins (1951) gas solubility method. Does
+        the water need to have a bubblepoint pressure to limit this?
+
+        Args:
+            pabs (float): Eval Absolute Pressure, psia
+            teval (float): Evaluated Temperature, deg F
+
+        Returns:
+            rsw (float): Gas Solubility in the water, scf/stb
+        """
+        a = 2.12 + 3.45e-3 * teval - 3.59e-5 * teval**2
+        b = 0.0107 - 5.26e-5 * teval + 1.48e-7 * teval**2
+        c = -8.75e-7 + 3.9e-9 * teval - 1.02e-11 * teval**2
+        rsw = a + b * pabs + c * pabs**2
+        return rsw

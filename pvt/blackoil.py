@@ -68,6 +68,11 @@ class BlackOil:
 
     @classmethod
     def test_oil(cls):
+        """Test Oil
+
+        Used to run tests on the black oil methods. Uses 0.55 gas
+        specific gravity with is the same as pure methane.
+        """
         return cls(oil_api=22, bubblepoint=1750, gas_sg=0.55)
 
     def condition(self, press: float, temp: float):
