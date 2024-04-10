@@ -1,6 +1,6 @@
 import pandas as pd
 
-from assembly.run_pump import model_pump
+from assembly.simplepump import model_pump
 
 """
 This is a file to call the run_pump file from Assembly folder

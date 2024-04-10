@@ -1,3 +1,9 @@
+"""Simple Pump
+
+Series of functions that don't use classes as inputs to simplify the required
+runs.
+"""
+
 from assembly import sysops as so
 from flow import jetcheck as jc
 from flow.inflow import InFlow
