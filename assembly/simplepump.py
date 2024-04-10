@@ -16,7 +16,7 @@ from pvt.formwat import FormWater
 from pvt.resmix import ResMix
 
 
-def model_pump(
+def jetpump_wrapper(
     is_sch: bool,
     pwh: float,
     rho_pf: float,
@@ -35,8 +35,7 @@ def model_pump(
 ):
     """Pump Model Wrapper
 
-    Wrapper function for running jetpump_solver.
-    Eliminates the need to separately create each class.
+    Wrapper function for jetpump_solver. Eliminates creating each class separately.
 
     Args:
         is_sch (boolean): Is the Well Schrader?
