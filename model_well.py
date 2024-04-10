@@ -1,6 +1,6 @@
 import pandas as pd
 
-from assembly.simplepump import model_pump
+from assembly.simplepump import jetpump_wrapper
 
 """
 This is a file to call the run_pump file from Assembly folder
@@ -20,7 +20,7 @@ for nozzle in nozzles:
     for throat in throats:
         try:
             psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, total_wc, total_water, wellname = (
-                model_pump(
+                jetpump_wrapper(
                     True,  # isSchrader?
                     pwh=201,  # WHP
                     rho_pf=62.4,  # PF density

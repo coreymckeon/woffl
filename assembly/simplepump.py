@@ -1,7 +1,6 @@
 """Simple Pump
 
-Series of functions that don't use classes as inputs to simplify the required
-runs.
+Series of functions that don't use classes as inputs to simplify the required runs.
 """
 
 from assembly import sysops as so
@@ -33,7 +32,7 @@ def jetpump_wrapper(
     form_temp: float,
     wellname: str,
 ):
-    """Pump Model Wrapper
+    """Jet Pump Model Wrapper
 
     Wrapper function for jetpump_solver. Eliminates creating each class separately.
 
