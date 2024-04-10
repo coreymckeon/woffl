@@ -1,6 +1,6 @@
 import pandas as pd
 
-from assembly.simplepump import jetpump_wrapper
+from assembly.easypump import jetpump_wrapper
 
 """
 This is a file to call the run_pump file from Assembly folder
