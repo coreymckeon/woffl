@@ -1,8 +1,8 @@
 import math
 
-from pvt.blackoil import BlackOil
-from pvt.formgas import FormGas
-from pvt.formwat import FormWater
+from woffl.pvt.blackoil import BlackOil
+from woffl.pvt.formgas import FormGas
+from woffl.pvt.formwat import FormWater
 
 
 class ResMix:

@@ -8,7 +8,7 @@ import math
 
 import numpy as np
 
-from flow import singlephase as sp
+from woffl.flow import singlephase as sp
 
 
 def velocities(qoil: float, qwat: float, qgas: float, area: float) -> tuple[float, float, float]:

@@ -21,10 +21,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.axes._axes import Axes
 
-from flow import jetflow as jf  # legacy
-from flow import singlephase as sp
-from flow.inflow import InFlow
-from pvt.resmix import ResMix
+from woffl.flow import jetflow as jf  # legacy
+from woffl.flow import singlephase as sp
+from woffl.flow.inflow import InFlow
+from woffl.pvt.resmix import ResMix
 
 
 class JetBook:

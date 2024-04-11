@@ -2,10 +2,10 @@ import math
 
 import numpy as np
 
-import flow.singlephase as sp
-from geometry.pipe import Annulus
-from geometry.wellprofile import WellProfile
-from pvt.formwat import FormWater
+import woffl.flow.singlephase as sp
+from woffl.geometry.pipe import Annulus
+from woffl.geometry.wellprofile import WellProfile
+from woffl.pvt.formwat import FormWater
 
 
 class AnnFlow:

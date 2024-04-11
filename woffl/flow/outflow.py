@@ -6,12 +6,12 @@ Predominate equations are two phase flow correlations. The most common being Beg
 
 import numpy as np
 
-from flow import singlephase as sp
-from flow import twophase as tp
-from geometry import forms as fm
-from geometry.pipe import Annulus, Pipe
-from geometry.wellprofile import WellProfile
-from pvt.resmix import ResMix
+from woffl.flow import singlephase as sp
+from woffl.flow import twophase as tp
+from woffl.geometry import forms as fm
+from woffl.geometry.pipe import Annulus, Pipe
+from woffl.geometry.wellprofile import WellProfile
+from woffl.pvt.resmix import ResMix
 
 
 def homo_diff_press(

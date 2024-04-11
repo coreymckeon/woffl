@@ -9,10 +9,10 @@ import math
 import numpy as np
 from scipy.integrate import trapezoid
 
-from flow import jetplot as jp
-from flow import singlephase as sp
-from flow.inflow import InFlow
-from pvt.resmix import ResMix
+from woffl.flow import jetplot as jp
+from woffl.flow import singlephase as sp
+from woffl.flow.inflow import InFlow
+from woffl.pvt.resmix import ResMix
 
 
 def enterance_ke(ken: float, vte: float) -> float:
