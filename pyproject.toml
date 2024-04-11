@@ -1,23 +1,15 @@
 [project]
 name = "woffl"
 version = "1.0.0"
-classifiers = ["Programming Language :: Python :: 3", "Jet Pump"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3"]
+keywords = ["jet pump", "solver", "numerical"]
+# might need to trim this list down?
 dependencies = [
-    "contourpy==1.2.0",
-    "cycler==0.12.1",
-    "et-xmlfile==1.1.0",
-    "fonttools==4.47.2",
-    "kiwisolver==1.4.5",
-    "matplotlib==3.8.2",
-    "numpy==1.26.3",
-    "openpyxl==3.1.2",
-    "packaging==23.2",
-    "pandas==2.1.4",
-    "pillow==10.2.0",
-    "pyparsing==3.1.1",
-    "python-dateutil==2.8.2",
-    "pytz==2023.3.post1",
-    "scipy==1.11.4",
-    "six==1.16.0",
-    "tzdata==2023.4"
+    "matplotlib>=3.8.2", # yar
+    "numpy>=1.26.3", # yar
+    "pandas>=2.1.4", # yar
+    "scipy>=1.11.4", # yar
 ]
+requires-python = ">=3.10" # not sure when type hinting was released
