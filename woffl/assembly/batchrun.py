@@ -1,6 +1,12 @@
+"""Batch Jet Pump Runs
+
+Contains code that is used to run multiple pumps at once to understand the
+current conditions.
+"""
+
 import pandas as pd
 
-from assembly.easypump import jetpump_wrapper
+from woffl.assembly.easypump import jetpump_wrapper
 
 """
 This is a file to call the run_pump file from Assembly folder
