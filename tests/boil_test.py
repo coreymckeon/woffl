@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from pvt.blackoil import BlackOil
+from woffl.pvt.blackoil import BlackOil
 
 # only works if the command python -m tests.boil_test is used
 dirname = os.getcwd()

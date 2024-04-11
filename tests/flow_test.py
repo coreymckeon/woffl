@@ -1,5 +1,5 @@
-import flow.singlephase as sp
-import flow.twophase as tp
+import woffl.flow.singlephase as sp
+import woffl.flow.twophase as tp
 
 # only works if the command python -m tests.flow_test is used
 # example problem in Two Phase Flow in Pipes by Beggs / Brill (1988) pg. 3-31

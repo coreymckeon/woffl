@@ -1,18 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import flow.outflow as of
-from flow import jetflow as jf
-from flow import jetplot as jplt
-from flow import singlephase as sp
-from flow.inflow import InFlow
-from geometry.jetpump import JetPump
-from geometry.pipe import Annulus, Pipe
-from geometry.wellprofile import WellProfile
-from pvt.blackoil import BlackOil
-from pvt.formgas import FormGas
-from pvt.formwat import FormWater
-from pvt.resmix import ResMix
+import woffl.flow.outflow as of
+from woffl.flow import jetflow as jf
+from woffl.flow import jetplot as jplt
+from woffl.flow import singlephase as sp
+from woffl.flow.inflow import InFlow
+from woffl.geometry.jetpump import JetPump
+from woffl.geometry.pipe import Annulus, Pipe
+from woffl.geometry.wellprofile import WellProfile
+from woffl.pvt.blackoil import BlackOil
+from woffl.pvt.formgas import FormGas
+from woffl.pvt.formwat import FormWater
+from woffl.pvt.resmix import ResMix
 
 # data from MPU E-41 Well Test on 11/27/2023
 # only works if the command python -m tests.jpump_test is used

@@ -1,16 +1,16 @@
 import numpy as np
 
-from flow import jetcheck as jc
-from flow import jetflow as jf
-from flow import jetplot as jplt
-from flow.inflow import InFlow
-from geometry.jetpump import JetPump
-from geometry.pipe import Annulus, Pipe
-from geometry.wellprofile import WellProfile
-from pvt.blackoil import BlackOil
-from pvt.formgas import FormGas
-from pvt.formwat import FormWater
-from pvt.resmix import ResMix
+from woffl.flow import jetcheck as jc
+from woffl.flow import jetflow as jf
+from woffl.flow import jetplot as jplt
+from woffl.flow.inflow import InFlow
+from woffl.geometry.jetpump import JetPump
+from woffl.geometry.pipe import Annulus, Pipe
+from woffl.geometry.wellprofile import WellProfile
+from woffl.pvt.blackoil import BlackOil
+from woffl.pvt.formgas import FormGas
+from woffl.pvt.formwat import FormWater
+from woffl.pvt.resmix import ResMix
 
 # data from MPU E-41 Well Test on 11/27/2023
 # only works if the command python -m tests.e41_test is used
@@ -40,7 +40,7 @@ e41_res = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_ga
 
 e42_profile = WellProfile.schrader()
 
-jc.jet_check_two(surf_pres, form_temp, rho_pf, ppf_surf, e41_jp, tube, e42_profile, e41_ipr, e41_res)
+jc.discharge_check(surf_pres, form_temp, rho_pf, ppf_surf, e41_jp, tube, e42_profile, e41_ipr, e41_res)
 # jc.jet_check(form_temp, jpump_tvd, rho_pf, ppf_surf, e41_jp, tube, e41_ipr, e41_res)
 
 psu_ray = np.linspace(1106, 1250, 5)

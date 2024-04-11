@@ -1,7 +1,7 @@
 # import matplotlib.pyplot as plt
 # import numpy as np
 
-from geometry.wellprofile import WellProfile
+from woffl.geometry.wellprofile import WellProfile
 
 # only works if the command python -m tests.wprof_test is used
 

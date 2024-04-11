@@ -2,10 +2,10 @@
 
 import numpy as np
 
-from pvt.blackoil import BlackOil
-from pvt.formgas import FormGas
-from pvt.formwat import FormWater
-from pvt.resmix import ResMix
+from woffl.pvt.blackoil import BlackOil
+from woffl.pvt.formgas import FormGas
+from woffl.pvt.formwat import FormWater
+from woffl.pvt.resmix import ResMix
 
 # print(sys.path)
 # sys.path.append("c:\\Users\\ka9612\\OneDrive - Hilcorp\\vs_code\\hilcorpak")

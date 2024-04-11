@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import flow.outflow as of
-from geometry.pipe import Pipe
-from geometry.wellprofile import WellProfile
-from pvt.blackoil import BlackOil
-from pvt.formgas import FormGas
-from pvt.formwat import FormWater
-from pvt.resmix import ResMix
+import woffl.flow.outflow as of
+from woffl.geometry.pipe import Pipe
+from woffl.geometry.wellprofile import WellProfile
+from woffl.pvt.blackoil import BlackOil
+from woffl.pvt.formgas import FormGas
+from woffl.pvt.formwat import FormWater
+from woffl.pvt.resmix import ResMix
 
 # only works if the command python -m tests.outflow_test is used
 # mirror the hysys stuff

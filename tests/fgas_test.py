@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from pvt.formgas import FormGas
+from woffl.pvt.formgas import FormGas
 
 # only works if the command python -m tests.fgas_test is used
 dirname = os.getcwd()
