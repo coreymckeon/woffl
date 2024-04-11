@@ -1,8 +1,8 @@
 # type: ignore
 # flake8: noqa
+"""Legacy Code
 
-# a place to store legacy code
-# as stuff is cleaned up
+A place to store legacy code as other code is cleaned up and stored."""
 
 
 def tee_near_pmo(psu: float, tsu: float, ken: float, ate: float, ipr_su: InFlow, prop_su: ResMix) -> float:

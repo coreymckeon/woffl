@@ -48,7 +48,7 @@ for i, x in enumerate(nd2):
     l2_new.append(y)
 
 
-def sigmoid(x: float, L: float, x0: float, k: float, b: float) -> float:
+def sigmoid(x: float | np.ndarray, L: float, x0: float, k: float, b: float) -> float | np.ndarray:
     """Sigmoid Function for Curve Fitting
 
     Args:
