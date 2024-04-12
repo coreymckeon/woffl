@@ -3,12 +3,12 @@ requires = ["setuptools>=61.0.0", "wheel"] # creates the "cheese wheel"
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-exclude = ["data"]  # alternatively: `exclude = ["additional*"]`
+exclude = ["data"]
 
 [project]
 name = "woffl"
 version = "1.0.3" # bumpver automatically updates
-description = "Numerical solver for liquid powered jet pumps with multiphase flow"
+description = "Water Optimization For Fluid Lift. Numerical solver for liquid powered jet pumps with multiphase flow"
 readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = [
@@ -20,11 +20,12 @@ classifiers = [
     ]
 keywords = ["jet pump", "solver", "numerical", "multiphase"]
 dependencies = [
-    "matplotlib>=3.8.2", # yar
-    "numpy>=1.26.3", # yar
-    "pandas>=2.1.4", # yar
-    "scipy>=1.11.4", # yar
+    "matplotlib>=3.8.2",
+    "numpy>=1.26.3", 
+    "pandas>=2.1.4", # pandas installs numpy, but I might get rid of pandas
+    "scipy>=1.11.4", 
 ]
+
 requires-python = ">=3.10" # not sure when type hinting was released
 
 [project.optional-dependencies]

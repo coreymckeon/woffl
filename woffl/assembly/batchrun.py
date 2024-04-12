@@ -1,21 +1,14 @@
 """Batch Jet Pump Runs
 
 Contains code that is used to run multiple pumps at once to understand the
-current conditions.
+current conditions. Currently Scott's code is here with a simple nested for
+loop. Will eventually update this to more of a class style system. Runs the
+analysis and sends the results to a .csv file.
 """
 
 import pandas as pd
 
 from woffl.assembly.easypump import jetpump_wrapper
-
-"""
-This is a file to call the run_pump file from Assembly folder
-
-Loops through a list of jet pump nozzle and throat sizes and returns a csv file with the results
-Update well characterisitics in the call to the model pump function
-
-"""
-
 
 nozzles = ["9", "10", "11", "12", "13", "14"]
 throats = ["X", "A", "B", "C", "D", "E"]
