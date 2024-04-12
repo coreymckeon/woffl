@@ -41,7 +41,7 @@ class BlackOil:
         return f"Oil: {self.oil_api} API and a {round(self.gas_sg, 2)} SG Gas"
 
     @classmethod
-    def schrader_oil(cls):
+    def schrader(cls):
         """Schrader Bluff Black Oil
 
         Generic Schrader Bluff black oil with preset properties
@@ -54,7 +54,7 @@ class BlackOil:
         return cls(oil_api=22, bubblepoint=1750, gas_sg=0.65)
 
     @classmethod
-    def kuparuk_oil(cls):
+    def kuparuk(cls):
         """Kuparuk Black Oil
 
         Generic Kuparuk black oil with preset properties

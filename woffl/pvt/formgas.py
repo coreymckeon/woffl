@@ -28,15 +28,27 @@ class FormGas:
         return f"Gas: {self.gas_sg} SG and {self.mw} Mol Weight"
 
     @classmethod
-    def schrader_gas(cls):
+    def schrader(cls):
+        """Schrader Bluff Generic Formation Gas
+
+        Args:
+            gas_sg (float): 0.65"""
         return cls(gas_sg=0.65)
 
     @classmethod
-    def kuparuk_gas(cls):
+    def kuparuk(cls):
+        """Kuparuk Generic Formation Gas
+
+        Args:
+            gas_sg (float): 0.65"""
         return cls(gas_sg=0.65)
 
     @classmethod
     def methane_gas(cls):
+        """Pure Methane Formation Gas
+
+        Args:
+            gas_sg (float): 0.65"""
         return cls(gas_sg=0.55)
 
     # almost need seperate function to change pressure / temperature

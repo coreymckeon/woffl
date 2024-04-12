@@ -65,16 +65,16 @@ def jetpump_wrapper(
         wellname (str): Wellname
     """
     if is_sch:
-        mpu_oil = BlackOil.schrader_oil()  # class method
-        mpu_wat = FormWater.schrader_wat()  # class method
-        mpu_gas = FormGas.schrader_gas()  # class method
+        mpu_oil = BlackOil.schrader()  # class method
+        mpu_wat = FormWater.schrader()  # class method
+        mpu_gas = FormGas.schrader()  # class method
 
         wellprof = WellProfile.schrader()
 
     else:
-        mpu_oil = BlackOil.kuparuk_oil()  # class method
-        mpu_wat = FormWater.kuparuk_wat()  # class method
-        mpu_gas = FormGas.kuparuk_gas()  # class method
+        mpu_oil = BlackOil.kuparuk()  # class method
+        mpu_wat = FormWater.kuparuk()  # class method
+        mpu_gas = FormGas.kuparuk()  # class method
 
         wellprof = WellProfile.kuparuk()
 

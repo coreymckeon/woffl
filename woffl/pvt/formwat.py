@@ -18,11 +18,19 @@ class FormWater:
         return f"Water {self.wat_sg} Specific Gravity"
 
     @classmethod
-    def schrader_wat(cls):
+    def schrader(cls):
+        """Schrader Bluff Generic Formation Water
+
+        Args:
+            wat_sg (float): 1.02"""
         return cls(wat_sg=1.02)
 
     @classmethod
-    def kuparuk_wat(cls):
+    def kuparuk(cls):
+        """Kuparuk Generic Formation Water
+
+        Args:
+            wat_sg (float): 1.02"""
         return cls(wat_sg=1.02)
 
     def condition(self, press: float, temp: float):

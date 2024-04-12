@@ -231,7 +231,7 @@ class WellProfile:
 
     @classmethod
     def schrader(cls):
-        """Schrader Bluff Well Profile generic geometry based on MPE-42
+        """Schrader Bluff Generic Well Profile
 
         Generic Schrader Bluff well profile based on MPE-42 geometry.
 
@@ -626,7 +626,7 @@ class WellProfile:
 
     @classmethod
     def kuparuk(cls):
-        """Kuparuk Well Profile generic geometry based on MPC-42
+        """Kuparuk Generic Well Profile
 
         Generic Kuparuk well profile based on MPC-23 geometry.
         MPC-23 is a slant Kuparuk Well, so not a perfect canidate.
