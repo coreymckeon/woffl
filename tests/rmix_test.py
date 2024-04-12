@@ -5,10 +5,7 @@ import numpy as np
 import pandas as pd
 
 # from flow import jetflow as jf # for actual flow conditions
-from woffl.pvt.blackoil import BlackOil
-from woffl.pvt.formgas import FormGas
-from woffl.pvt.formwat import FormWater
-from woffl.pvt.resmix import ResMix
+from woffl.pvt import BlackOil, FormGas, FormWater, ResMix
 
 # test python reservoir mixture equations vs hysys
 # only works if the command python -m tests.rmix_test is used
