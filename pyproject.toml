@@ -7,13 +7,18 @@ exclude = ["data"]  # alternatively: `exclude = ["additional*"]`
 
 [project]
 name = "woffl"
-version = "1.0.0" # install bumpver to automate this and __init__
+version = "1.0.1" # bumpver automatically updates
+description = "Numerically solve jet pump equations in multiphase oil wells"
 readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Programming Language :: Python :: 3"]
-keywords = ["jet pump", "solver", "numerical"]
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "License :: OSI Approved :: MIT License"
+    ]
+keywords = ["jet pump", "solver", "numerical", "multiphase"]
 dependencies = [
     "matplotlib>=3.8.2", # yar
     "numpy>=1.26.3", # yar
@@ -22,7 +27,29 @@ dependencies = [
 ]
 requires-python = ">=3.10" # not sure when type hinting was released
 
+[project.optional-dependencies]
+dev = ["bumpver", "isort", "black"]
+
 [project.urls]
 Homepage = "https://github.com/kwellis/woffl"
 
-# what to include https://setuptools.pypa.io/en/latest/userguide/package_discovery.html#custom-discovery
+
+[tool.bumpver]
+current_version = "1.0.1" # bumpver update patch
+version_pattern = "MAJOR.MINOR.PATCH"
+# commit_message = "bump version {old_version} -> {new_version}"
+# tag_message = "{new_version}"
+# tag_scope = "default"
+# pre_commit_hook = ""
+# post_commit_hook = ""
+# commit = true
+# tag = true
+# push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+    'version = "{version}"'
+]
+"woffl/__init__.py" = ["{version}"]
+
