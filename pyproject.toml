@@ -7,7 +7,7 @@ exclude = ["data"]  # alternatively: `exclude = ["additional*"]`
 
 [project]
 name = "woffl"
-version = "1.0.3" # install bumpver to automate this and __init__
+version = "1.0.0" # install bumpver to automate this and __init__
 readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = [
