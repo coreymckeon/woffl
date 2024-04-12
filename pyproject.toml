@@ -8,7 +8,7 @@ exclude = ["data"]  # alternatively: `exclude = ["additional*"]`
 [project]
 name = "woffl"
 version = "1.0.3" # bumpver automatically updates
-description = "Numerically solve jet pump equations in multiphase oil wells"
+description = "Numerical solver for liquid powered jet pumps with multiphase flow"
 readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = [
