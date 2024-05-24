@@ -31,6 +31,9 @@ def jetpump_wrapper(
     form_gor: float,
     form_temp: float,
     wellname: str,
+    md_list: list[float],
+    vd_list: list[float],
+    jetpump_md: float
 ):
     """Jet Pump Model Wrapper
 
@@ -52,6 +55,9 @@ def jetpump_wrapper(
         form_gor (float): Formation Gas Oil Ratio, SCF/STB
         form_temp (float): Formation Temperature, deg F
         wellname (str): Name of Modeled Well
+        md_list (list): List of floats MD depths from survey
+        vd_list (list): list of floats TVD depths correlated to md_list
+        jetpump_md(float): Measured depth of jet pump
 
     Returns:
         psu_solv (float): Suction Pressure, psig
@@ -69,15 +75,13 @@ def jetpump_wrapper(
         mpu_wat = FormWater.schrader()  # class method
         mpu_gas = FormGas.schrader()  # class method
 
-        wellprof = WellProfile.schrader()
-
     else:
         mpu_oil = BlackOil.kuparuk()  # class method
         mpu_wat = FormWater.kuparuk()  # class method
         mpu_gas = FormGas.kuparuk()  # class method
 
-        wellprof = WellProfile.kuparuk()
-
+    wellprof = WellProfile(md_list, vd_list, jetpump_md)
+    
     tube = Pipe(out_dia, thick)
 
     ipr_su = InFlow(qwf, pwf, res_pres)
