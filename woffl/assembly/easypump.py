@@ -9,10 +9,7 @@ from woffl.flow.inflow import InFlow
 from woffl.geometry.jetpump import JetPump
 from woffl.geometry.pipe import Pipe
 from woffl.geometry.wellprofile import WellProfile
-from woffl.pvt.blackoil import BlackOil
-from woffl.pvt.formgas import FormGas
-from woffl.pvt.formwat import FormWater
-from woffl.pvt.resmix import ResMix
+from woffl.pvt import BlackOil, FormGas, FormWater, ResMix
 
 
 def jetpump_wrapper(
@@ -92,14 +89,14 @@ def jetpump_wrapper(
     total_water = qnz_bwpd + fwat_bwpd
     total_wc = (qnz_bwpd + fwat_bwpd) / (qnz_bwpd + fwat_bwpd + qoil_std)
 
-    print(f"\nResults for well: {wellname} ")
-    print(f"JP Size: {nozzle_no} {throat}")
-    print(f"Suction pressure: {psu_solv:.0f}")
-    print(f"Sonic Status: {sonic_status}")
-    print(f"Oil Rate: {qoil_std:.0f}")
-    print(f"Water Rate: {fwat_bwpd:.0f}")
-    print(f"PF Rate: {qnz_bwpd:.0f}")
-    print(f"Mach TE: {mach_te:.2f}")
-    print(f"Total WC: {total_wc:.2f}\n")
+    # print(f"\nResults for well: {wellname} ")
+    # print(f"JP Size: {nozzle_no} {throat}")
+    # print(f"Suction pressure: {psu_solv:.0f}")
+    # print(f"Sonic Status: {sonic_status}")
+    # print(f"Oil Rate: {qoil_std:.0f}")
+    # print(f"Water Rate: {fwat_bwpd:.0f}")
+    # print(f"PF Rate: {qnz_bwpd:.0f}")
+    # print(f"Mach TE: {mach_te:.2f}")
+    # print(f"Total WC: {total_wc:.2f}\n")
 
     return psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, total_wc, total_water, wellname

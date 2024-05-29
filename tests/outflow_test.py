@@ -4,10 +4,7 @@ import numpy as np
 import woffl.flow.outflow as of
 from woffl.geometry.pipe import Pipe
 from woffl.geometry.wellprofile import WellProfile
-from woffl.pvt.blackoil import BlackOil
-from woffl.pvt.formgas import FormGas
-from woffl.pvt.formwat import FormWater
-from woffl.pvt.resmix import ResMix
+from woffl.pvt import BlackOil, FormGas, FormWater, ResMix
 
 # only works if the command python -m tests.outflow_test is used
 # mirror the hysys stuff
@@ -15,9 +12,9 @@ md_list = np.linspace(0, 6000, 100)
 vd_list = np.linspace(0, 4000, 100)
 
 # well with 600 fgor, 90% wc, 100 bopd
-mpu_oil = BlackOil.schrader_oil()
-mpu_wat = FormWater.schrader_wat()
-mpu_gas = FormGas.schrader_gas()
+mpu_oil = BlackOil.schrader()
+mpu_wat = FormWater.schrader()
+mpu_gas = FormGas.schrader()
 form_gor = 600  # scf/stb
 form_wc = 0.9
 qoil_std = 100  # stbopd

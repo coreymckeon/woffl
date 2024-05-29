@@ -6,9 +6,13 @@ loop. Will eventually update this to more of a class style system. Runs the
 analysis and sends the results to a .csv file.
 """
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 from woffl.assembly.easypump import jetpump_wrapper
+
+# run from the command with the following:
+# python -m woffl.assembly.batchrun
 
 nozzles = ["9", "10", "11", "12", "13", "14"]
 throats = ["X", "A", "B", "C", "D", "E"]
@@ -46,7 +50,7 @@ for nozzle in nozzles:
                 "fwat_bwpd": fwat_bwpd,
                 "qnz_bwpd": qnz_bwpd,
                 "mach_te": mach_te,
-                "total water": total_water,
+                "total_water": total_water,
                 "total_wc": total_wc,
                 "wellname": wellname,
             }
@@ -54,7 +58,12 @@ for nozzle in nozzles:
         except Exception as e:
             print(f"An error occurred for nozzle {nozzle} and throat {throat}: {e}")
 
-df_results = pd.DataFrame(results)
-df_sorted = df_results.sort_values(by="psu_solv", ascending=True)
+dfjet = pd.DataFrame(results)
+dfjet = dfjet.sort_values(by="psu_solv", ascending=True)
 # df_sorted.to_csv("modelrun_output B-35.csv")
-print(df_sorted)
+print(dfjet)
+
+plt.plot(dfjet["total_water"], dfjet["qoil_std"], marker="o", linestyle="")
+plt.xlabel("Total Water, BWPD")
+plt.ylabel("Oil Rate, BOPD")
+plt.show()

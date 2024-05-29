@@ -7,9 +7,9 @@ from woffl.pvt import BlackOil, FormGas, FormWater, ResMix
 # print(sys.path)
 # sys.path.append("c:\\Users\\ka9612\\OneDrive - Hilcorp\\vs_code\\hilcorpak")
 
-mpu_oil = BlackOil.schrader_oil()  # class method
-mpu_wat = FormWater.schrader_wat()  # class method
-mpu_gas = FormGas.schrader_gas()  # class method
+mpu_oil = BlackOil.schrader()  # class method
+mpu_wat = FormWater.schrader()  # class method
+mpu_gas = FormGas.schrader()  # class method
 
 e42 = ResMix(0.1, 300, mpu_oil, mpu_wat, mpu_gas)
 
