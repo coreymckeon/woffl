@@ -4,7 +4,6 @@ Series of functions that don't use classes as inputs to simplify the required ru
 """
 
 from woffl.assembly import sysops as so
-from woffl.flow import jetcheck as jc
 from woffl.flow.inflow import InFlow
 from woffl.geometry.jetpump import JetPump
 from woffl.geometry.pipe import Pipe
