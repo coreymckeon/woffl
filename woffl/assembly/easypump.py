@@ -29,7 +29,7 @@ def jetpump_wrapper(
     wellname: str,
     md_list: list[float],
     vd_list: list[float],
-    jetpump_md: float
+    jetpump_md: float,
 ):
     """Jet Pump Model Wrapper
 
@@ -77,7 +77,7 @@ def jetpump_wrapper(
         mpu_gas = FormGas.kuparuk()  # class method
 
     wellprof = WellProfile(md_list, vd_list, jetpump_md)
-    
+
     tube = Pipe(out_dia, thick)
 
     ipr_su = InFlow(qwf, pwf, res_pres)
