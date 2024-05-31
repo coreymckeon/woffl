@@ -7,8 +7,10 @@ analysis and sends the results to a .csv file.
 """
 
 from dataclasses import dataclass
+from itertools import product
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 import woffl.assembly.sysops as so
@@ -19,12 +21,11 @@ from woffl.geometry.pipe import Annulus, Pipe
 from woffl.geometry.wellprofile import WellProfile
 from woffl.pvt.resmix import ResMix
 
-# run from the command with the following:
-# python -m woffl.assembly.batchrun
 
-
-@dataclass
+@dataclass(frozen=True)
 class BatchResult:
+    """Code is currently not used"""
+
     wellname: str
     nozzle: str
     throat: str
@@ -96,6 +97,16 @@ class BatchPump:
         """
         self.ppf_surf = ppf_surf
 
+    def update_pressure_reservoir(self, pres: float) -> None:
+        """Update the Reservoir Pressure in IPR
+
+        Used to update reservoir pressure instead of re-initalizing everything.
+
+        Args:
+            pres (float): Pressure Reservoir, psig
+        """
+        self.ipr_su.pres = pres
+
     @staticmethod
     def jetpump_list(
         nozzles: list[str],
@@ -122,9 +133,8 @@ class BatchPump:
             jp_list (list): List of JetPumps
         """
         jp_list = []
-        for nozzle in nozzles:
-            for throat in throats:
-                jp_list.append(JetPump(nozzle, throat, knz, ken, kth, kdi))
+        for nozzle, throat in product(nozzles, throats):
+            jp_list.append(JetPump(nozzle, throat, knz, ken, kth, kdi))
         return jp_list
 
     def batch_run(
@@ -140,69 +150,64 @@ class BatchPump:
             jetpump_list (list): List of JetPumps
 
         Returns:
-            jp_res (dataclass): Jet Pump Results Dataclass
+            results (list): List of Dictionaries of Jet Pump Results
         """
-        jp_res = []
+        results = []
         for jetpump in jetpumps:
-            res = so.jetpump_solver(
-                self.pwh,
-                self.tsu,
-                self.rho_pf,
-                self.ppf_surf,
-                jetpump,
-                self.wellbore,
-                self.wellprof,
-                self.ipr_su,
-                self.prop_su,
-            )
-            jp_res.append(res)
-        return jp_res
+            try:
+                psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te = so.jetpump_solver(
+                    self.pwh,
+                    self.tsu,
+                    self.rho_pf,
+                    self.ppf_surf,
+                    jetpump,
+                    self.wellbore,
+                    self.wellprof,
+                    self.ipr_su,
+                    self.prop_su,
+                )
+                result = {
+                    "wellname": self.wellname,
+                    "res_pres": self.ipr_su.pres,
+                    "pf_pres": self.ppf_surf,
+                    "nozzle": jetpump.noz_no,
+                    "throat": jetpump.rat_ar,
+                    "psu_solv": psu_solv,
+                    "sonic_status": sonic_status,
+                    "qoil_std": qoil_std,
+                    "fwat_bwpd": fwat_bwpd,
+                    "qnz_bwpd": qnz_bwpd,
+                    "mach_te": mach_te,
+                    "total water": fwat_bwpd + qnz_bwpd,
+                    "total_wc": fwat_bwpd + qnz_bwpd / (fwat_bwpd + qnz_bwpd + qoil_std),
+                    "error": "na",
+                }
+            except Exception as exc:
+                result = {
+                    "wellname": self.wellname,
+                    "res_pres": self.ipr_su.pres,
+                    "pf_pres": self.ppf_surf,
+                    "nozzle": jetpump.noz_no,
+                    "throat": jetpump.rat_ar,
+                    "psu_solv": np.nan,
+                    "sonic_status": np.nan,
+                    "qoil_std": np.nan,
+                    "fwat_bwpd": np.nan,
+                    "qnz_bwpd": np.nan,
+                    "mach_te": np.nan,
+                    "total water": np.nan,
+                    "total_wc": np.nan,
+                    "error": exc,
+                }
+            results.append(result)
+        return results
 
 
-nozzles = ["9", "10", "11", "12", "13", "14"]
-throats = ["X", "A", "B", "C", "D", "E"]
+# create a couple small functions that could be used across a pandas dataframe later
+# need graphing, cleaning, and dropping variables, calculating gradients, finalized picking?
+
 
 results = []
-
-for nozzle in nozzles:
-    for throat in throats:
-        try:
-            psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te, total_wc, total_water, wellname = (
-                jetpump_wrapper(
-                    True,  # isSchrader?
-                    pwh=201,  # WHP
-                    rho_pf=62.4,  # PF density
-                    ppf_surf=2419,  # PF pres
-                    out_dia=4.5,  # Tubing OD
-                    thick=0.5,  # tubing thickness
-                    qwf=320,  # Oil rate
-                    pwf=547,  # FBHP
-                    res_pres=800,  # res pressure
-                    form_wc=0.01,  # watercut
-                    form_gor=507,  # gor
-                    form_temp=72,  # form temp
-                    nozzle_no=nozzle,  # nozzle size
-                    throat=throat,  # nozzel area ratio with throat
-                    wellname="MPB-35",
-                )
-            )
-            result = {
-                "nozzle": nozzle,
-                "throat": throat,
-                "psu_solv": psu_solv,
-                "sonic_status": sonic_status,
-                "qoil_std": qoil_std,
-                "fwat_bwpd": fwat_bwpd,
-                "qnz_bwpd": qnz_bwpd,
-                "mach_te": mach_te,
-                "total_water": total_water,
-                "total_wc": total_wc,
-                "wellname": wellname,
-            }
-            results.append(result)
-        except Exception as e:
-            print(f"An error occurred for nozzle {nozzle} and throat {throat}: {e}")
-
 dfjet = pd.DataFrame(results)
 dfjet = dfjet.sort_values(by="psu_solv", ascending=True)
 # df_sorted.to_csv("modelrun_output B-35.csv")
