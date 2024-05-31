@@ -206,13 +206,62 @@ class BatchPump:
 # need graphing, cleaning, and dropping variables, calculating gradients, finalized picking?
 
 
-results = []
-dfjet = pd.DataFrame(results)
-dfjet = dfjet.sort_values(by="psu_solv", ascending=True)
-# df_sorted.to_csv("modelrun_output B-35.csv")
-print(dfjet)
+def batch_results_plot(
+    qoil_std: list[float] | np.ndarray | pd.Series,
+    qwat_tot: list[float] | np.ndarray | pd.Series,
+    nozzles: list[str] | np.ndarray | pd.Series,
+    throats: list[str] | np.ndarray | pd.Series,
+    wellname: str = "na",
+) -> None:
+    """Batch Results Plot
 
-plt.plot(dfjet["total_water"], dfjet["qoil_std"], marker="o", linestyle="")
-plt.xlabel("Total Water, BWPD")
-plt.ylabel("Oil Rate, BOPD")
-plt.show()
+    Create a plot to view the results from the batch run.
+
+    Args:
+        qoil_std (list): Oil Prod. Rate, BOPD
+        qwat_tot (list): Total Water Rate, BWPD
+        nozzles (list): Nozzle Numbers
+        throats (list): Throat Ratios
+        wellname (str): Wellname String
+    """
+    jp_names = [noz + thr for noz, thr in zip(nozzles, throats)]  # create a list of all the jetpump names
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    for oil, water, jp in zip(qoil_std, qwat_tot, jp_names):
+        if oil == np.nan:
+            pass
+        else:
+            ax.plot(oil, water, marker="o", linestyle="")
+            ax.annotate(jp, xy=(oil, water), xycoords="data", xytext=(1.5, 1.5), textcoords="offset points")
+
+    ax.set_xlabel("Total Water Rate, BWPD")
+    ax.set_ylabel("Produced Oil Rate, BOPD")
+
+    if wellname == "na":
+        ax.title.set_text("Jet Pump Performance")
+    else:
+        ax.title.set_text(f"{wellname} Jet Pump Performance")
+    plt.show()
+
+
+def batch_results_mask(
+    qoil_std: list[float] | np.ndarray | pd.Series,
+    qwat_tot: list[float] | np.ndarray | pd.Series,
+) -> list[bool]:
+    """Batch Results Mask
+
+    Create a mask of booleans for the batch results that can be passed into either a dataframe,
+    numpy array or list to filter out the unnecessary data. The unnecessary data are points where
+    either a np.nan exists, or the oil rate is lower for a higher amount of water. The filtered
+    points can then be passed to another function to calculate the gradient.
+
+    Args:
+        qoil_std (list): Oil Prod. Rate, BOPD
+        qwat_tot (list): Total Water Rate, BWPD
+
+    Returns:
+        result_mask (list): List of booleans that can be used across data later
+    """
+
+    return []
