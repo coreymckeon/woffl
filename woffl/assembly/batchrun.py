@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 
 import woffl.assembly.sysops as so
-from woffl.assembly.easypump import jetpump_wrapper
 from woffl.flow.inflow import InFlow
 from woffl.geometry.jetpump import JetPump
 from woffl.geometry.pipe import Annulus, Pipe
