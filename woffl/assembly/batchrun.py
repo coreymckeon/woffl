@@ -198,51 +198,12 @@ class BatchPump:
                     "total_wc": np.nan,
                     "error": exc,
                 }
-            results.append(result)
+            results.append(result)  # add some progress bar code here?
         return results
 
 
 # create a couple small functions that could be used across a pandas dataframe later
 # need graphing, cleaning, and dropping variables, calculating gradients, finalized picking?
-
-
-def batch_results_plot(
-    qoil_std: list[float] | np.ndarray | pd.Series,
-    qwat_tot: list[float] | np.ndarray | pd.Series,
-    nozzles: list[str] | np.ndarray | pd.Series,
-    throats: list[str] | np.ndarray | pd.Series,
-    wellname: str = "na",
-) -> None:
-    """Batch Results Plot
-
-    Create a plot to view the results from the batch run.
-
-    Args:
-        qoil_std (list): Oil Prod. Rate, BOPD
-        qwat_tot (list): Total Water Rate, BWPD
-        nozzles (list): Nozzle Numbers
-        throats (list): Throat Ratios
-        wellname (str): Wellname String
-    """
-    jp_names = [noz + thr for noz, thr in zip(nozzles, throats)]  # create a list of all the jetpump names
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    for oil, water, jp in zip(qoil_std, qwat_tot, jp_names):
-        if oil == np.nan:
-            pass
-        else:
-            ax.plot(oil, water, marker="o", linestyle="")
-            ax.annotate(jp, xy=(oil, water), xycoords="data", xytext=(1.5, 1.5), textcoords="offset points")
-
-    ax.set_xlabel("Total Water Rate, BWPD")
-    ax.set_ylabel("Produced Oil Rate, BOPD")
-
-    if wellname == "na":
-        ax.title.set_text("Jet Pump Performance")
-    else:
-        ax.title.set_text(f"{wellname} Jet Pump Performance")
-    plt.show()
 
 
 def batch_results_mask(
@@ -261,7 +222,69 @@ def batch_results_mask(
         qwat_tot (list): Total Water Rate, BWPD
 
     Returns:
-        result_mask (list): List of booleans that can be used across data later
+        mask (list): True is a point to calc gradient, False means a point exists with better oil and less water
     """
+    mask = []
+    oil_copy = qoil_std.copy()
+    wat_copy = qwat_tot.copy()
 
-    return []
+    for oil_main, wat_main in zip(qoil_std, qwat_tot):
+        if oil_main or wat_main == np.nan:
+            status = False
+        else:
+            for oil_comp, wat_comp in zip(oil_copy, wat_copy):  # oil and water compare
+                if oil_comp >= oil_main and wat_comp <= wat_main:  # if another point has more oil for less water
+                    status = False  # trash that point and exit the first loop
+                    break
+                else:
+                    status = True  # has to maintain the True status for the entire loop through
+    mask.append(status)
+    return mask
+
+
+def batch_results_plot(
+    qoil_std: list[float] | np.ndarray | pd.Series,
+    qwat_tot: list[float] | np.ndarray | pd.Series,
+    nozzles: list[str] | np.ndarray | pd.Series,
+    throats: list[str] | np.ndarray | pd.Series,
+    wellname: str = "na",
+    mask: list[bool] = [],
+) -> None:
+    """Batch Results Plot
+
+    Create a plot to view the results from the batch run.
+
+    Args:
+        qoil_std (list): Oil Prod. Rate, BOPD
+        qwat_tot (list): Total Water Rate, BWPD
+        nozzles (list): Nozzle Numbers
+        throats (list): Throat Ratios
+        wellname (str): Wellname String
+        mask (list): List of Booleans used for filtering data
+    """
+    jp_names = [noz + thr for noz, thr in zip(nozzles, throats)]  # create a list of all the jetpump names
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    if not mask:  # if the mask is an empty list
+        mask = [False for noz in nozzles]  # create a list of falses
+
+    for oil, water, jp, status in zip(qoil_std, qwat_tot, jp_names, mask):
+        if oil == np.nan:
+            pass
+        else:
+            if status:  # booleaan true of false
+                ax.plot(oil, water, marker="o", linestyle="", color="r")  # one of the main point
+            else:
+                ax.plot(oil, water, marker="o", linestyle="", color="b")  # a one optimized point
+
+            ax.annotate(jp, xy=(oil, water), xycoords="data", xytext=(1.5, 1.5), textcoords="offset points")
+
+    ax.set_xlabel("Total Water Rate, BWPD")
+    ax.set_ylabel("Produced Oil Rate, BOPD")
+
+    if wellname == "na":
+        ax.title.set_text("Jet Pump Performance")
+    else:
+        ax.title.set_text(f"{wellname} Jet Pump Performance")
+    plt.show()
