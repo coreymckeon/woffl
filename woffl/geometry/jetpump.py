@@ -108,7 +108,7 @@ class JetPump:
         self.dnz = dnz
         self.dth = dth
 
-    def __str__(self):
+    def __repr__(self):
         return f"{self.noz_no+self.rat_ar} Jet Pump, Nozzle: {self.dnz} inches, Throat: {self.dth} inches"
 
     @staticmethod

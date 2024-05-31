@@ -177,7 +177,7 @@ class BatchPump:
                     "fwat_bwpd": fwat_bwpd,
                     "qnz_bwpd": qnz_bwpd,
                     "mach_te": mach_te,
-                    "total water": fwat_bwpd + qnz_bwpd,
+                    "total_water": fwat_bwpd + qnz_bwpd,
                     "total_wc": fwat_bwpd + qnz_bwpd / (fwat_bwpd + qnz_bwpd + qoil_std),
                     "error": "na",
                 }
@@ -194,7 +194,7 @@ class BatchPump:
                     "fwat_bwpd": np.nan,
                     "qnz_bwpd": np.nan,
                     "mach_te": np.nan,
-                    "total water": np.nan,
+                    "total_water": np.nan,
                     "total_wc": np.nan,
                     "error": exc,
                 }
@@ -229,16 +229,18 @@ def batch_results_mask(
     wat_copy = qwat_tot.copy()
 
     for oil_main, wat_main in zip(qoil_std, qwat_tot):
-        if oil_main or wat_main == np.nan:
+        if oil_main == np.nan:
             status = False
         else:
             for oil_comp, wat_comp in zip(oil_copy, wat_copy):  # oil and water compare
-                if oil_comp >= oil_main and wat_comp <= wat_main:  # if another point has more oil for less water
+                oil_diff = oil_comp - oil_main
+                wat_diff = wat_comp - wat_main
+                if (oil_diff > 0) and (wat_diff < 0):  # if another point has more oil for less water
                     status = False  # trash that point and exit the first loop
                     break
                 else:
                     status = True  # has to maintain the True status for the entire loop through
-    mask.append(status)
+        mask.append(status)
     return mask
 
 
@@ -274,11 +276,11 @@ def batch_results_plot(
             pass
         else:
             if status:  # booleaan true of false
-                ax.plot(oil, water, marker="o", linestyle="", color="r")  # one of the main point
+                ax.plot(water, oil, marker="o", linestyle="", color="r")  # one of the main point
             else:
-                ax.plot(oil, water, marker="o", linestyle="", color="b")  # a one optimized point
+                ax.plot(water, oil, marker="o", linestyle="", color="b")  # a one optimized point
 
-            ax.annotate(jp, xy=(oil, water), xycoords="data", xytext=(1.5, 1.5), textcoords="offset points")
+            ax.annotate(jp, xy=(water, oil), xycoords="data", xytext=(1.5, 1.5), textcoords="offset points")
 
     ax.set_xlabel("Total Water Rate, BWPD")
     ax.set_ylabel("Produced Oil Rate, BOPD")
