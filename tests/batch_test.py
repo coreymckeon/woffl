@@ -37,7 +37,7 @@ form_temp = 111
 e41_res = ResMix(wc=form_wc, fgor=form_gor, oil=mpu_oil, wat=mpu_wat, gas=mpu_gas)
 e41_profile = WellProfile.schrader()
 
-nozs = ["9", "10", "11", "12", "13", "14"]
+nozs = ["9", "10", "11", "12", "13", "14", "15", "16"]
 thrs = ["X", "A", "B", "C", "D", "E"]
 
 jp_list = BatchPump.jetpump_list(nozs, thrs)

@@ -289,4 +289,5 @@ def batch_results_plot(
         ax.title.set_text("Jet Pump Performance")
     else:
         ax.title.set_text(f"{wellname} Jet Pump Performance")
+
     plt.show()
