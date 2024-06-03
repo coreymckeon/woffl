@@ -7,7 +7,7 @@ on: push
 jobs:
   build:
     name: Build distribution
-    if: startsWith(github.ref, 'refs/tags/')  # only build on tag pushes
+    if: startsWith(github.ref, 'refs/tags/')  # only build and then publish on tag pushes
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +33,6 @@ jobs:
   publish-to-pypi:
     name: >-
       Publish Python distribution to PyPI
-    # if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
     needs:
     - build
     runs-on: ubuntu-latest
@@ -71,7 +70,7 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: Sign the dists with Sigstore
-      uses: sigstore/gh-action-sigstore-python@v1.2.3
+      uses: sigstore/gh-action-sigstore-python@v2.1.1
       with:
         inputs: >-
           ./dist/*.tar.gz
