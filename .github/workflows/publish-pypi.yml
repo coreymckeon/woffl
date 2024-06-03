@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     name: Build distribution
-    if: startsWith(github.ref, 'refs/tags/')  # only build and then publish on tag pushes
+    # if: startsWith(github.ref, 'refs/tags/')  # I believe this can be ommitted based on text with on: push: tags:
     runs-on: ubuntu-latest
 
     steps:
