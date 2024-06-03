@@ -2,7 +2,10 @@
 
 name: Publish Python distribution to PyPI
 
-on: push
+on:
+  push:
+    tags:
+      - '*' # only publish dist to PyPI on tags
 
 jobs:
   build:
