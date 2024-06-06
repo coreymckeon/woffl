@@ -149,7 +149,8 @@ def throat_entry_mach_one(
 
         te_book.append(pte, vte, prop_su.rho_mix(), prop_su.cmix(), enterance_ke(ken, vte))
 
-    if te_book.mach_ray[-1] >= 1:  # return nearest value instead of interpolating
+    # the length clause was added because some throats were too small and the jp was mach'in out on the first run
+    if te_book.mach_ray[-1] >= 1 and len(te_book.mach_ray) > 1:  # return nearest value instead of interpolating
         tde_fin = te_book.tde_ray[-2]
     else:
         tde_fin = te_book.tde_ray[-1]
@@ -180,7 +181,7 @@ def psu_minimize(
         rho_te (float): Throat Entry Density, lbm/ft3
         vte (float): Throat Entry Velocity, ft/s
     """
-    psu_list = [ipr_su.pres - 300, ipr_su.pres - 400]
+    psu_list = [ipr_su.pres - 200, ipr_su.pres - 300]
     # store values of tee near mach=1 pressure
     tee_list = [
         throat_entry_mach_one(psu_list[0], tsu, ken, ate, ipr_su, prop_su)[0],
