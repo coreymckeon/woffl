@@ -201,6 +201,55 @@ class BatchPump:
             results.append(result)  # add some progress bar code here?
         return results
 
+    def batch_debug(
+        self,
+        jetpumps: list[JetPump],
+    ) -> list:
+        """Batch Run of Jet Pumps
+
+        Run through multiple different types of jet pumps. Results will be stored in
+        a data class where the results can be graphed and selected for the optimal pump.
+        Debugging method omits the try statement so places that the code fails can be
+        seen and a method of fixing them can attempt to be put in place.
+
+        Args:
+            jetpump_list (list): List of JetPumps
+
+        Returns:
+            results (list): List of Dictionaries of Jet Pump Results
+        """
+        results = []
+        for jetpump in jetpumps:
+            print(f"Nozzle {jetpump.noz_no} and Throat: {jetpump.rat_ar} started")
+            psu_solv, sonic_status, qoil_std, fwat_bwpd, qnz_bwpd, mach_te = so.jetpump_solver(
+                self.pwh,
+                self.tsu,
+                self.rho_pf,
+                self.ppf_surf,
+                jetpump,
+                self.wellbore,
+                self.wellprof,
+                self.ipr_su,
+                self.prop_su,
+            )
+            result = {
+                "wellname": self.wellname,
+                "res_pres": self.ipr_su.pres,
+                "pf_pres": self.ppf_surf,
+                "nozzle": jetpump.noz_no,
+                "throat": jetpump.rat_ar,
+                "psu_solv": psu_solv,
+                "sonic_status": sonic_status,
+                "qoil_std": qoil_std,
+                "fwat_bwpd": fwat_bwpd,
+                "qnz_bwpd": qnz_bwpd,
+                "mach_te": mach_te,
+                "total_water": fwat_bwpd + qnz_bwpd,
+                "total_wc": fwat_bwpd + qnz_bwpd / (fwat_bwpd + qnz_bwpd + qoil_std),
+            }
+            results.append(result)  # add some progress bar code here?
+        return results
+
 
 # create a couple small functions that could be used across a pandas dataframe later
 # need graphing, cleaning, and dropping variables, calculating gradients, finalized picking?
