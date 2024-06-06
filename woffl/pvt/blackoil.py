@@ -1,5 +1,7 @@
 import math
 
+import numpy as np
+
 
 class BlackOil:
     """Black Oil Stream
@@ -320,7 +322,8 @@ class BlackOil:
             c1, c2, c3, c4 = [0.0315, 0.7587, 1.0937, 11.289]
         pabs = press + 14.7  # absolute pressure
         # print(pabs)
-        rs = c1 * gas_sg**c2 * pabs**c3 * 10 ** (c4 * oil_api / (temp + 460))
+        with np.errstate(invalid="raise"):
+            rs = c1 * gas_sg**c2 * pabs**c3 * 10 ** (c4 * oil_api / (temp + 460))
         # print(rs)
         return rs
 
