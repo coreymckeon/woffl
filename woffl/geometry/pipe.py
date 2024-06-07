@@ -78,10 +78,10 @@ class Annulus:
 
     @property
     def ann_area(self) -> float:
-        """Annulus area of annulus, ft2"""
+        """Annulus Cross Sectional Area, ft2"""
         return self.out_pipe.inn_area - self.inn_pipe.out_area
 
     @property
     def hyd_dia(self) -> float:
-        """Annulus hydraulic diameter, inches"""
+        """Annulus Hydraulic Diameter, inches"""
         return self.out_pipe.inn_dia - self.inn_pipe.out_dia

@@ -84,10 +84,10 @@ def discharge_residual(
 def jetpump_solver(
     pwh: float,
     tsu: float,
-    rho_pf: float,
+    rho_pf: float,  # remove this, will just use reservoir mixture water instead
     ppf_surf: float,
     jpump: JetPump,
-    wellbore: Pipe,
+    wellbore: Pipe,  # modify this to be annulus instead of wellbore
     wellprof: WellProfile,
     ipr_su: InFlow,
     prop_su: ResMix,

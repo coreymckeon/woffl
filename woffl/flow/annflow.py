@@ -1,44 +1,37 @@
-import math
-
-import numpy as np
-
 import woffl.flow.singlephase as sp
 from woffl.geometry.pipe import Annulus
 from woffl.geometry.wellprofile import WellProfile
 from woffl.pvt.formwat import FormWater
 
 
-class AnnFlow:
-    def __init__(
-        self,
-        ann_rate: float,
-        surf_press: float,
-        surf_temp: float,
-        prop_an: FormWater,
-        ann_dim: Annulus,
-        wellprof: WellProfile,
-    ) -> None:
-        """Annular Flow
+def top_down_press(
+    ptop: float, ttop: float, qwat_bpd: float, prop_pf: FormWater, annul: Annulus, wellprof: WellProfile
+) -> float:
+    """Top Down Annulus Pressure Calculation
 
-        Calculations that constrain the downward flow through the annulus.
+    Calculates the pressure increase in the annulus. This is the preferred method
+    of calculation, as a negative pressure cannot be created during calculations.
 
-        Args:
-            ann_rate (float): Water Lift Rate, BWPD
-            surf_press (float): Water Pressure at Wellhead, PSIG
-            surf_temp (float): Water Temperature at Wellhead, deg F
-            fluid (FormWater): Fluid to pull properties from
-            ann_dim (Annulus): Annular dimensions that is flowed inside
-            wellprofile (WellProfile): survey dimensions and location of jet pump
+    Args:
+        ptop (float): Pressure at top node, psig
+        ttop (float): Temperature at top node, deg F
+        qwat_bpd (float): Power Fluid Rate, STBWPD
+        prop_pf (FormWater): Properties of Power Fluid in Annulus, FormWater
+        annul (Annulus): Annulus geometry inside the wellbore, Annulus
+        wellprof (WellProfile): survey dimensions and location of jet pump, WellProfile
 
-        Returns:
-            Self
-        """
-        self.ann_rate = ann_rate
-        self.surf_press = surf_press
-        self.surf_temp = surf_temp
-        self.prop = prop_an
-        self.ann_dim = ann_dim
-        self.wellprof = wellprof
+    Returns:
+        pbot (list): Pressure in the annulus at the jetpump, psig
+    """
+    prop_pf = prop_pf.condition(ptop, ttop)  # doesn't do anything for water, but left for consistency
 
-        def __repr__(self):
-            return f"{self.ann_rate} BWPD flowing inside a {self.ann_dim.out_pipe.inn_dia} annulus"
+    qwat_cfs = sp.bpd_to_ft3s(qwat_bpd)
+    vwat = sp.velocity(qwat_cfs, annul.ann_area)
+    reyn = sp.reynolds(prop_pf.density, vwat, annul.hyd_dia, prop_pf.viscosity())
+    rel_ruff = sp.relative_roughness(annul.hyd_dia, annul.out_pipe.abs_ruff)
+    ff_darcy = sp.ffactor_darcy(reyn, rel_ruff)
+
+    fric_dp = sp.diff_press_friction(ff_darcy, prop_pf.density, vwat, annul.hyd_dia, wellprof.jetpump_md)
+    stat_dp = sp.diff_press_static(prop_pf.density, wellprof.jetpump_vd)
+    pbot = ptop + stat_dp - fric_dp
+    return pbot
