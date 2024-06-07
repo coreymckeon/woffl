@@ -57,6 +57,17 @@ class WellProfile:
         """
         return self._depth_interp(md_dpth, self.md_ray, self.vd_ray)
 
+    def hd_interp(self, md_dpth: float) -> float:
+        """Horizontal Distance Interpolation
+
+        Args:
+            md_dpth (float): Measured Depth, feet
+
+        Returns:
+            hd_dist (float): Horizontal Distance, feet
+        """
+        return self._depth_interp(md_dpth, self.md_ray, self.hd_ray)
+
     def md_interp(self, vd_dpth: float) -> float:
         """Measured Depth Interpolation
 
@@ -74,15 +85,22 @@ class WellProfile:
         jp_vd = self.vd_interp(self.jetpump_md)
         return jp_vd
 
+    @property
+    def jetpump_hd(self) -> float:
+        """Jet Pump Horizontal Distance, Feet"""
+        jp_hd = self.hd_interp(self.jetpump_md)
+        return jp_hd
+
     # make a plot of the filtered data on top of the raw data
     def plot_raw(self) -> None:
         """Plot the Raw Profile Data"""
-        self._profileplot(self.hd_ray, self.vd_ray, self.md_ray)
+
+        self._profileplot(self.hd_ray, self.vd_ray, self.md_ray, self.jetpump_hd, self.jetpump_vd, self.jetpump_md)
         return None
 
     def plot_filter(self) -> None:
         """Plot the Filtered Data"""
-        self._profileplot(self.hd_fit, self.vd_fit, self.md_fit)
+        self._profileplot(self.hd_fit, self.vd_fit, self.md_fit, self.jetpump_hd, self.jetpump_vd, self.jetpump_md)
         return None
 
     def filter(self):
@@ -196,7 +214,9 @@ class WellProfile:
         return hd_ray
 
     @staticmethod
-    def _profileplot(hd_ray: np.ndarray, vd_ray: np.ndarray, md_ray: np.ndarray) -> None:
+    def _profileplot(
+        hd_ray: np.ndarray, vd_ray: np.ndarray, md_ray: np.ndarray, hd_jp: float, vd_jp: float, md_jp: float
+    ) -> None:
         """Create a Well Profile Plot
 
         Annotate the graph will a label of the measured depth every 1000 feet of md.
@@ -206,11 +226,18 @@ class WellProfile:
             hd_ray (np array): Horizontal distance, feet
             td_ray (np array): Vertical depth, feet
             md_ray (np arary): Measured depth, feet
+            hd_jp (float): Horizontal distance jetpump, feet
+            vd_jp (float): Vertical depth jetpump, feet
+            md_jp (float): Measured depth jetpump, feet
         """
         if len(md_ray) > 20:
-            plt.scatter(hd_ray, vd_ray)
+            plt.scatter(hd_ray, vd_ray, label="Survey")
         else:
-            plt.plot(hd_ray, vd_ray, marker="o", linestyle="--")
+            plt.plot(hd_ray, vd_ray, marker="o", linestyle="--", label="Survey")
+
+        # plot jetpump location
+        plt.plot(hd_jp, vd_jp, marker="o", color="r", linestyle="", label=f"Jetpump MD: {int(md_jp)} ft")
+
         plt.gca().invert_yaxis()
         plt.title(f"Dir Survey, Length: {max(md_ray)} ft")
         plt.xlabel("Horizontal Distance, Feet")
@@ -224,8 +251,9 @@ class WellProfile:
         # annotate every ~1000' of measured depth
         for idx in idxs:
             plt.annotate(
-                text=f"{int(md_ray[idx])} ft.", xy=(hd_ray[idx] + 5, vd_ray[idx] - 10), rotation=30  # type: ignore
+                text=f"{int(md_ray[idx])} ft", xy=(hd_ray[idx] + 5, vd_ray[idx] - 10), rotation=30  # type: ignore
             )
+        plt.legend()
         plt.axis("equal")
         plt.show()
 
