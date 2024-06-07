@@ -343,7 +343,8 @@ def throat_discharge(
     ath = anz + ate  # area of the throat
     mtm = mnz + mte  # mass flow of total mixture
 
-    rho_tm = prop_tm.condition(pte, tte).rho_mix()  # density of total mixture
+    ptm_guess = 3 * pte  # start with a guess that ptm is twice of pte
+    rho_tm = prop_tm.condition(ptm_guess, tte).rho_mix()  # density of total mixture
     vtm = sp.velocity(mtm / rho_tm, ath)
 
     mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
@@ -368,7 +369,7 @@ def throat_discharge(
         ptm_list.append(ptm)
         n += 1
         if n == 10:
-            raise ValueError("Throat Mixture did not converge")
+            raise ValueError("Throat Mixture Did Not Converge")
     return ptm_list[-1]
 
 
