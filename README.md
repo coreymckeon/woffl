@@ -10,13 +10,29 @@ Use the package manager [pip](https://pip.pypa.io/en/stable/) to install woffl.
 pip install woffl
 ```   
 
-#### Usage   
-Defining an oil well in woffl is broken up into different classes that are combined together in an assembly that creates the model. The first part of definition are the oil properties from the reservoir. The module is called PVT and the classes are BlackOil, FormGas, FormWater and ResMix. BlackOil, FormGas and FormWat are the individual components in a reservoir stream and are fed into a ResMix where the formation gas oil ratio (FGOR) and watercut (WC) are defined. With ResMix the streams mass fraction, volumetric fractions, density, viscosity and compressibility can be estimated.   
+#### Usage - PVT   
+Defining an oil well in woffl is broken up into different classes that are combined together in an assembly that creates the model. The first part of definition are the oil properties from the reservoir. The module is called PVT and the classes are BlackOil, FormGas, FormWater and ResMix. BlackOil, FormGas and FormWat are the individual components in a reservoir stream and are fed into a ResMix where the formation gas oil ratio (FGOR) and watercut (WC) are defined.   
 
 ```python
 from woffl.pvt import BlackOil, FormGas, FormWater, ResMix
+
+foil = BlackOil(oil_api=22, bubblepoint=1750, gas_sg=0.55)
+fwat = FormWater(wat_sg=1)
+fgas = FormGas(gas_sg=0.55)
+fmix = ResMix(wc=0.3, fgor=800, oil=foil, wat=fwat, gas=fgas)
 ```
 
+A condition of pressure and temperature can be set on individual components or on the ResMix which cascades it to the different components. Different properties can then be calculated. For example with ResMix the streams mass fractions, volumetric fractions, mixture density, component viscosities and mixture speed of sound can be estimated.   
+
+```python
+fmix = fmix.condition(press=1500, temp=80)
+xoil, xwat, xgas = fmix.mass_fract()
+yoil, ywat, ygas = fmix.volm_fract()
+dens_mix = fmix.rho_mix()
+uoil, uwat, ugas = fmix.visc_comp()
+snd_mix = fmix.cmix()
+```
+If the reader wants to calculate the insitu 
 #### Background
 Jet pump studies fron the 1970's were interested in pumping single phase incompressible flows or single phase compressible flows. The models produced relied on assumptions such as constant density or an ideal gas to analytically solve the equations. In 1995 Cunningham wrote a paper with equations that govern a water jet for pumping a two-phase mixture. The equations relied on assumptions of constant density for the liquid and ideal gas law for the solution. Those assumptions are not valid when modeling a three-phase mixture of crude oil, water and natural gas. The crude oil is gas soluble and compressible. The equations for the inverse density of crude oil cannot be analytically integrated. A numerical solution needs to be applied.   
 #### Fundamental Equation
