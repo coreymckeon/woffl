@@ -29,10 +29,10 @@ hy_mfac = [hy_df["oil_mfac"], hy_df["wat_mfac"], hy_df["gas_mfac"]]
 hy_vfac = [hy_df["oil_vfac"], hy_df["wat_vfac"], hy_df["gas_vfac"]]
 hy_rho_mix = hy_df["rho_mix"]
 
-py_oil = BlackOil(oil_api, pbub, gas_sg)
+py_oil = BlackOil(oil_api=22, bubblepoint=1750, gas_sg=0.55)
 py_wat = FormWater(wat_sg=1)
-py_gas = FormGas(gas_sg)
-py_mix = ResMix(wc, fgor, py_oil, py_wat, py_gas)
+py_gas = FormGas(gas_sg=0.55)
+py_mix = ResMix(wc=0.3, fgor=800, oil=py_oil, wat=py_wat, gas=py_gas)
 
 plot_names = ["Oil", "Wat", "Gas"]
 

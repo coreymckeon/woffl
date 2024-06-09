@@ -3,10 +3,6 @@ import numpy as np
 from scipy import optimize
 
 
-# make a dictionary eventually where you can input jetpump sleeves or gas lift mandrels
-# updated methods for inputs to be md, then vd, then hd...keep it same..?
-# need to include the jetpump measured depth in the WellProfile
-# maybe segregate it here? Have a tubing length? Have a sand length?
 class WellProfile:
     """Well Profile Class
 

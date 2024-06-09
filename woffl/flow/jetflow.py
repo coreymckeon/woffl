@@ -369,7 +369,7 @@ def throat_discharge(
         ptm_list.append(ptm)
         n += 1
         if n == 10:
-            raise ValueError("Throat Mixture Did Not Converge")
+            raise ValueError("throat mixture did not converge")
     return ptm_list[-1]
 
 
