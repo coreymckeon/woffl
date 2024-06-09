@@ -5,3 +5,5 @@ used to analyze the entire Well Assembly. The assembly consists of an IPR, Jet P
 Well Bore, Well Profile and Surface Constraints. Each assembly is unique and possesses
 its own set of unique results to be analyzed.
 """
+
+from .batchrun import BatchPump, batch_results_mask, batch_results_plot

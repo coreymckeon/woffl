@@ -1,9 +1,8 @@
 """Batch Jet Pump Runs
 
 Contains code that is used to run multiple pumps at once to understand the
-current conditions. Currently Scott's code is here with a simple nested for
-loop. Will eventually update this to more of a class style system. Runs the
-analysis and sends the results to a .csv file.
+current conditions. Code outputs a formatted list of python dictionaries that
+can be converted to a Pandas Dataframe or equivalent for analysis.
 """
 
 from dataclasses import dataclass
@@ -253,6 +252,7 @@ class BatchPump:
 
 # create a couple small functions that could be used across a pandas dataframe later
 # need graphing, cleaning, and dropping variables, calculating gradients, finalized picking?
+# could make these static methods inside the class if desired?
 
 
 def batch_results_mask(
