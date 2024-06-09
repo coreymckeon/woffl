@@ -1,6 +1,6 @@
 ![woffl_github7](https://github.com/kwellis/woffl/assets/62774251/8b80146f-a503-4576-8f43-f1aa45d93a05)
 
-Woffl [ˈwɑː.fəl] is a Python library for numerical modeling of subsurface jet pump oil wells.   
+Woffl (ˈwɑː.fəl) is a Python library for numerical modeling of subsurface jet pump oil wells.   
 
 ## Installation   
 
@@ -33,17 +33,17 @@ dens_mix = fmix.rho_mix()
 uoil, uwat, ugas = fmix.visc_comp()
 snd_mix = fmix.cmix()
 ```
-If the reader wants to calculate the insitu volumetric flowrates, an oil rate can be passed after a condition. The method will calculate the insitu volumetric flowrate for the different components in cubic feet per second. For this method to be accurate, the watercut fraction defined should be to at least three decimal points. EG: 0.355 for 35.5%.    
+If the reader wants to calculate the insitu volumetric flowrates, an oil rate needs to be passed after a condition. The method will calculate the insitu volumetric flowrate for the different components in cubic feet per second. For this method to be accurate, the watercut fraction defined should be to at least three decimal points. EG: 0.355 for 35.5%.    
 
 ```python
 qoil, qwat, qgas = fmix.insitu_volm_flow(qoil_std=100)
 ```
 ### Inflow Performance Relationship (IPR)   
 
-The inflow class is used to define the IPR of the oil well. Either a Vogel or straight line productivity index can be used for predicting the oil rate at a wellbore pressure. The inflow class is defined using a known oil rate, flowing bottom hole pressure and reservoir pressure. Oil rate is used instead of a liquid rate. The predicted oil rate can be used in conjuction with a ResMix to predict the flowing water and gas rates.   
+The inflow class is used to define the IPR of the oil well. Either a Vogel or straight line productivity index can be used for predicting the oil rate at a specific wellbore pressure. The inflow class is defined using a known oil rate, flowing bottom hole pressure and reservoir pressure. Oil rate is used instead of a liquid rate. The predicted oil rate can be used in conjuction with a ResMix to predict the flowing water and gas rates.   
 
 ```python
-from woffl.flow.inflow import InFlow
+from woffl.flow import InFlow
 
 ipr = InFlow(qwf=246, pwf=1049, pres=1400)
 qoil_std = ipr.oil_flow(pnew=800, method="vogel")
@@ -81,7 +81,7 @@ jpump = JetPump(nozzle_no="12", area_ratio="B")
 ```
 ### Pipe and Annulus   
 
-The Pipe and Annulus class defines how large the tubing and casing are in the well. Currently only the tubing is defined for solving the jetpump performance.   
+The Pipe and Annulus class defines how large the tubing and casing are in the well. Currently only the tubing needs to be defined for solving the jetpump performance. Future work will incorporate the annular geometry to account for annular friction in the well.  
 
 ```python
 from woffl.geometry import Pipe, Annulus
@@ -102,7 +102,7 @@ ann_area = annul.ann_area
 
 ### Assembly   
 
-The assembly module is used to combine the previously defined classes and combine them into system that can be used for solving. The assembly code is still being developed and currently is a mix of classes and a few fuctions. The critical class is the BatchPump class, allowing multiple pumps to be run across a defined system.    
+The assembly module is used to combine the previously defined classes into a system that can be used for solving. The assembly code is still being developed and currently is a mix of classes and a few fuctions. The critical class is the BatchPump class, allowing multiple pumps to be run across a defined system.    
 
 ```python
 from woffl.assembly import BatchPump
