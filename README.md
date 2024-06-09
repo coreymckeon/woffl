@@ -1,6 +1,6 @@
 ![woffl_github7](https://github.com/kwellis/woffl/assets/62774251/8b80146f-a503-4576-8f43-f1aa45d93a05)
 
-Woffl (ˈwɑː.fəl) is a Python library for numerical modeling of subsurface jet pump oil wells.   
+Woffl /ˈwɑː.fəl/ is a Python library for numerical modeling of subsurface jet pump oil wells.   
 
 ## Installation   
 
