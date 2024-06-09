@@ -1,6 +1,6 @@
 ![woffl_github7](https://github.com/kwellis/woffl/assets/62774251/8b80146f-a503-4576-8f43-f1aa45d93a05)
 
-Woffl (pronounced waffle) is a Python library for numerical modeling of subsurface jet pump oil wells.   
+Woffl [ˈwɑː.fəl] is a Python library for numerical modeling of subsurface jet pump oil wells.   
 
 ## Installation   
 
@@ -100,15 +100,39 @@ ann_dhyd = annul.hyd_dia
 ann_area = annul.ann_area
 ```
 
+### Assembly   
+
+The assembly module is used to combine the previously defined classes and combine them into system that can be used for solving. The assembly code is still being developed and currently is a mix of classes and a few fuctions. The critical class is the BatchPump class, allowing multiple pumps to be run across a defined system.    
+
+```python
+from woffl.assembly import BatchPump
+
+nozs = ["8", "9", "10", "11", "12", "13", "14", "15", "16"]
+thrs = ["X", "A", "B", "C", "D", "E"]
+
+well_batch = BatchPump(pwh=220, tsu=82, rho_pf=62.4, ppf_surf=2800, wellbore=tube, wellprof=wprof, ipr_su=ipr, prop_su=fmix)
+jp_list = BatchPump.jetpump_list(nozs, thrs)
+
+result_dict = well_batch.batch_run(jp_list)
+```
+
+The results dictionary can be passed into a Pandas Dataframe and used for results analysis. A few simple functions have been written to easily visualize the results.   
+
+```python
+import pandas as pd
+from woffl.assembly import batch_results_mask, batch_results_plot
+
+df = pd.DataFrame(result_dict)
+mask_pump = batch_results_mask(df["qoil_std"], df["total_water"])
+batch_results_plot(df["qoil_std"], df["total_water"], df["nozzle"], df["throat"], mask=mask_pump)
+```
+
 ## Background
-Jet pump studies fron the 1970's were interested in pumping single phase incompressible flows or single phase compressible flows. The models produced relied on assumptions such as constant density or an ideal gas to analytically solve the equations. In 1995 Cunningham wrote a paper with equations that govern a water jet for pumping a two-phase mixture. The equations relied on assumptions of constant density for the liquid and ideal gas law for the solution. Those assumptions are not valid when modeling a three-phase mixture of crude oil, water and natural gas. The crude oil is gas soluble and compressible. The equations for the inverse density of crude oil cannot be analytically integrated. A numerical solution needs to be applied.   
-### Fundamental Equation
-The fundamental equation in the analysis of a jet pump is the un-integrated energy equation. No work is done, heat is not transferred and a significant height difference is not present. The un-integrated energy equation takes the following form. 
-$$\frac{dp}{\rho} + \nu d\nu = 0$$
-The fluid density is denoted by $\rho$ and the velocity is denoted by $\nu$. 
+
+If the reader is interested in the physics and numerical modeling that went into woffl they should read the papers that are listed below. The paper by Merrill provies a good introduction to the basic method that is used. Cunningham set much of the foundational equations that are used in the modeling. The authors intend to publish a paper with a more detailed explanation in the future.
+
 ### Relevant Papers   
 - Cunningham, R. G., 1974, “Gas Compression With the Liquid Jet Pump,” ASME J Fluids Eng, 96(3), pp. 203–215.
 - Cunningham, R. G., 1995, “Liquid Jet Pumps for Two-Phase Flows,” ASME J Fluids Eng, 117(2), pp. 309–316.
 - Merrill, R., Shankar, V., and Chapman, T., 2020, “Three-Phase Numerical Solution for Jet Pumps Applied to a Large Oilfield,” SPE-202928-MS, November 10, 2020.
 - Himr, D., Habán, V., Pochylý, F., 2009, "Sound Speed in the Mixture Water - Air," Engineering Mechanics, Svratka, Czech Republic, May 11–14, 2009, Paper 255, pp. 393-401. 
-
