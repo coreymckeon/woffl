@@ -134,8 +134,10 @@ def jetpump_solver(
     # if the jetpump (available) discharge is below the outflow (required) discharge at highest suction
     # the well will not flow, need to pick different parameters
     if res_max < 0:
-        sonic_status = False  # add code that if the flow is no, return np.NaN
-        return np.nan, sonic_status, np.nan, np.nan, np.nan, np.nan
+        # this isn't actually a value error, the code is working as intended
+        # this provides a quick fix in the try statement in batch run
+        raise ValueError("well cannot lift at max suction pressure")
+        return np.nan, False, np.nan, np.nan, np.nan, np.nan
 
     # start secant hunting for the answer, in between the two points
     psu_list = [psu_min, psu_max]

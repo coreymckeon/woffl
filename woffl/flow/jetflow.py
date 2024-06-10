@@ -191,13 +191,14 @@ def psu_minimize(
     psu_diff = 5  # criteria for when you've converged to an answer
     n = 0  # loop counter
     while abs(psu_list[-2] - psu_list[-1]) > psu_diff:
-        psu_nxt = psu_secant(psu_list[-2], psu_list[-1], tee_list[-2], tee_list[-1])
+        # prevent suction pressure from dropping below 50
+        psu_nxt = max(psu_secant(psu_list[-2], psu_list[-1], tee_list[-2], tee_list[-1]), 50)
         tee_nxt, qoil_std, te_book = throat_entry_mach_one(psu_nxt, tsu, ken, ate, ipr_su, prop_su)
         psu_list.append(psu_nxt)
         tee_list.append(tee_nxt)
         n = n + 1
-        if n == 10:
-            raise ValueError("Suction Pressure for Minimization did not converge")
+        if n == 15:
+            raise ValueError("psu_minimize did not converge")
     # pte, vte, rho_te, mach_te = te_book.dete_zero()
     return psu_list[-1], qoil_std, te_book
 
@@ -478,10 +479,10 @@ def throat_discharge(
 
     # bal_diff = 5
     n = 0
-    while abs(bal_list[-2]) > 1:
+    while abs(bal_list[-2]) > 1:  # attempt to find ptm convergence
         ptm = max(
             ptm_secant(ptm_list[-2], ptm_list[-1], bal_list[-2], bal_list[-1]), 100
-        )  # force ptm to never go negative
+        )  # force ptm to never go below 100 psig
 
         rho_tm = prop_tm.condition(ptm, tte).rho_mix()  # density of total mixture
         vtm = sp.velocity(mtm / rho_tm, ath)

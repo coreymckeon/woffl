@@ -188,7 +188,7 @@ class BatchPump:
                     "nozzle": jetpump.noz_no,
                     "throat": jetpump.rat_ar,
                     "psu_solv": np.nan,
-                    "sonic_status": np.nan,
+                    "sonic_status": False,
                     "qoil_std": np.nan,
                     "fwat_bwpd": np.nan,
                     "qnz_bwpd": np.nan,
