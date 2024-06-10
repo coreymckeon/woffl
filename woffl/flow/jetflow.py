@@ -220,6 +220,24 @@ def psu_secant(psu1: float, psu2: float, dete1: float, dete2: float) -> float:
     return psu3
 
 
+def ptm_secant(ptm1: float, ptm2: float, bal1: float, bal2: float) -> float:
+    """Next Throat Pressure with Secant Method
+
+    Uses the secant method to calculate the next ptm to use to find a zero momentum balance.
+
+    Args:
+        ptm1 (float): Throat Pressure One, psig
+        ptm2 (float): Throat Pressure Two, psig
+        bal1 (float): Throat Momentum Balance at One, psig
+        bal2 (float): Throat Momentum Balance at Two, psig
+
+    Return:
+        ptm3 (float): Throat Pressure Three, psig
+    """
+    ptm3 = ptm2 - bal2 * (ptm1 - ptm2) / (bal1 - bal2)
+    return ptm3
+
+
 def nozzle_velocity(pni: float, pte: float, knz: float, rho_nz: float) -> float:
     """Nozzle Velocity
 
@@ -298,11 +316,189 @@ def throat_outlet_momentum(kth: float, vtm: float, ath: float, rho_tm: float) ->
         mom_fr (float): Throat Friction Momemum, lbm*ft/s2
     """
     mom_tm = sp.momentum(rho_tm, vtm, ath)
-    mom_fr = 1 / 2 * kth * mom_tm
+    mom_fr = 1 / 2 * kth * mom_tm  # this is accurate, it is lumped into the mom to psi equation
     return mom_tm, mom_fr
 
 
+def jet_velocity_head(vnz: float, rho_nz: float) -> float:
+    """Cunningham Jet Velocity Head
+
+    A parameter that Cunningham calculates in his papers called Jet Velocity Head
+    The abbreviation used to denote this is typicall a capital Z. It can be thought
+    as the pressure energy the jet is imparting on the fluid flowing in. Cunningham
+    typically works in units of lbf/ft2 instead of lbf/in2
+
+    Args:
+        vnz (float): Velocity of Nozzle, ft/s
+        rho_nz (float): Density of Nozzle Fluid, lbm/ft3
+
+    Returns:
+        cunn_z (float): Z Jet Velocity Head, lbf/in2
+    """
+    cunn_z = rho_nz * vnz**2 / (2 * 32.174 * 144)
+    return cunn_z
+
+
+def jet_pump_number(pte: float, cunn_z: float, anz: float, ate: float) -> float:
+    """Cunningham Jet Pump Number
+
+    A dimensionless number that Cunningham uses in the Liquid Jet Gas Compressor Paper
+    Used to graph performance of the jet pump across the throat. The abbreviation in
+    the Cunningham LJG paper is n
+
+    Args:
+        pte (float): Pressure of Throat Entry, psig
+        cunn_z (float): Cunningham Z Jet Velocity Head, lbf/in2
+        anz (float): Area of the nozzle, ft2
+        ate (float): Area of the throat entry, ft2
+
+    Returns:
+        cunn_n (float): n Jet Pump Number, dimensionless
+    """
+    b = anz / (anz + ate)  # cunningham nozzle to throat ratio
+    c = ate / anz  # cunningham area ratio
+    cunn_n = 2 * cunn_z * c * b**2 / pte
+    return cunn_n
+
+
+def jet_velocity_ratio(vnz: float, vte: float) -> float:
+    """Cunningham Jet Velocity Ratio
+
+    Dimensionless Number used in Cunningham Paper on Liquid Jet Gas Compressors
+    Used to estimate the throat exit pressure. The abbreviation in the Cunningham
+    LJG paper is lower case vu.
+
+    Args:
+        vnz (float): Velocity of Nozzle, ft/s
+        vte (float): Velocity of Throat Entry, ft/s
+
+    Returns:
+        cunn_v (float): v Jet Velocity Ratio, dimensionless
+    """
+    return vte / vnz
+
+
+def throat_pressure_ratio(cunn_n: float, cunn_v: float) -> tuple[float, float]:
+    """Cunningham Throat Pressure Ratio
+
+    Dimensionless Number used in Cunningham Paper on Liquid Jet Gas Compressors
+    Used to provide a theoretical pressure exit to inlet ratio, denoted as rto.
+    These values will be used as a potential starting point for a throat exit pressure
+    guess value. The value will then be refined with non-ideal iteration.
+
+    Args:
+        cunn_n (float): Cunningham Jet Pump Number, dimensionless
+        cunn_v (float): Cunningham Jet Velocity Ratio, dimensionless
+
+    Returns:
+        rto_pos (float): Positive Throat Pressure Ratio, dimensionless
+        rto_neg (float): Positive Throat Pressure Ratio, dimensionless
+    """
+    rto_pos = (1 + cunn_n + math.sqrt((1 + cunn_n) ** 2 - 4 * cunn_n * cunn_v)) / 2
+    rto_neg = (1 + cunn_n - math.sqrt((1 + cunn_n) ** 2 - 4 * cunn_n * cunn_v)) / 2
+    return rto_pos, rto_neg
+
+
+def throat_momentum_balance(
+    pte: float, ptm: float, mom_nz: float, mom_te: float, mom_tm: float, mom_fr: float, ath: float
+) -> float:
+    """Throat Momentum Balance
+
+    Momentum balance across the throat that should equal zero for the correct
+    term of ptm. The output of this equation can be fed to a secant solver to
+    calculate the next best guess of ptm. Hopefully this is more robust method.
+
+    Args:
+        pte (float): Pressure of Throat Entry, psig
+        ptm (float): Throat Mixture Pressure, psig
+        mom_nz (float): Nozzle Momentum, lbm*ft/s2
+        mom_te (float): Entry Momentum, lbm*ft/s2
+        mom_tm (float): Throat Mixting Momentum, lbm*ft/s2
+        mom_fr (float): Throat Friction Momemum, lbm*ft/s2
+        ath (float): Area of the Throat, ft2
+
+    Returns:
+        mom_bal (float): Balanced pressure or momentume, psig"""
+    mom_in = sp.mom_to_psi(mom_nz + mom_te, ath)
+    mom_out = sp.mom_to_psi(mom_fr + mom_tm, ath)
+    mom_bal = pte + mom_in - ptm - mom_out
+    return mom_bal
+
+
 def throat_discharge(
+    pte: float,
+    tte: float,
+    kth: float,
+    vnz: float,
+    anz: float,
+    rho_nz: float,
+    vte: float,
+    ate: float,
+    rho_te: float,
+    prop_tm: ResMix,
+):
+    """Throat Discharge Pressure
+
+    Solves the throat mixture equation of the jet pump. Calculates throat differntial pressure.
+    Use the throat entry pressure and differential pressure to calculate throat mix pressure.
+    Account for the discharge pressure is greater than the inlet pressure. Loops through the
+    calculated discharge pressure until a converged answer occurs.
+
+    Args:
+        pte (float): Pressure of Throat Entry, psig
+        tte (float): Temperature of Throat Entry, deg F
+        kth (float): Friction of Throat Mix, Unitless
+        vnz (float): Velocity of Nozzle, ft/s
+        anz (float): Area of Nozzle, ft2
+        rho_nz (float): Density of Nozzle Fluid, lbm/ft3
+        vte (float): Velocity of Throat Entry Mixture, ft/s
+        ate (float): Area of Throat Entry, ft2
+        rho_te (float): Density of Throat Entry Mixture, lbm/ft3
+        prop_tm (ResMix): Properties of the Throat Mixture
+
+    Returns:
+        ptm (float): Throat Discharge Pressure, psig
+    """
+    mom_nz, mom_te = throat_inlet_momentum(vnz, anz, rho_nz, vte, ate, rho_te)
+    mnz = sp.massflow(rho_nz, vnz, anz)  # mass flow of the nozzle
+    mte = sp.massflow(rho_te, vte, ate)  # mass flow of the throat entry
+    ath = anz + ate  # area of the throat
+    mtm = mnz + mte  # mass flow of total mixture
+
+    ptm_list = [3 * pte, 2 * pte]  # initial guesses, 3 and 2 times pte
+    bal_list = []
+
+    # generate the list of guesses to work off of
+    for ptm in ptm_list:
+        rho_tm = prop_tm.condition(ptm, tte).rho_mix()  # density of total mixture
+        vtm = sp.velocity(mtm / rho_tm, ath)
+        mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
+        mom_bal = throat_momentum_balance(pte, ptm, mom_nz, mom_te, mom_tm, mom_fr, ath)
+        bal_list.append(mom_bal)
+
+    # bal_diff = 5
+    n = 0
+    while abs(bal_list[-2]) > 1:
+        ptm = max(
+            ptm_secant(ptm_list[-2], ptm_list[-1], bal_list[-2], bal_list[-1]), 100
+        )  # force ptm to never go negative
+
+        rho_tm = prop_tm.condition(ptm, tte).rho_mix()  # density of total mixture
+        vtm = sp.velocity(mtm / rho_tm, ath)
+        mom_tm, mom_fr = throat_outlet_momentum(kth, vtm, ath, rho_tm)
+        mom_bal = throat_momentum_balance(pte, ptm, mom_nz, mom_te, mom_tm, mom_fr, ath)
+
+        ptm_list.append(ptm)
+        bal_list.append(mom_bal)
+
+        n += 1
+        if n == 15:
+            raise ValueError("throat mixture did not converge")
+
+    return ptm_list[-1]
+
+
+def throat_discharge_old(
     pte: float,
     tte: float,
     kth: float,
@@ -343,7 +539,12 @@ def throat_discharge(
     ath = anz + ate  # area of the throat
     mtm = mnz + mte  # mass flow of total mixture
 
-    ptm_guess = 3 * pte  # start with a guess that ptm is twice of pte
+    cunn_z = jet_velocity_head(vnz, rho_nz)
+    cunn_n = jet_pump_number(pte, cunn_z, anz, ate)
+    cunn_v = jet_velocity_ratio(vnz, vte)
+    rto_pos, rto_neg = throat_pressure_ratio(cunn_n, cunn_v)
+
+    ptm_guess = 10 * pte  # start with a guess that ptm is twice of pte
     rho_tm = prop_tm.condition(ptm_guess, tte).rho_mix()  # density of total mixture
     vtm = sp.velocity(mtm / rho_tm, ath)
 
