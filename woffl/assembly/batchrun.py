@@ -258,39 +258,109 @@ class BatchPump:
 def batch_results_mask(
     qoil_std: list[float] | np.ndarray | pd.Series,
     qwat_tot: list[float] | np.ndarray | pd.Series,
+    nozzles: list[str] | np.ndarray | pd.Series,
 ) -> list[bool]:
     """Batch Results Mask
 
     Create a mask of booleans for the batch results that can be passed into either a dataframe,
-    numpy array or list to filter out the unnecessary data. The unnecessary data are points where
-    either a np.nan exists, or the oil rate is lower for a higher amount of water. The filtered
-    points can then be passed to another function to calculate the gradient.
+    numpy array or list as a filter. The initial filter is selecting the throat with the highest
+    oil rate for each nozzle size. Any points where the oil rate is lower for a higher amount of
+    water are then next removed. The filtered points can be passed to a function to calculate the gradient.
 
     Args:
         qoil_std (list): Oil Prod. Rate, BOPD
         qwat_tot (list): Total Water Rate, BWPD
+        nozzles (list): List of the Nozzles, strings
 
     Returns:
         mask (list): True is a point to calc gradient, False means a point exists with better oil and less water
     """
-    mask = []
-    oil_copy = qoil_std.copy()
-    wat_copy = qwat_tot.copy()
+    # convert all the lists into numpy arrays
+    if isinstance(qoil_std, list):
+        qoil_std = np.array(qoil_std)
+    if isinstance(qwat_tot, list):
+        qwat_tot = np.array(qwat_tot)
+    if isinstance(nozzles, list):
+        nozzles = np.array(nozzles)
 
-    for oil_main, wat_main in zip(qoil_std, qwat_tot):
-        if oil_main == np.nan:
-            status = False
-        else:
-            for oil_comp, wat_comp in zip(oil_copy, wat_copy):  # oil and water compare
-                oil_diff = oil_comp - oil_main
-                wat_diff = wat_comp - wat_main
-                if (oil_diff > 0) and (wat_diff < 0):  # if another point has more oil for less water
-                    status = False  # trash that point and exit the first loop
+    mask = np.zeros(len(qoil_std), dtype=bool)
+
+    unique_nozzles = np.unique(nozzles)  # unique nozzles in the list
+    for noz in unique_nozzles:
+        idxs = np.where(nozzles == noz)[0]  # indicies where the nozzle is a specific nozzle
+        max_idx = idxs[np.argmax(qoil_std[idxs])]
+        mask[max_idx] = True
+
+    # compare the points to themselves to look for where oil is higher for less water
+    for idx_main in np.where(mask)[0]:
+        for idx_sub in np.where(mask)[0]:
+            if idx_main != idx_sub:
+                if qoil_std[idx_main] < qoil_std[idx_sub] and qwat_tot[idx_main] > qwat_tot[idx_sub]:
+                    mask[idx_main] = False
                     break
-                else:
-                    status = True  # has to maintain the True status for the entire loop through
-        mask.append(status)
-    return mask
+
+    return mask.tolist()
+
+
+def A_row(qwat: float) -> tuple[float, float, float]:
+    """Row for A Matrix
+
+    Return Properly formatted coefficients for a second degree polynominal.
+
+    Args:
+        qwat (float): Single Value Flow of Water, BWPD
+
+    Returns:
+        a1 (float): Squared Value of Flow
+        a2 (float): Single Value of Flow
+        a3 (float): Zero, Force Intercept at 0,0
+    """
+    return qwat**2, qwat, 0.0
+
+
+def A_matrix(qwat_list: list[float] | np.ndarray | pd.Series) -> np.ndarray:
+    """Create an A Matrix
+
+    Used to solve for coefficients for curve fitting second order polynominal.
+
+    Args:
+        qwat_list (list): List of Water Flowrates, bwpd
+
+    Returns:
+        a_mat (np.ndarray): Numpy Array"""
+    a_mat = np.empty([len(qwat_list), 3])
+    for i, qwat in enumerate(qwat_list):
+        a_mat[i, 0], a_mat[i, 1], a_mat[i, 2] = A_row(qwat)
+    return a_mat
+
+
+# def second_poly_coeff()
+
+
+def batch_curve_fit(
+    qoil_filt: list[float] | np.ndarray | pd.Series, qwat_filt: list[float] | np.ndarray | pd.Series
+) -> tuple[float, float, float]:
+    """Batch Curve Fit
+
+    Curve fit the filtered datapoints from the Batch Results
+
+    Args:
+        qoil_filt (list): Filtered Oil Array, bopd
+        qwat_filt (list): Filtered Water Array, bwpd
+
+    Returns:
+        a1 (float): Coefficient for Curve Fit
+        a2 (float): Coefficient for Curve Fit
+        a3 (float): Coefficient for Curve Fit
+    """
+    a_mat = A_matrix(qwat_filt)
+    b_ray = np.array(qoil_filt)
+
+    a_inv = np.linalg.inv(np.matmul(a_mat.T, a_mat))
+    a_fin = np.matmul(a_inv, a_mat.T)
+
+    x_hat = np.matmul(a_fin, b_ray)
+    return x_hat[0], x_hat[1], x_hat[2]
 
 
 def batch_results_plot(

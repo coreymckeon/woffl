@@ -6,14 +6,11 @@ PVT, JetPump and Outflow. Used to create a final solution to compare.
 
 import numpy as np
 
+from woffl.flow import InFlow
 from woffl.flow import jetflow as jf
-from woffl.flow import jetplot as jplt
 from woffl.flow import outflow as of
 from woffl.flow import singlephase as sp
-from woffl.flow.inflow import InFlow
-from woffl.geometry.jetpump import JetPump
-from woffl.geometry.pipe import Annulus, Pipe
-from woffl.geometry.wellprofile import WellProfile
+from woffl.geometry import Annulus, JetPump, Pipe, WellProfile
 from woffl.pvt.resmix import ResMix
 
 
