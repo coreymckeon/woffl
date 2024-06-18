@@ -11,6 +11,7 @@ from itertools import product
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy import optimize as opt
 
 import woffl.assembly.sysops as so
 from woffl.flow.inflow import InFlow
@@ -302,7 +303,7 @@ def batch_results_mask(
     return mask.tolist()
 
 
-def A_row(qwat: float) -> tuple[float, float, float]:
+def A_row(qwat: float) -> tuple[float, float]:
     """Row for A Matrix
 
     Return Properly formatted coefficients for a second degree polynominal.
@@ -313,9 +314,9 @@ def A_row(qwat: float) -> tuple[float, float, float]:
     Returns:
         a1 (float): Squared Value of Flow
         a2 (float): Single Value of Flow
-        a3 (float): Zero, Force Intercept at 0,0
+        a3 (float): Value of One
     """
-    return qwat**2, qwat, 0.0
+    return qwat**2, qwat
 
 
 def A_matrix(qwat_list: list[float] | np.ndarray | pd.Series) -> np.ndarray:
@@ -328,18 +329,15 @@ def A_matrix(qwat_list: list[float] | np.ndarray | pd.Series) -> np.ndarray:
 
     Returns:
         a_mat (np.ndarray): Numpy Array"""
-    a_mat = np.empty([len(qwat_list), 3])
+    a_mat = np.empty([len(qwat_list), 2])
     for i, qwat in enumerate(qwat_list):
-        a_mat[i, 0], a_mat[i, 1], a_mat[i, 2] = A_row(qwat)
+        a_mat[i, 0], a_mat[i, 1] = A_row(qwat)
     return a_mat
 
 
-# def second_poly_coeff()
-
-
-def batch_curve_fit(
+def batch_curve_fit_two(
     qoil_filt: list[float] | np.ndarray | pd.Series, qwat_filt: list[float] | np.ndarray | pd.Series
-) -> tuple[float, float, float]:
+) -> tuple[float, float]:
     """Batch Curve Fit
 
     Curve fit the filtered datapoints from the Batch Results
@@ -356,11 +354,36 @@ def batch_curve_fit(
     a_mat = A_matrix(qwat_filt)
     b_ray = np.array(qoil_filt)
 
-    a_inv = np.linalg.inv(np.matmul(a_mat.T, a_mat))
+    a_avg = np.matmul(a_mat.T, a_mat)
+    a_inv = np.linalg.inv(a_avg)
     a_fin = np.matmul(a_inv, a_mat.T)
 
     x_hat = np.matmul(a_fin, b_ray)
-    return x_hat[0], x_hat[1], x_hat[2]
+    return x_hat[0], x_hat[1]
+
+
+def exp_model(x: float, a: float, b: float) -> float:
+    return a - np.exp(-b * x)
+
+
+def batch_curve_fit(
+    qoil_filt: list[float] | np.ndarray | pd.Series, qwat_filt: list[float] | np.ndarray | pd.Series
+) -> tuple[float, float]:
+    """Batch Curve Fit
+
+    Curve fit the filtered datapoints from the Batch Results
+
+    Args:
+        qoil_filt (list): Filtered Oil Array, bopd
+        qwat_filt (list): Filtered Water Array, bwpd
+
+    Returns:
+        a (float): Coefficient for Curve Fit
+        b (float): Coefficient for Curve Fit
+    """
+    initial_guesses = [max(qoil_filt), 0.0001]
+    params, _ = opt.curve_fit(exp_model, qwat_filt, qoil_filt, p0=initial_guesses)
+    return params[0], params[1]
 
 
 def batch_results_plot(
@@ -370,10 +393,13 @@ def batch_results_plot(
     throats: list[str] | np.ndarray | pd.Series,
     wellname: str = "na",
     mask: list[bool] = [],
+    coeff: list[float] = [],
 ) -> None:
     """Batch Results Plot
 
     Create a plot to view the results from the batch run.
+    Add an additional argument that would be the coefficients for
+    the curve fit of the upper portion of the data.
 
     Args:
         qoil_std (list): Oil Prod. Rate, BOPD
@@ -400,6 +426,12 @@ def batch_results_plot(
                 ax.plot(water, oil, marker="o", linestyle="", color="b")  # a one optimized point
 
             ax.annotate(jp, xy=(water, oil), xycoords="data", xytext=(1.5, 1.5), textcoords="offset points")
+
+    # if coeff: # need some kind of if statement to add or filter out the curve fit
+    wat_fit = np.linspace(0, np.nanmax(qwat_tot), 100)
+    # oil_fit = coeff[0] * wat_fit**2 + coeff[1] * wat_fit + coeff[2]
+    oil_fit = exp_model(wat_fit, coeff[0], coeff[1])
+    ax.plot(wat_fit, oil_fit, marker="", linestyle="--", color="r")
 
     ax.set_xlabel("Total Water Rate, BWPD")
     ax.set_ylabel("Produced Oil Rate, BOPD")

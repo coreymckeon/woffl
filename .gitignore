@@ -3,6 +3,7 @@
 
 # specific files
 batch_debug.py
+exp_curve_fit.py
 
 # Editors
 .vscode/

@@ -6,4 +6,4 @@ Well Bore, Well Profile and Surface Constraints. Each assembly is unique and pos
 its own set of unique results to be analyzed.
 """
 
-from .batchrun import BatchPump, batch_results_mask, batch_results_plot
+from .batchrun import BatchPump, batch_curve_fit, batch_results_mask, batch_results_plot
