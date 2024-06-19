@@ -303,72 +303,54 @@ def batch_results_mask(
     return mask.tolist()
 
 
-def A_row(qwat: float) -> tuple[float, float]:
-    """Row for A Matrix
-
-    Return Properly formatted coefficients for a second degree polynominal.
+def exp_model(x, a, b, c):
+    """Exponential Curve Fit
 
     Args:
-        qwat (float): Single Value Flow of Water, BWPD
+        x (float): Input Value
+        a (float): Asymptote of the Curve
+        b (float): Constant
+        c (float): Constant
 
-    Returns:
-        a1 (float): Squared Value of Flow
-        a2 (float): Single Value of Flow
-        a3 (float): Value of One
+    Returns
+        y (float): Value at point x
     """
-    return qwat**2, qwat
+    return a - b * np.exp(-c * x)
 
 
-def A_matrix(qwat_list: list[float] | np.ndarray | pd.Series) -> np.ndarray:
-    """Create an A Matrix
-
-    Used to solve for coefficients for curve fitting second order polynominal.
+def exp_deriv(x, b, c):
+    """Derivative of Exponential Curve Fit
 
     Args:
-        qwat_list (list): List of Water Flowrates, bwpd
+        x (float): Input Value
+        b (float): Constant
+        c (float): Constant
 
-    Returns:
-        a_mat (np.ndarray): Numpy Array"""
-    a_mat = np.empty([len(qwat_list), 2])
-    for i, qwat in enumerate(qwat_list):
-        a_mat[i, 0], a_mat[i, 1] = A_row(qwat)
-    return a_mat
-
-
-def batch_curve_fit_two(
-    qoil_filt: list[float] | np.ndarray | pd.Series, qwat_filt: list[float] | np.ndarray | pd.Series
-) -> tuple[float, float]:
-    """Batch Curve Fit
-
-    Curve fit the filtered datapoints from the Batch Results
-
-    Args:
-        qoil_filt (list): Filtered Oil Array, bopd
-        qwat_filt (list): Filtered Water Array, bwpd
-
-    Returns:
-        a1 (float): Coefficient for Curve Fit
-        a2 (float): Coefficient for Curve Fit
-        a3 (float): Coefficient for Curve Fit
+    Returns
+        s (float): Slope at point x
     """
-    a_mat = A_matrix(qwat_filt)
-    b_ray = np.array(qoil_filt)
-
-    a_avg = np.matmul(a_mat.T, a_mat)
-    a_inv = np.linalg.inv(a_avg)
-    a_fin = np.matmul(a_inv, a_mat.T)
-
-    x_hat = np.matmul(a_fin, b_ray)
-    return x_hat[0], x_hat[1]
+    return c * b * np.exp(-c * x)
 
 
-def exp_model(x: float, a: float, b: float) -> float:
-    return a - np.exp(-b * x)
+def rev_exp_deriv(s, b, c):
+    """Derivative of Exponential Curve Fit, solve for x
+
+    Args:
+        s (float): Slope of the curve
+        b (float): Constant
+        c (float): Constant
+
+    Returns
+        x (float): Output x value
+    """
+    x = -1 / c * np.log(s / (c * b))
+    x = max(x, 0)  # make sure s doesn't drop below zero
+    return x
 
 
 def batch_curve_fit(
     qoil_filt: list[float] | np.ndarray | pd.Series, qwat_filt: list[float] | np.ndarray | pd.Series
-) -> tuple[float, float]:
+) -> tuple[float, float, float]:
     """Batch Curve Fit
 
     Curve fit the filtered datapoints from the Batch Results
@@ -378,12 +360,11 @@ def batch_curve_fit(
         qwat_filt (list): Filtered Water Array, bwpd
 
     Returns:
-        a (float): Coefficient for Curve Fit
-        b (float): Coefficient for Curve Fit
+        coeff (float): a, b and c coefficients for curve fit
     """
-    initial_guesses = [max(qoil_filt), 0.0001]
-    params, _ = opt.curve_fit(exp_model, qwat_filt, qoil_filt, p0=initial_guesses)
-    return params[0], params[1]
+    initial_guesses = [max(qoil_filt), max(qoil_filt), 0.001]
+    coeff, _ = opt.curve_fit(exp_model, qwat_filt, qoil_filt, p0=initial_guesses)
+    return coeff
 
 
 def batch_results_plot(
@@ -393,7 +374,7 @@ def batch_results_plot(
     throats: list[str] | np.ndarray | pd.Series,
     wellname: str = "na",
     mask: list[bool] = [],
-    coeff: list[float] = [],
+    coeff: list[float] | tuple[float, float, float] = [],
 ) -> None:
     """Batch Results Plot
 
@@ -429,9 +410,8 @@ def batch_results_plot(
 
     # if coeff: # need some kind of if statement to add or filter out the curve fit
     wat_fit = np.linspace(0, np.nanmax(qwat_tot), 100)
-    # oil_fit = coeff[0] * wat_fit**2 + coeff[1] * wat_fit + coeff[2]
-    oil_fit = exp_model(wat_fit, coeff[0], coeff[1])
-    ax.plot(wat_fit, oil_fit, marker="", linestyle="--", color="r")
+    oil_fit = exp_model(wat_fit, coeff[0], coeff[1], coeff[2])
+    ax.plot(wat_fit, oil_fit, marker="", linestyle="--", color="r", label="fit")
 
     ax.set_xlabel("Total Water Rate, BWPD")
     ax.set_ylabel("Produced Oil Rate, BOPD")
@@ -440,5 +420,79 @@ def batch_results_plot(
         ax.title.set_text("Jet Pump Performance")
     else:
         ax.title.set_text(f"{wellname} Jet Pump Performance")
+    plt.show()
+
+
+def gradient_back(oil_rate: np.ndarray, water_rate: np.ndarray) -> list:
+    """Gradient Calculations Feed Backwards
+
+    Completes a numerical gradient calculation between jet pumps. Adds a zero on
+    the oil and water arrays that are passed to it. These ensures points exists for
+    doing a reverse gradient calculation.
+
+    Args:
+        qoil_filt (list): Filtered Oil Prod. Rate, BOPD
+        qwat_filt (list): Filtered Total Water Rate, BWPD
+
+    Returns:
+        gradient (list): Gradient of Oil-Rate / Water-Rate, bbl/bbl
+    """
+    oil_rate = np.append(0, oil_rate)  # add a zero to the start
+    water_rate = np.append(0, water_rate)  # add a zero to the start
+
+    if len(oil_rate) != len(water_rate):
+        raise ValueError("Oil and Water Arrays Must be the same length")
+
+    grad = []
+    for i in range(len(oil_rate)):
+        if i != 0:
+            grad.append((oil_rate[i] - oil_rate[i - 1]) / (water_rate[i] - water_rate[i - 1]))
+        else:
+            pass
+    return grad
+
+
+def batch_fit_plot(
+    qoil_filt: list[float] | np.ndarray | pd.Series,
+    qwat_filt: list[float] | np.ndarray | pd.Series,
+    coeff: tuple[float, float, float],
+) -> None:
+    """Batch Fit Plot
+
+    Create a plot to view the analytical curve fit and derivative.
+    Used for QC of Data and Information.
+
+
+    Args:
+        qoil_filt (list): Filtered Oil Prod. Rate, BOPD
+        qwat_filt (list): Filtered Total Water Rate, BWPD
+        coeff (tuple): Tuple of Curve Fit Coefficients
+    """
+    a, b, c = coeff  # parse out the coefficients for easier understanding
+
+    fit_water = np.linspace(0, np.nanmax(qwat_filt), 1000)
+
+    fit_oil = [exp_model(wat, a, b, c) for wat in fit_water]
+    fit_grad = [exp_deriv(wat, b, c) for wat in fit_water]
+    num_grad = gradient_back(qoil_filt, qwat_filt)  # type: ignore
+
+    # Plotting the original data and the fitted curve
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))  # 1 row, 2 columns
+
+    ax1.scatter(qwat_filt, qoil_filt, label="Original Data")
+    ax1.plot(fit_water, fit_oil, color="red", linestyle="--", label="Exponential Fit")
+    ax1.set_title("f(x) = a-b*exp(-c*x)")
+    ax1.set_xlabel("Water Rate BWPD")
+    ax1.set_ylabel("Oil Rate, BOPD")
+    ax1.legend()
+
+    ax2.plot(qwat_filt, num_grad, marker="o", linestyle="", label="Numerical Derivative")
+    ax2.plot(fit_water, fit_grad, color="r", linestyle="--", label="Derivative Fit")
+    ax2.set_title("df/dx = c*b*exp(-c*x)")
+    ax2.set_xlabel("Water Rate BWPD")
+    ax2.set_ylabel("Marginal Oil Water Ratio, BBL/BBL")
+    ax2.legend()
+
+    fig.suptitle(f"Model Coeff: a = {round(a, 1)}, b = {round(b, 1)}, c = {round(c, 5)}")
 
     plt.show()
