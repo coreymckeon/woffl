@@ -374,7 +374,6 @@ def batch_results_plot(
     throats: list[str] | np.ndarray | pd.Series,
     wellname: str = "na",
     mask: list[bool] = [],
-    coeff: list[float] | tuple[float, float, float] = [],
 ) -> None:
     """Batch Results Plot
 
@@ -407,11 +406,6 @@ def batch_results_plot(
                 ax.plot(water, oil, marker="o", linestyle="", color="b")  # a one optimized point
 
             ax.annotate(jp, xy=(water, oil), xycoords="data", xytext=(1.5, 1.5), textcoords="offset points")
-
-    # if coeff: # need some kind of if statement to add or filter out the curve fit
-    wat_fit = np.linspace(0, np.nanmax(qwat_tot), 100)
-    oil_fit = exp_model(wat_fit, coeff[0], coeff[1], coeff[2])
-    ax.plot(wat_fit, oil_fit, marker="", linestyle="--", color="r", label="fit")
 
     ax.set_xlabel("Total Water Rate, BWPD")
     ax.set_ylabel("Produced Oil Rate, BOPD")
