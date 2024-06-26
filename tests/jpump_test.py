@@ -30,9 +30,9 @@ ipr_su = InFlow(qwf=246, pwf=1049, pres=1400)  # define an ipr
 
 e41_jp = JetPump(nozzle_no="13", area_ratio="A", ken=0.03, kth=0.3, kdi=0.4)
 
-mpu_oil = BlackOil.schrader_oil()  # class method
-mpu_wat = FormWater.schrader_wat()  # class method
-mpu_gas = FormGas.schrader_gas()  # class method
+mpu_oil = BlackOil.schrader()  # class method
+mpu_wat = FormWater.schrader()  # class method
+mpu_gas = FormGas.schrader()  # class method
 
 form_wc = 0.894
 form_gor = 600  # formation gor

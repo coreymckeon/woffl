@@ -46,6 +46,6 @@ result_dict = e41_batch.batch_run(jp_list)
 
 df = pd.DataFrame(result_dict)
 
-mask_pump = batch_results_mask(df["qoil_std"], df["total_water"])
+mask_pump = batch_results_mask(df["qoil_std"], df["total_water"], df["nozzle"])
 
 batch_results_plot(df["qoil_std"], df["total_water"], df["nozzle"], df["throat"], wellname="MPE-41", mask=mask_pump)
